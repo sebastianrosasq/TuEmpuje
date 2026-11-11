@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="docs/assets/tuempuje-icono.svg" alt="Símbolo de TuEmpuje: dos piezas forman una escalera" width="150">
+</p>
+
 # TuEmpuje
 
 **Oportunidades de trabajo, primeras experiencias y colaboración profesional**
@@ -68,6 +72,9 @@ Los recorridos, ejemplos y funcionalidades descritos representan el alcance prop
 ```text
 TuEmpuje/
 ├── docs/
+│   ├── assets/
+│   │   ├── tuempuje-icono.svg
+│   │   └── tuempuje-simbolo.svg
 │   ├── 00-plan-maestro.md
 │   ├── 01-requisitos.md
 │   ├── 02-plan-y-pruebas.md

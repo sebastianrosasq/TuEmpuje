@@ -2,7 +2,13 @@
 
 El diseño de TuEmpuje debe facilitar la búsqueda y publicación de oportunidades mediante pantallas claras y recorridos sencillos
 
-La identidad visual del proyecto, incluidos el logotipo y los colores, está pendiente de definición
+## Identidad visual
+
+El símbolo reúne dos formas que construyen una escalera y representan el apoyo entre personas que buscan y ofrecen oportunidades
+
+La dirección visual utiliza azul noche `#202B3D` y gris azulado `#506174`, con fondos claros y una versión monocromática prevista para superficies oscuras
+
+El símbolo es una propuesta de identidad para el proyecto y sus antecedentes de marca todavía deben verificarse
 
 ## Objetivos
 

@@ -232,7 +232,7 @@ Trabajo necesario: seleccionar producto permitido; confirmar elegibilidad y medi
 
 ## 11. Proceso de trabajo
 
-El proyecto usará sprints diarios ligeros, adaptados a una sola persona, inspirados en la gestión iterativa; no se afirma que esto cumpla por sí solo todos los elementos formales de Scrum. La [Guía Scrum](https://scrumguides.org/scrum-guide.html) define backlog, objetivo del producto, revisión e incremento.
+El proyecto usará ciclos de trabajo diarios y ligeros, inspirados en la gestión iterativa y ajustados al alcance y plazo disponibles. La [Guía Scrum](https://scrumguides.org/scrum-guide.html) define backlog, objetivo del producto, revisión e incremento.
 
 Cada día: escoger un objetivo comprobable → diseñar el flujo → implementar una parte vertical que atraviese las capas necesarias → probar y corregir → mostrar el resultado → registrar decisiones y siguiente prioridad. El backlog se actualiza al terminar cada jornada y el alcance se ajusta al tiempo disponible.
 
