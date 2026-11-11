@@ -1,0 +1,26 @@
+# Android y Gradle
+.gradle/
+**/build/
+local.properties
+.idea/
+*.iml
+
+# JavaScript y herramientas web
+node_modules/
+dist/
+coverage/
+
+# Configuración y secretos locales
+.env
+.env.*
+!.env.example
+!.env.*.example
+**/google-services.json
+**/service-account*.json
+*.jks
+*.keystore
+
+# Archivos generados
+.DS_Store
+Thumbs.db
+*.log
