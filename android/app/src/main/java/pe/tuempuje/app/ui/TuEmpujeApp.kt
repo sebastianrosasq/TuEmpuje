@@ -114,7 +114,7 @@ fun TuEmpujeApp(services: FirebaseServices?, model: OpportunityViewModel = viewM
             composable("actividad") { ActivityScreen(model) { nav.navigate("detalle/$it") { launchSingleTop = true } } }
             composable("perfil") {
                 if (services != null) {
-                    AccountScreen(services.auth, services.firestore)
+                    AccountScreen(services.auth, services.firestore, services.isLocal)
                 } else {
                     ProfileScreen()
                 }

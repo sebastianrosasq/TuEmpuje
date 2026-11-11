@@ -217,7 +217,7 @@ TuEmpuje/
 └── tests/                   # pruebas integradas y escenarios compartidos
 ```
 
-Es una estructura objetivo. Existe una base Android de demostración y un entorno local de Firebase para cuentas, perfiles y pruebas de reglas; todavía no se ha configurado un proyecto en la nube. La organización se ajustará a las necesidades reales, sin crear módulos vacíos.
+Es una estructura objetivo. Existe una base Android de demostración con cuentas y perfiles en un entorno local o en Firebase de desarrollo, junto con pruebas de reglas. Las publicaciones y postulaciones siguen simuladas. La organización se ajustará a las necesidades reales, sin crear módulos vacíos.
 
 ## 10. Pagos: diseño a investigar al final
 

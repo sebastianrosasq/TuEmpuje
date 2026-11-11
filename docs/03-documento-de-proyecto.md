@@ -154,7 +154,7 @@ Los requisitos completos, sus prioridades y los permisos están en [Requisitos y
 | Diseño | Herramientas de prototipado. | Revisar pantallas y recorridos antes de construir las interfaces. |
 | Pagos, después | Proveedor por evaluar. | Procesar transacciones cuando se cumplan los requisitos técnicos y operativos. |
 
-Firebase se utiliza inicialmente mediante emuladores locales para probar identidad, perfiles y reglas. Antes de configurar la nube, se comprobarán las exigencias del curso y los costos aplicables. Android Developers recomienda separar la interfaz y la capa de datos, emplear repositorios y organizar el estado de la interfaz de forma clara. [Recomendaciones de arquitectura Android](https://developer.android.com/topic/architecture/recommendations).
+Firebase cuenta con emuladores locales para las pruebas y un proyecto de desarrollo en la nube para identidad y perfiles con datos ficticios. Antes de un piloto real se revisarán las exigencias del curso, los costos y la configuración de producción. Android Developers recomienda separar la interfaz y la capa de datos, emplear repositorios y organizar el estado de la interfaz de forma clara. [Recomendaciones de arquitectura Android](https://developer.android.com/topic/architecture/recommendations).
 
 La aplicación de cada tema visto durante el semestre, sus prioridades y formas de comprobarlo se detallan en [Temas del curso y aplicación en TuEmpuje](05-temas-del-curso.md).
 

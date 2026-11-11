@@ -29,8 +29,8 @@ Si la autenticación real no se termina para la presentación, se puede mostrar 
 | B-01 | Revisar restricciones del curso y preparar entorno. | Ninguno. | Pendiente |
 | B-02 | Diseñar navegación y pantallas iniciales. | Requisitos iniciales. | Prototipo verificado en emulador |
 | B-03 | Crear proyecto Android. | B-01. | Base compilada y abierta en emulador |
-| B-04 | Configurar proveedor de identidad y datos de prueba. | B-01, cuenta y acceso disponibles. | Emuladores locales verificados, proyecto en la nube pendiente |
-| B-05 | Registrar y mantener perfiles. | B-03, B-04. | Registro, acceso y edición verificados en entorno local |
+| B-04 | Configurar proveedor de identidad y datos de prueba. | B-01, cuenta y acceso disponibles. | Emuladores y proyecto de desarrollo en la nube configurados |
+| B-05 | Registrar y mantener perfiles. | B-03, B-04. | Registro y perfil verificados en nube de desarrollo, edición y acceso comprobados localmente |
 | B-06 | Publicar oportunidades desde Android. | B-04, B-05. | Pendiente |
 | B-07 | Ver oportunidades en Android. | B-03, B-06. | Pendiente |
 | B-08 | Postular y ver postulantes. | B-05, B-06, B-07. | Pendiente |
@@ -87,7 +87,13 @@ Además: pruebas unitarias de validación y reglas; integración de repositorios
 - El análisis detectó y permitió corregir dos errores de compatibilidad de estilos con Android 8
 - La auditoría de las herramientas npm de desarrollo mantiene 14 avisos moderados documentados en [Identidad y reglas de datos](../infra/README.md)
 
-Estas pruebas corresponden al emulador local, no validan un proyecto Firebase en la nube ni sustituyen las pruebas en dispositivos físicos
+Estas pruebas corresponden al entorno local y no sustituyen las pruebas en dispositivos físicos
+
+### Resultado en la nube de desarrollo
+
+- Android registró una cuenta ficticia y creó su perfil mediante Authentication y Firestore
+- Una segunda cuenta y una solicitud anónima recibieron acceso denegado al intentar leer ese perfil privado
+- Se eliminaron las cuentas y los perfiles creados para la prueba, las reglas de oportunidades y postulaciones aún deben comprobarse en la nube junto con sus recorridos Android
 
 ## 6. Criterios de salida
 

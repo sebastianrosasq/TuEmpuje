@@ -1,8 +1,8 @@
 # Identidad y reglas de datos
 
-Esta carpeta contiene la configuración local de Firebase Authentication y Firestore para TuEmpuje, junto con las reglas y sus pruebas
+Esta carpeta contiene la configuración de Firebase Authentication y Firestore para TuEmpuje, junto con las reglas y sus pruebas
 
-La aplicación se conecta al proyecto ficticio `demo-tuempuje` mediante los emuladores locales, sin desplegar servicios ni almacenar datos reales
+La aplicación puede usar el proyecto ficticio `demo-tuempuje` mediante emuladores o el proyecto de desarrollo `tuempuje-dev-e1835b` en la nube, ambos entornos son para datos ficticios
 
 ## Requisitos
 
@@ -40,6 +40,22 @@ $env:PATH = "$env:JAVA_HOME\bin;$env:PATH"
 ```
 
 No es necesario iniciar sesión en Firebase para estas pruebas con el proyecto `demo-tuempuje`, no se ejecuta ningún despliegue a la nube
+
+## Proyecto de desarrollo en la nube
+
+El proyecto [TuEmpuje Desarrollo](https://console.firebase.google.com/project/tuempuje-dev-e1835b/overview) tiene habilitados Authentication con correo y contraseña y una base Firestore con las reglas de este repositorio
+
+La base de desarrollo se creó automáticamente en `nam5`, una región multirregional de Estados Unidos, la ubicación de producción se decidirá por separado y no se ha habilitado la facturación durante esta configuración
+
+Para compilar Android con este entorno, una persona con acceso al proyecto debe descargar la configuración de la aplicación `pe.tuempuje.app` desde Firebase Console y guardarla en `android/app/google-services.json`
+
+Después, desde `infra/` ejecutar `npm ci` y `npm run android:config`, el segundo comando genera `android/firebase.local.properties` y no reemplaza un archivo existente
+
+Desde `android/` compilar con `./gradlew.bat assembleDebug '-PtuempujeBackend=cloud'`, este APK usa internet y puede probarse en un emulador o teléfono físico, la compilación sin esa opción sigue utilizando los emuladores locales
+
+Los dos archivos locales de configuración están excluidos de Git, la configuración de Firebase contiene identificadores de aplicación y no debe confundirse con una clave privada o una contraseña, las cuentas del equipo deben recibir sus propios permisos en el proyecto
+
+Los cambios posteriores a las reglas deben comprobarse en el emulador y desplegarse de forma explícita al proyecto correspondiente, la configuración actual no habilita una versión de producción
 
 ## Dependencias de desarrollo
 

@@ -51,9 +51,9 @@ Las tecnologías pueden ajustarse según los requisitos del curso y las necesida
 
 El proyecto se encuentra en **desarrollo inicial**
 
-El repositorio incluye una primera versión Android con navegación, registro, acceso y edición de perfil en un entorno local de prueba
+El repositorio incluye una primera versión Android con navegación, registro, acceso y edición de perfil
 
-Las cuentas y perfiles usan los emuladores locales de Firebase, todavía no existe un proyecto Firebase conectado a la nube
+Las cuentas y los perfiles pueden probarse con los emuladores locales o con un proyecto Firebase de desarrollo en la nube, utilizando datos ficticios
 
 Las publicaciones y postulaciones son simuladas y se pierden al cerrar el proceso, la web, Gemini y los pagos aún no están implementados
 
@@ -61,13 +61,21 @@ La interfaz utiliza Material 3 Expressive con una versión preliminar de la bibl
 
 ## Ejecutar el prototipo Android
 
-Para probar las cuentas, iniciar primero los emuladores locales de Firebase siguiendo [Identidad y reglas de datos](infra/README.md)
+La compilación predeterminada utiliza los emuladores locales de Firebase, para probar las cuentas hay que iniciarlos siguiendo [Identidad y reglas de datos](infra/README.md)
 
 Abrir la carpeta `android/` en Android Studio con JDK 17 y el SDK de Android 36 instalados, sincronizar Gradle y ejecutar la aplicación en el emulador de Android con API 26 o superior
 
 La dirección de desarrollo `10.0.2.2` conecta el emulador Android con los servicios del equipo anfitrión, por lo que esta configuración de cuenta no funciona directamente en un teléfono físico
 
 En Windows también se puede compilar desde `android/` con `./gradlew.bat assembleDebug`, el APK generado se encontrará en `android/app/build/outputs/apk/debug/`
+
+Para compilar contra Firebase de desarrollo, preparar la configuración local según [Identidad y reglas de datos](infra/README.md) y ejecutar desde `android/`:
+
+```powershell
+./gradlew.bat assembleDebug '-PtuempujeBackend=cloud'
+```
+
+Ambas compilaciones usan la misma ruta de salida del APK, por lo que la última reemplaza a la anterior, la conexión a la nube está disponible solo en versiones de depuración y no constituye una configuración de producción
 
 ## Documentación
 

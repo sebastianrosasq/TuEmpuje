@@ -10,7 +10,7 @@ La página web presentará TuEmpuje y dirigirá a las personas a la aplicación 
 
 Este documento presenta la arquitectura prevista para la primera versión
 
-Existe una base Android con cuentas y perfiles conectados a emuladores locales de Firebase, mientras que las oportunidades permanecen simuladas y no existe un proyecto en la nube configurado
+Existe una base Android con cuentas y perfiles conectados a emuladores locales o a un proyecto Firebase de desarrollo en la nube, mientras que las oportunidades y postulaciones permanecen simuladas
 
 El modo de prueba usa el proyecto ficticio `demo-tuempuje`, Authentication y Firestore locales; la configuración detallada y las reglas están en [Identidad y reglas de datos](../infra/README.md)
 

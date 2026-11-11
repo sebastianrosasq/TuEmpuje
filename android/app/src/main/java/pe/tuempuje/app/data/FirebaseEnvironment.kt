@@ -12,30 +12,40 @@ import pe.tuempuje.app.BuildConfig
 data class FirebaseServices(
     val auth: FirebaseAuth,
     val firestore: FirebaseFirestore,
+    val isLocal: Boolean,
 )
 
 object FirebaseEnvironment {
     private var services: FirebaseServices? = null
 
     @Synchronized
-    fun localDemo(context: Context): FirebaseServices? {
+    fun create(context: Context): FirebaseServices? {
         if (!BuildConfig.DEBUG) return null
         services?.let { return it }
 
+        val isLocal = BuildConfig.FIREBASE_LOCAL
+        val projectId = if (isLocal) "demo-tuempuje" else BuildConfig.FIREBASE_PROJECT_ID
+        val applicationId = if (isLocal) "1:123456789:android:0000000000000000" else BuildConfig.FIREBASE_APPLICATION_ID
+        val apiKey = if (isLocal) "demo-local-only" else BuildConfig.FIREBASE_API_KEY
+        if (listOf(projectId, applicationId, apiKey).any { it.isBlank() }) return null
+
         val options = FirebaseOptions.Builder()
-            .setProjectId("demo-tuempuje")
-            .setApplicationId("1:123456789:android:0000000000000000")
-            .setApiKey("demo-local-only")
+            .setProjectId(projectId)
+            .setApplicationId(applicationId)
+            .setApiKey(apiKey)
             .build()
-        val app = FirebaseApp.getApps(context).firstOrNull { it.name == "tuempuje-local" }
-            ?: FirebaseApp.initializeApp(context, options, "tuempuje-local")
-        val auth = FirebaseAuth.getInstance(app).apply { useEmulator("10.0.2.2", 9099) }
+        val appName = if (isLocal) "tuempuje-local" else "tuempuje-cloud"
+        val app = FirebaseApp.getApps(context).firstOrNull { it.name == appName }
+            ?: FirebaseApp.initializeApp(context, options, appName)
+        val auth = FirebaseAuth.getInstance(app).apply {
+            if (isLocal) useEmulator("10.0.2.2", 9099)
+        }
         val firestore = FirebaseFirestore.getInstance(app).apply {
-            useEmulator("10.0.2.2", 8080)
+            if (isLocal) useEmulator("10.0.2.2", 8080)
             firestoreSettings = FirebaseFirestoreSettings.Builder()
                 .setLocalCacheSettings(MemoryCacheSettings.newBuilder().build())
                 .build()
         }
-        return FirebaseServices(auth, firestore).also { services = it }
+        return FirebaseServices(auth, firestore, isLocal).also { services = it }
     }
 }

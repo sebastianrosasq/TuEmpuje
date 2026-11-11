@@ -10,7 +10,7 @@ import pe.tuempuje.app.ui.theme.TuEmpujeTheme
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        val services = FirebaseEnvironment.localDemo(applicationContext)
+        val services = FirebaseEnvironment.create(applicationContext)
         setContent {
             TuEmpujeTheme { TuEmpujeApp(services = services) }
         }

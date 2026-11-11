@@ -36,7 +36,7 @@ class AccountViewModel(
     val state: StateFlow<AccountUiState> = mutableState.asStateFlow()
     private var operationActive = false
     private var revision = 0
-    private val unconfirmedProfileMessage = "No se confirmó el guardado del perfil, el servicio local podría estar apagado y la operación podría completarse al reconectar, puedes reintentar"
+    private val unconfirmedProfileMessage = "No se confirmó el guardado del perfil, el servicio de prueba podría no estar disponible y la operación podría completarse al reconectar, puedes reintentar"
 
     private val authListener = FirebaseAuth.AuthStateListener { source ->
         if (!operationActive) refresh(source.currentUser)
@@ -69,7 +69,7 @@ class AccountViewModel(
             return
         }
         runOperation(
-            timeoutMessage = "No se confirmó la creación de la cuenta, comprueba el servicio local e intenta iniciar sesión antes de registrarte otra vez",
+            timeoutMessage = "No se confirmó la creación de la cuenta, comprueba el servicio de prueba e intenta iniciar sesión antes de registrarte otra vez",
         ) {
             val user = withTimeout(12_000) { auth.createUserWithEmailAndPassword(emailValue, password).await() }.user
                 ?: error("No se creó la cuenta")
@@ -156,7 +156,7 @@ class AccountViewModel(
                 if (request != revision || auth.currentUser?.uid != user.uid) return@launch
                 mutableState.value = signedIn(user).copy(
                     profileLoadFailed = true,
-                    error = "No se pudo consultar el perfil, comprueba que el servicio local esté encendido y reintenta",
+                    error = "No se pudo consultar el perfil, comprueba la conexión y el servicio de prueba y reintenta",
                 )
             } catch (exception: CancellationException) {
                 throw exception
@@ -164,7 +164,7 @@ class AccountViewModel(
                 if (request != revision || auth.currentUser?.uid != user.uid) return@launch
                 mutableState.value = signedIn(user).copy(
                     profileLoadFailed = true,
-                    error = "No se pudo consultar el perfil, comprueba que el servicio local esté encendido y reintenta",
+                    error = "No se pudo consultar el perfil, comprueba la conexión y el servicio de prueba y reintenta",
                 )
             }
         }
@@ -191,7 +191,7 @@ class AccountViewModel(
     }
 
     private fun runOperation(
-        timeoutMessage: String = "No se pudo confirmar la operación, comprueba que el servicio local esté encendido y reintenta",
+        timeoutMessage: String = "No se pudo confirmar la operación, comprueba la conexión y el servicio de prueba y reintenta",
         block: suspend () -> Unit,
     ) {
         if (operationActive) return

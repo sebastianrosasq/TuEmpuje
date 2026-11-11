@@ -37,7 +37,7 @@ import pe.tuempuje.app.auth.AccountViewModel
 import pe.tuempuje.app.auth.AccountViewModelFactory
 
 @Composable
-fun AccountScreen(auth: FirebaseAuth, firestore: FirebaseFirestore) {
+fun AccountScreen(auth: FirebaseAuth, firestore: FirebaseFirestore, isLocal: Boolean) {
     val factory = remember(auth, firestore) { AccountViewModelFactory(auth, firestore) }
     val account: AccountViewModel = viewModel(factory = factory)
     val state by account.state.collectAsState()
@@ -53,7 +53,8 @@ fun AccountScreen(auth: FirebaseAuth, firestore: FirebaseFirestore) {
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         Text(
-            "Entorno de prueba local · usa únicamente datos ficticios",
+            if (isLocal) "Entorno de prueba local · usa únicamente datos ficticios"
+            else "Entorno de desarrollo en la nube · usa únicamente datos ficticios",
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
