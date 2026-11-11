@@ -23,7 +23,7 @@ La documentación reúne las decisiones de producto y desarrollo necesarias para
 
 | Documento | Contenido |
 |---|---|
-| [Guía de diseño](04-prompt-figma-make.md) | Referencia para el prototipo de interfaz |
+| [Diseño de interfaces](04-diseno.md) | Criterios de diseño y pantallas principales |
 | [Plan de inteligencia artificial](06-plan-inteligencia-artificial.md) | Asistencia con Gemini y evaluación de un modelo propio |
 
 Los documentos describen el alcance previsto y deben actualizarse a medida que se implementen y prueben las funciones

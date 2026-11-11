@@ -1,12 +1,8 @@
-<div align="center">
-
-<img src="docs/assets/portada.svg" alt="TuEmpuje, oportunidades para dar el siguiente paso" width="100%">
+# TuEmpuje
 
 **Oportunidades de trabajo, primeras experiencias y colaboración profesional**
 
 Arequipa, Perú · Proyecto de programación móvil
-
-</div>
 
 ---
 
@@ -64,7 +60,7 @@ Los recorridos, ejemplos y funcionalidades descritos representan el alcance prop
 | [Plan de trabajo y pruebas](docs/02-plan-y-pruebas.md) | Prioridades, entregables y escenarios de prueba |
 | [Temas del curso](docs/05-temas-del-curso.md) | Aplicación de Kotlin, Compose, Room y Firebase |
 | [Plan de inteligencia artificial](docs/06-plan-inteligencia-artificial.md) | Asistencia con Gemini y evaluación de un modelo propio |
-| [Guía de diseño](docs/04-prompt-figma-make.md) | Referencia para construir el prototipo de interfaz |
+| [Diseño de interfaces](docs/04-diseno.md) | Criterios de diseño y pantallas principales |
 | [Guía de desarrollo](docs/07-desarrollo.md) | Organización del repositorio y forma de trabajo |
 
 ## Estructura actual
@@ -72,12 +68,11 @@ Los recorridos, ejemplos y funcionalidades descritos representan el alcance prop
 ```text
 TuEmpuje/
 ├── docs/
-│   ├── assets/             Identidad visual
 │   ├── 00-plan-maestro.md
 │   ├── 01-requisitos.md
 │   ├── 02-plan-y-pruebas.md
 │   ├── 03-documento-de-proyecto.md
-│   ├── 04-prompt-figma-make.md
+│   ├── 04-diseno.md
 │   ├── 05-temas-del-curso.md
 │   ├── 06-plan-inteligencia-artificial.md
 │   ├── 07-desarrollo.md

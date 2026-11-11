@@ -4,7 +4,7 @@
 
 Este documento reúne la base de producto, técnica y operativa. Complementos: [requisitos y criterios de aceptación](01-requisitos.md) y [plan diario y pruebas](02-plan-y-pruebas.md). Una propuesta o hipótesis identificada aquí no es una función ya construida, un hecho validado ni una promesa de una fecha de lanzamiento.
 
-La formulación del problema, los objetivos y sus indicadores se desarrolla en el [documento de proyecto](03-documento-de-proyecto.md). El [prompt para Figma Make](04-prompt-figma-make.md) traduce el flujo prioritario a un prototipo, sin sustituir la implementación Android. La [relación de temas del curso](05-temas-del-curso.md) explica dónde se usarían Room, MVVM, Retrofit y las demás herramientas estudiadas.
+La formulación del problema, los objetivos y sus indicadores se desarrolla en el [documento de proyecto](03-documento-de-proyecto.md). Los [criterios de diseño](04-diseno.md) describen las pantallas y el recorrido prioritario. La [relación de temas del curso](05-temas-del-curso.md) explica dónde se usarían Room, MVVM, Retrofit y las demás herramientas estudiadas.
 
 Se ha elegido Gemini como proveedor inicial de asistencia con IA. El [plan de inteligencia artificial](06-plan-inteligencia-artificial.md) describe la integración propuesta y el posible entrenamiento de un modelo propio en paralelo cuando existan tiempo y datos adecuados.
 
@@ -172,9 +172,9 @@ Entidades iniciales; los campos definitivos se ajustan al proveedor y diseño:
 
 | Componente | Propuesta | Motivo | Alternativa / límite |
 |---|---|---|---|
-| Android | Kotlin + Jetpack Compose, Material 3, Navigation Compose y ViewModel con flujo unidireccional de datos. | Aprovecha los temas del curso y separa interfaz, estado y datos. | El diseño de Figma Make sirve de referencia; no genera por sí solo la app Kotlin. |
+| Android | Kotlin + Jetpack Compose, Material 3, Navigation Compose y ViewModel con flujo unidireccional de datos. | Aprovecha los temas del curso y separa interfaz, estado y datos. | Las interfaces se implementarán y probarán en Android. |
 | Web cliente y administración | React + TypeScript, con diseño responsive. | Comparte componentes y estado entre paneles. | Una sola web con áreas por permisos; si el curso exige otra tecnología, ajustar. |
-| Autenticación y datos | Firebase Authentication + Cloud Firestore. | Servicio administrado, SDK para Android y web, menor infraestructura para una persona. | No es obligatorio: si el curso exige servidor propio, evaluar Ktor + PostgreSQL. Configuración y costos se verifican antes de usar cuentas reales. |
+| Autenticación y datos | Firebase Authentication + Cloud Firestore. | Servicio administrado y SDK disponibles para Android y web. | No es obligatorio: si el curso exige servidor propio, evaluar Ktor + PostgreSQL. Configuración y costos se verifican antes de usar cuentas reales. |
 | Datos locales Android | Room sobre SQLite para oportunidades guardadas y caché local controlada. | Permite aplicar persistencia estudiada y consultar datos disponibles con mala conexión. | Firestore también tiene caché propia; el repositorio debe definir cuál se utiliza para cada lectura y cómo se actualiza. |
 | API HTTP Android | Retrofit para una API REST específica cuando se defina un servicio propio o externo. | Permite aplicar el consumo de API aprendido en el curso. | No se necesita Retrofit para acceder a Firestore mediante su SDK; no duplicar escrituras de oportunidades. |
 | Asistencia con IA | Gemini para sugerir un borrador de oportunidad que revisará el cliente. | Ayuda a estructurar tareas y detectar campos faltantes. | Integración pendiente. Si falla, el formulario manual permanece disponible. |
@@ -186,7 +186,7 @@ Entidades iniciales; los campos definitivos se ajustan al proveedor y diseño:
 | Control de versiones | Git y repositorio remoto cuando se configure. | Historial y revisión de cambios. | Repositorio local preparado; remoto pendiente. |
 | Pagos | Proveedor por seleccionar; Mercado Pago es candidato para evaluar en Perú. | Ofrece documentación de marketplace y entorno de prueba. | Integración al final; disponibilidad, medios, comisiones y elegibilidad deben confirmarse para el caso concreto. |
 
-La arquitectura no necesita microservicios: con un solo desarrollador conviene un sistema modular pequeño. Android Developers recomienda capas de interfaz y datos, repositorios y flujo de datos unidireccional; esas recomendaciones se adaptan al proyecto. [Documentación de arquitectura Android](https://developer.android.com/topic/architecture/recommendations).
+La arquitectura se organiza en componentes según las necesidades del proyecto. Android Developers recomienda capas de interfaz y datos, repositorios y flujo de datos unidireccional; esas recomendaciones se adaptan al proyecto. [Documentación de arquitectura Android](https://developer.android.com/topic/architecture/recommendations).
 
 ```text
 Android (Kotlin + Compose) ──┐
@@ -265,7 +265,7 @@ Después de publicar: responder incidencias, revisar errores, mantener dependenc
 
 | Riesgo o incógnita | Impacto | Tratamiento |
 |---|---|---|
-| Un desarrollador y 7–10 días | Alto | Priorizar un solo recorrido integrado; panel y autenticación se abordan con servicios administrados si resultan viables. |
+| Plazo de 7–10 días | Alto | Priorizar un solo recorrido integrado; panel y autenticación se abordan con servicios administrados si resultan viables. |
 | Falta de trabajos reales | Alto | Validar con negocios y profesionales; el prototipo usa datos ficticios. |
 | Complejidad de permisos y datos | Alto | Acceso por recurso, reglas y pruebas antes de cualquier piloto real. |
 | Pasarela y retiros no compatibles | Alto | Dejar pagos al final y confirmar con proveedor; usar sandbox antes de producción. |

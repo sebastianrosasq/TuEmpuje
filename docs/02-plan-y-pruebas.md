@@ -1,6 +1,6 @@
 # TuEmpuje: plan de trabajo y pruebas
 
-**Fecha de planificación:** 11 de noviembre de 2026 · **Equipo:** una persona · **Horizonte estimado:** de siete a diez días · **Primer avance académico:** 12 de noviembre de 2026
+**Fecha de planificación:** 11 de noviembre de 2026 · **Modalidad:** proyecto grupal · **Horizonte estimado:** de siete a diez días · **Primer avance académico:** 12 de noviembre de 2026
 
 ## 1. Orden de construcción
 

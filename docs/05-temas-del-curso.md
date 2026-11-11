@@ -2,7 +2,7 @@
 
 **Fecha:** 11 de noviembre de 2026 · **Fuente:** relación de temas proporcionada para las semanas 1 a 15 · **Estado:** propuesta antes de implementar.
 
-El proyecto debe demostrar lo aprendido en el curso sin añadir funciones que no aporten al flujo. Por el plazo de una persona y aproximadamente una semana a semana y media, se prioriza primero el recorrido publicador → oportunidad → postulación → selección. Los temas avanzados se incorporan si hay tiempo y se cumplen sus requisitos técnicos.
+El proyecto debe demostrar lo aprendido en el curso sin añadir funciones que no aporten al flujo. Para el periodo de entrega se prioriza el recorrido publicador → oportunidad → postulación → selección. Los temas avanzados se incorporarán según el tiempo disponible y sus requisitos técnicos.
 
 ## 1. Relación de los temas con TuEmpuje
 
@@ -80,7 +80,7 @@ La API y sus rutas todavía no están definidas. No se debe inventar un servicio
 6. Una petición Retrofit real, únicamente si se integró una API y se puede explicar su finalidad.
 7. Las mejoras restantes y su prioridad, sin presentarlas como funciones terminadas.
 
-La maqueta de Figma Make sirve para revisar el diseño. La implementación Android debe desarrollarse y probarse en Kotlin y Android Studio.
+El prototipo de interfaz sirve para revisar el diseño. La implementación Android debe desarrollarse y probarse en Kotlin y Android Studio.
 
 ## Referencias
 

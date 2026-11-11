@@ -28,6 +28,8 @@ Esta estructura representa una dirección de trabajo y puede ajustarse a las nec
 5. Actualizar la documentación si cambió alguna decisión
 6. Agrupar los archivos relacionados en un commit
 
+El equipo revisará el resultado de cada etapa y actualizará las decisiones y pendientes del proyecto
+
 La primera meta de implementación es conectar la publicación desde la web con la consulta y postulación en Android
 
 ## Commits

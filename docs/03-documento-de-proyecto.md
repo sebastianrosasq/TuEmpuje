@@ -2,7 +2,7 @@
 
 **Versión:** 0.2 · **Fecha:** 11 de noviembre de 2026
 
-**Curso:** Programación móvil · **Responsable:** estudiante del proyecto
+**Curso:** Programación móvil · **Modalidad:** proyecto grupal
 
 **Área de aplicación inicial:** Arequipa, Perú · **Estado:** análisis y diseño
 
@@ -47,7 +47,7 @@ Desarrollar un prototipo funcional de TuEmpuje, compuesto por una aplicación An
 | Objetivo específico | Cómo se verificará en la entrega académica | Referencia |
 |---|---|---|
 | 1. Definir los actores, sus necesidades y las reglas de publicación y postulación. | Documento de requisitos con roles, permisos, reglas y criterios de aceptación. | RN-01 a RN-17. |
-| 2. Diseñar las pantallas principales de Android y la web de clientes. | Prototipo navegable que muestre el flujo de publicación, consulta, postulación y selección. | Mapa de pantallas y prompt para Figma Make. |
+| 2. Diseñar las pantallas principales de Android y la web de clientes. | Prototipo navegable que muestre el flujo de publicación, consulta, postulación y selección. | Mapa de pantallas y criterios de diseño. |
 | 3. Implementar cuentas y perfiles básicos para postulantes y clientes. | Dos cuentas de prueba con perfiles diferenciados y acceso a sus funciones correspondientes. | RF-01 y RF-02. |
 | 4. Implementar la publicación y consulta de oportunidades sobre una fuente de datos compartida. | Se crea una oportunidad en la web y se comprueba que aparece con los mismos datos en Android. | RF-03, RF-04 y PA-03. |
 | 5. Permitir la postulación y gestión de candidatos. | Una cuenta postula en Android y el cliente visualiza y selecciona al candidato desde la web. | RF-06 a RF-09; PA-04 a PA-06. |
@@ -151,7 +151,7 @@ Los requisitos completos, sus prioridades y los permisos están en [Requisitos y
 | Asistencia de IA | Gemini. | Proponer un borrador de oportunidad que el cliente revisa y edita. |
 | Ubicación, widget y tareas diferidas | Google Maps SDK, Jetpack Glance y WorkManager, según disponibilidad. | Mejoras opcionales para ubicar oportunidades, consultar guardados y ejecutar tareas diferibles. |
 | Versiones | Git. | Mantener historial y controlar cambios del proyecto. |
-| Diseño | Figma Make. | Explorar un prototipo navegable antes de construir las interfaces. |
+| Diseño | Herramientas de prototipado. | Revisar pantallas y recorridos antes de construir las interfaces. |
 | Pagos, después | Proveedor por evaluar. | Procesar transacciones cuando se cumplan los requisitos técnicos y operativos. |
 
 La elección de Firebase es provisional. Se deberá comprobar que el curso lo permita, que sus costos sean adecuados y que el proyecto pueda configurarse. Android Developers recomienda separar la interfaz y la capa de datos, emplear repositorios y organizar el estado de la interfaz de forma clara. [Recomendaciones de arquitectura Android](https://developer.android.com/topic/architecture/recommendations).
@@ -164,7 +164,7 @@ Los clientes Android y web no deben decidir por sí solos si una persona tiene p
 
 ```text
 TuEmpuje/
-├── docs/       Documentación, requisitos, plan y prompt de diseño
+├── docs/       Documentación, requisitos, plan y criterios de diseño
 ├── android/    Aplicación Android en Kotlin
 ├── web/        Interfaz web para clientes y administración
 ├── backend/    Funciones de negocio que deban ejecutarse en servidor
@@ -187,7 +187,7 @@ El trabajo se organizará en iteraciones diarias. Cada una tendrá un resultado 
 | Pruebas y entrega | Verificación del recorrido, permisos, errores y presentación. |
 | Evolución | Moderación, comunicaciones, pagos y condiciones para un piloto real. |
 
-El detalle por día está en [Plan de trabajo y pruebas](02-plan-y-pruebas.md). Dado que trabaja una persona y el plazo informado es de una a una semana y media, no se garantiza que todas las funciones posteriores formen parte de la entrega.
+El detalle por día está en [Plan de trabajo y pruebas](02-plan-y-pruebas.md). El equipo priorizará las funciones según el tiempo disponible y el avance de cada etapa.
 
 ## 12. Evaluación y pruebas
 
@@ -201,7 +201,7 @@ Para seguridad se tomarán como referencia [OWASP MASVS](https://mas.owasp.org/M
 
 | Tema | Situación actual | Acción necesaria |
 |---|---|---|
-| Tiempo | Desarrollo individual y plazo estimado de 7 a 10 días. | Priorizar el recorrido principal y ajustar diariamente. |
+| Tiempo | Plazo estimado de 7 a 10 días. | Priorizar el recorrido principal y ajustar diariamente. |
 | Exigencias del curso | No se han confirmado todas las restricciones técnicas. | Verificar herramientas, fecha y criterios de evaluación. |
 | Demanda local | No se ha probado que los clientes usarán TuEmpuje. | Conversar con profesionales y negocios y observar contrataciones reales en un piloto posterior. |
 | Datos personales | Todavía no existe una política ni un sistema implementado. | Diseñar permisos y revisar la normativa antes de usar datos reales. |
@@ -212,7 +212,6 @@ Para seguridad se tomarán como referencia [OWASP MASVS](https://mas.owasp.org/M
 
 - [Android Developers: arquitectura recomendada](https://developer.android.com/topic/architecture/recommendations).
 - [Android Developers: accesibilidad](https://developer.android.com/guide/topics/ui/accessibility/views/apps-views?hl=en).
-- [Figma: cómo crear y mejorar un archivo de Figma Make](https://help.figma.com/hc/en-us/articles/31304485164695-Create-a-Figma-Make-file).
 - [Workana: funcionamiento de proyectos](https://help.workana.com/hc/es/articles/360041829933--C%C3%B3mo-funcionan-los-proyectos-en-Workana).
 - [UWork: información de la plataforma](https://www.u-work.org/index.html).
 - [Parker Dewey: proyectos y funcionamiento](https://www.parkerdewey.com/faq).
