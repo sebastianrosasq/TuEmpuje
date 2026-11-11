@@ -59,6 +59,7 @@ Los recorridos, ejemplos y funcionalidades descritos representan el alcance prop
 |---|---|
 | [Documento de proyecto](docs/03-documento-de-proyecto.md) | Problema, justificación, objetivos y alcance |
 | [Plan maestro](docs/00-plan-maestro.md) | Flujo general, arquitectura y etapas |
+| [Arquitectura](docs/08-arquitectura.md) | Componentes, datos y decisiones técnicas |
 | [Requisitos](docs/01-requisitos.md) | Reglas de negocio, permisos y criterios de aceptación |
 | [Plan de trabajo y pruebas](docs/02-plan-y-pruebas.md) | Prioridades, entregables y escenarios de prueba |
 | [Temas del curso](docs/05-temas-del-curso.md) | Aplicación de Kotlin, Compose, Room y Firebase |
@@ -79,7 +80,9 @@ TuEmpuje/
 │   ├── 04-prompt-figma-make.md
 │   ├── 05-temas-del-curso.md
 │   ├── 06-plan-inteligencia-artificial.md
-│   └── 07-desarrollo.md
+│   ├── 07-desarrollo.md
+│   ├── 08-arquitectura.md
+│   └── README.md
 ├── .editorconfig
 ├── .gitattributes
 ├── .gitignore
