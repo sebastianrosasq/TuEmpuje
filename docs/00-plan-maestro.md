@@ -217,7 +217,7 @@ TuEmpuje/
 └── tests/                   # pruebas integradas y escenarios compartidos
 ```
 
-Es una estructura objetivo. No se han creado las carpetas de código ni se ha configurado Firebase. Se ajustará a los requisitos del curso y a las necesidades reales; no se crearán módulos vacíos solo para aparentar complejidad.
+Es una estructura objetivo. Ya existe una base Android de demostración; Firebase y los demás componentes todavía no están configurados. La organización se ajustará a las necesidades reales, sin crear módulos vacíos.
 
 ## 10. Pagos: diseño a investigar al final
 

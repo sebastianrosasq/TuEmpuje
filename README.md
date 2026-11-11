@@ -49,11 +49,17 @@ Las tecnologías pueden ajustarse según los requisitos del curso y las necesida
 
 ## Estado
 
-El proyecto se encuentra en **análisis y planificación**
+El proyecto se encuentra en **desarrollo inicial**
 
-El repositorio contiene la documentación y las decisiones iniciales, todavía no incluye la aplicación, la web ni servicios configurados
+El repositorio incluye una primera versión Android con navegación y datos ficticios en memoria
 
-Los recorridos, ejemplos y funcionalidades descritos representan el alcance propuesto y no deben interpretarse como funciones terminadas
+Las publicaciones y postulaciones del prototipo son de demostración y se pierden al cerrar el proceso, Firebase, la web, Gemini y los pagos aún no están configurados
+
+## Ejecutar el prototipo Android
+
+Abrir la carpeta `android/` en Android Studio con JDK 17 y el SDK de Android 36 instalados, sincronizar Gradle y ejecutar la aplicación en un emulador o dispositivo con Android 8 o superior
+
+En Windows también se puede compilar desde `android/` con `./gradlew.bat assembleDebug`, el APK generado se encontrará en `android/app/build/outputs/apk/debug/`
 
 ## Documentación
 
@@ -64,6 +70,8 @@ Los recorridos, ejemplos y funcionalidades descritos representan el alcance prop
 | [Arquitectura](docs/08-arquitectura.md) | Componentes, datos y decisiones técnicas |
 | [Requisitos](docs/01-requisitos.md) | Reglas de negocio, permisos y criterios de aceptación |
 | [Plan de trabajo y pruebas](docs/02-plan-y-pruebas.md) | Prioridades, entregables y escenarios de prueba |
+| [Plan de 16 sprints](docs/09-sprints.md) | Objetivos, dependencias y criterios de aceptación |
+| [Diseño y navegación](docs/10-diseno-y-navegacion.md) | Dirección visual, recorridos e interacciones |
 | [Temas del curso](docs/05-temas-del-curso.md) | Aplicación de Kotlin, Compose, Room y Firebase |
 | [Plan de inteligencia artificial](docs/06-plan-inteligencia-artificial.md) | Asistencia con Gemini y evaluación de un modelo propio |
 | [Diseño de interfaces](docs/04-diseno.md) | Criterios de diseño y pantallas principales |
@@ -73,8 +81,10 @@ Los recorridos, ejemplos y funcionalidades descritos representan el alcance prop
 
 ```text
 TuEmpuje/
+├── android/                Proyecto Android en Kotlin y Compose
 ├── docs/
 │   ├── assets/
+│   │   ├── prototipo-inicio.png
 │   │   ├── tuempuje-icono.svg
 │   │   └── tuempuje-simbolo.svg
 │   ├── 00-plan-maestro.md
@@ -86,6 +96,8 @@ TuEmpuje/
 │   ├── 06-plan-inteligencia-artificial.md
 │   ├── 07-desarrollo.md
 │   ├── 08-arquitectura.md
+│   ├── 09-sprints.md
+│   ├── 10-diseno-y-navegacion.md
 │   └── README.md
 ├── .editorconfig
 ├── .gitattributes
@@ -93,7 +105,7 @@ TuEmpuje/
 └── README.md
 ```
 
-Los directorios de Android, web y servicios se incorporarán cuando comience su implementación
+Los directorios de la web y los servicios se incorporarán cuando comience su implementación
 
 ## Criterios de trabajo
 

@@ -4,23 +4,11 @@
 
 ## 1. Orden de construcción
 
-El objetivo de cada día es entregar una parte visible que se conecte con lo anterior. Si un día consume más tiempo, se desplazan los elementos siguientes; no se eliminan controles de seguridad para habilitar usuarios reales.
+El [plan de 16 sprints](09-sprints.md) reúne los objetivos, entregables, dependencias y criterios de aceptación de cada iteración
 
-| Sprint | Resultado | Trabajo principal | Evidencia |
-|---|---|---|---|
-| 0 | Bases y recorrido definidos. | Plan, requisitos, mapa de pantallas, decisiones técnicas, backlog, diseño del flujo y prototipo inicial si el tiempo alcanza. | Documentos y explicación del recorrido; distinguir boceto y función real. |
-| 1 | Avance visible. | Proyecto Android inicial; navegación; pantallas de oportunidades y publicación; datos de prueba. Conectar una fuente compartida si es viable. | Abrir la aplicación y demostrar lo que ya funciona, explicando límites. |
-| 2 | Acceso y perfiles. | Configurar identidad y datos; registro, acceso, permisos básicos y perfiles de cliente/postulante. | Dos cuentas de prueba con perfiles diferenciados; errores comprensibles. |
-| 3 | Publicación real. | Crear y listar una oportunidad desde Android; validar campos y propiedad; persistir datos. | Crear una oferta y verla tras volver a consultar. |
-| 4 | Descubrimiento Android. | Listado, detalle, filtros y conexión a la misma fuente de datos. | La oferta creada por una cuenta aparece al consultar con otra. |
-| 5 | Postulación. | Crear postulación desde Android; impedir duplicados; listar postulantes en la app. | Un candidato de prueba postula y el cliente ve su registro. |
-| 6 | Selección y seguimiento. | Selección, límite de vacantes, estado consultable y acuerdo básico. | Cliente selecciona y el postulante ve el estado. |
-| 7 | Cierre del recorrido. | Finalización, historial básico si es viable y manejo de errores. | Demostración completa de publicación a trabajo finalizado. |
-| 8 | Calidad. | Corregir fallos; comprobar autorización y estados vacíos; evaluar reportes según tiempo. | Pruebas de permisos y recorrido en emulador. |
-| 9–10, si están disponibles | Entrega y refuerzo. | Documentación de instalación y arquitectura; pruebas de dispositivos; preparación de presentación y video; mejoras priorizadas. | Versión reproducible y relación clara de pendientes. |
-| Posterior al flujo principal | Pasarela y producción. | Revisar modelo de cobro, proveedor, sandbox, webhooks y operación; después seguridad, regulación y habilitación real. | Registro de pruebas y validación del proveedor. |
+El calendario se ajustará según el tiempo y el avance, sin eliminar controles de seguridad para habilitar usuarios reales
 
-El calendario se ajustará según el tiempo disponible y el avance de cada iteración. La web se plantea como una página de presentación posterior que dirigirá a la descarga cuando esté disponible. La integración de pagos se reserva para una etapa posterior al recorrido académico principal.
+La web se plantea como una página de presentación posterior y la integración de pagos se reserva para después del recorrido académico principal
 
 ## 2. Prioridades si falta tiempo
 
@@ -40,7 +28,7 @@ Si la autenticación real no se termina para la presentación, se puede mostrar 
 |---|---|---|---|
 | B-01 | Revisar restricciones del curso y preparar entorno. | Ninguno. | Pendiente |
 | B-02 | Diseñar navegación y pantallas iniciales. | Requisitos iniciales. | Pendiente |
-| B-03 | Crear proyecto Android. | B-01. | Pendiente |
+| B-03 | Crear proyecto Android. | B-01. | Base compilada y abierta en emulador |
 | B-04 | Configurar proveedor de identidad y datos de prueba. | B-01, cuenta y acceso disponibles. | Pendiente |
 | B-05 | Registrar y mantener perfiles. | B-03, B-04. | Pendiente |
 | B-06 | Publicar oportunidades desde Android. | B-04, B-05. | Pendiente |

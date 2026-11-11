@@ -10,7 +10,7 @@ La página web presentará TuEmpuje y dirigirá a las personas a la aplicación 
 
 Este documento presenta la arquitectura prevista para la primera versión
 
-Las aplicaciones y servicios todavía no están implementados
+Existe una base Android de demostración con información en memoria, mientras que la página y los servicios compartidos todavía no están implementados
 
 ## Componentes
 
