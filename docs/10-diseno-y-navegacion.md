@@ -4,9 +4,10 @@ Este documento define la dirección visual y las reglas de interacción prevista
 
 Los componentes y recorridos descritos se incorporarán por etapas y su presencia en este documento no implica que ya estén implementados
 
-La siguiente captura corresponde al prototipo Android inicial, con datos ficticios en memoria
+Las capturas corresponden al prototipo Android en modo claro y oscuro, con datos ficticios en memoria
 
 <img src="assets/prototipo-inicio.png" alt="Pantalla de inicio del prototipo de TuEmpuje en Android" width="320">
+<img src="assets/prototipo-oscuro.png" alt="Pantalla de inicio del prototipo de TuEmpuje en modo oscuro" width="320">
 
 ## Dirección visual
 
@@ -15,6 +16,12 @@ TuEmpuje usa como base el azul noche `#202B3D` y el gris azulado `#506174`, eleg
 La interfaz buscará comunicar profundidad mediante capas bien separadas, superficies translúcidas, bordes discretos y sombras suaves
 
 El contenido de cada oportunidad conservará una superficie legible y estable para que el título, las condiciones y el pago se puedan consultar con facilidad
+
+El prototipo utiliza `MaterialExpressiveTheme` de Material 3 `1.5.0-alpha18`, una versión preliminar que requiere dependencias de Compose también preliminares y debe revisarse antes de una publicación real
+
+Se eligió esta versión para conservar la configuración actual de Android y probar la dirección visual, las versiones posteriores se evaluarán junto con sus requisitos de SDK y Gradle [Versiones de Material 3](https://developer.android.com/jetpack/androidx/releases/compose-material3)
+
+El tema define colores para apariencia clara y oscura, tipografía y formas compartidas, mientras que la barra inferior utiliza una superficie translúcida sin desenfoque real de fondo
 
 ### Referencia de Liquid Glass
 
@@ -94,6 +101,8 @@ Cada botón visible debe conducir a una acción disponible o comunicar clarament
 La primera etapa utilizará Android Studio, Jetpack Compose y Material 3
 
 Las vistas previas de Compose, el emulador y las pruebas en dispositivos permitirán revisar la interfaz a medida que se construya
+
+En el emulador se comprobaron ambas apariencias, texto ampliado en el inicio, navegación entre secciones, conservación del borrador y retorno desde el detalle con la búsqueda activa
 
 No se ha definido una biblioteca externa de desenfoque ni un sistema de animaciones adicional para la primera entrega
 

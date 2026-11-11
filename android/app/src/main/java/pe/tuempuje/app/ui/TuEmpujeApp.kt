@@ -1,5 +1,6 @@
 package pe.tuempuje.app.ui
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
@@ -30,7 +31,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -42,10 +42,7 @@ import androidx.navigation.compose.rememberNavController
 import pe.tuempuje.app.R
 import pe.tuempuje.app.data.Opportunity
 import pe.tuempuje.app.data.OpportunityViewModel
-import pe.tuempuje.app.ui.theme.Canvas
 import pe.tuempuje.app.ui.theme.Ink
-import pe.tuempuje.app.ui.theme.Quiet
-import pe.tuempuje.app.ui.theme.Slate
 
 private data class Destination(val route: String, val label: String, val icon: ImageVector)
 
@@ -62,31 +59,39 @@ fun TuEmpujeApp(model: OpportunityViewModel = viewModel()) {
     val backStackEntry by nav.currentBackStackEntryAsState()
     val currentRoute = backStackEntry?.destination?.route
     Scaffold(
-        containerColor = Canvas,
+        containerColor = MaterialTheme.colorScheme.background,
         bottomBar = {
             if (currentRoute in destinations.map { it.route }) {
-                Surface(color = Color.White.copy(alpha = 0.94f), tonalElevation = 3.dp, shadowElevation = 8.dp) {
-                    NavigationBar(containerColor = Color.Transparent) {
-                        destinations.forEach { item ->
-                            NavigationBarItem(
-                                selected = currentRoute == item.route,
-                                onClick = {
-                                    nav.navigate(item.route) {
-                                        popUpTo(nav.graph.findStartDestination().id) { saveState = true }
-                                        launchSingleTop = true
-                                        restoreState = true
-                                    }
-                                },
-                                icon = { Icon(item.icon, contentDescription = null) },
-                                label = { Text(item.label, maxLines = 1) },
-                                colors = NavigationBarItemDefaults.colors(
-                                    indicatorColor = Quiet,
-                                    selectedIconColor = Ink,
-                                    selectedTextColor = Ink,
-                                    unselectedIconColor = Slate,
-                                    unselectedTextColor = Slate,
-                                ),
-                            )
+                Box(Modifier.fillMaxWidth().navigationBarsPadding().padding(start = 16.dp, end = 16.dp, bottom = 10.dp)) {
+                    Surface(
+                        shape = MaterialTheme.shapes.extraLarge,
+                        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.97f),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                        tonalElevation = 3.dp,
+                        shadowElevation = 8.dp,
+                    ) {
+                        NavigationBar(containerColor = Color.Transparent, windowInsets = WindowInsets(0, 0, 0, 0)) {
+                            destinations.forEach { item ->
+                                NavigationBarItem(
+                                    selected = currentRoute == item.route,
+                                    onClick = {
+                                        nav.navigate(item.route) {
+                                            popUpTo(nav.graph.findStartDestination().id) { saveState = true }
+                                            launchSingleTop = true
+                                            restoreState = true
+                                        }
+                                    },
+                                    icon = { Icon(item.icon, contentDescription = null) },
+                                    label = { Text(item.label, maxLines = 1) },
+                                    colors = NavigationBarItemDefaults.colors(
+                                        indicatorColor = MaterialTheme.colorScheme.secondaryContainer,
+                                        selectedIconColor = MaterialTheme.colorScheme.onSecondaryContainer,
+                                        selectedTextColor = MaterialTheme.colorScheme.onSurface,
+                                        unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    ),
+                                )
+                            }
                         }
                     }
                 }
@@ -94,9 +99,9 @@ fun TuEmpujeApp(model: OpportunityViewModel = viewModel()) {
         },
     ) { padding ->
         NavHost(navController = nav, startDestination = "explorar", modifier = Modifier.padding(padding)) {
-            composable("explorar") { ExploreScreen(model) { nav.navigate("detalle/$it") } }
+            composable("explorar") { ExploreScreen(model) { nav.navigate("detalle/$it") { launchSingleTop = true } } }
             composable("publicar") {
-                PublishScreen(model) {
+                PublishScreen(model, onBack = { nav.popBackStack() }) {
                     nav.navigate("actividad") {
                         popUpTo(nav.graph.findStartDestination().id) { saveState = true }
                         launchSingleTop = true
@@ -104,7 +109,7 @@ fun TuEmpujeApp(model: OpportunityViewModel = viewModel()) {
                     }
                 }
             }
-            composable("actividad") { ActivityScreen(model) { nav.navigate("detalle/$it") } }
+            composable("actividad") { ActivityScreen(model) { nav.navigate("detalle/$it") { launchSingleTop = true } } }
             composable("perfil") { ProfileScreen() }
             composable("detalle/{id}") { entry ->
                 val opportunity = model.find(entry.arguments?.getString("id").orEmpty())
@@ -142,7 +147,7 @@ private fun ExploreScreen(model: OpportunityViewModel, open: (String) -> Unit) {
         item {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Text("Oportunidades", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
-                Text("${opportunities.size} disponibles", style = MaterialTheme.typography.labelMedium, color = Slate)
+                Text("${opportunities.size} disponibles", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
         if (opportunities.isEmpty()) {
@@ -164,10 +169,10 @@ private fun BrandHeader() {
         Spacer(Modifier.width(10.dp))
         Column(Modifier.weight(1f)) {
             Text("TuEmpuje", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-            Text("Oportunidades que conectan", style = MaterialTheme.typography.labelSmall, color = Slate)
+            Text("Oportunidades que conectan", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
-        Surface(shape = CircleShape, color = Quiet) {
-            Text("AQ", modifier = Modifier.padding(horizontal = 11.dp, vertical = 9.dp), color = Ink, style = MaterialTheme.typography.labelMedium)
+        Surface(shape = CircleShape, color = MaterialTheme.colorScheme.surfaceVariant) {
+            Text("AQ", modifier = Modifier.padding(horizontal = 11.dp, vertical = 9.dp), color = MaterialTheme.colorScheme.onSurface, style = MaterialTheme.typography.labelMedium)
         }
     }
 }
@@ -177,8 +182,8 @@ private fun DemoNotice() {
     Text(
         "Vista de demostración · datos ficticios guardados solo durante esta sesión",
         style = MaterialTheme.typography.labelMedium,
-        color = Ink,
-        modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(Color(0xFFE6ECF2)).padding(12.dp),
+        color = MaterialTheme.colorScheme.onSurface,
+        modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(MaterialTheme.colorScheme.surfaceVariant).padding(12.dp),
     )
 }
 
@@ -187,18 +192,14 @@ private fun Hero() {
     Box(
         Modifier.fillMaxWidth().clip(RoundedCornerShape(26.dp))
             .background(Brush.linearGradient(listOf(Ink, Color(0xFF3A5269))))
-            .padding(22.dp),
+            .padding(20.dp),
     ) {
         Column {
             Text("TU PRÓXIMO PASO", style = MaterialTheme.typography.labelSmall, color = Color(0xFFDEE8F2), letterSpacing = 1.4.sp)
-            Spacer(Modifier.height(12.dp))
-            Text("Una oportunidad\npuede abrir camino", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, color = Color.White)
-            Spacer(Modifier.height(10.dp))
+            Spacer(Modifier.height(8.dp))
+            Text("Tu próximo paso empieza aquí", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, color = Color.White)
+            Spacer(Modifier.height(6.dp))
             Text("Conecta tus habilidades con proyectos y personas", style = MaterialTheme.typography.bodyMedium, color = Color(0xFFE0E8EE))
-            Spacer(Modifier.height(18.dp))
-            Surface(shape = CircleShape, color = Color.White.copy(alpha = 0.16f), border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.25f))) {
-                Text("HECHO PARA EMPEZAR", modifier = Modifier.padding(horizontal = 12.dp, vertical = 7.dp), style = MaterialTheme.typography.labelSmall, color = Color.White)
-            }
         }
     }
 }
@@ -207,29 +208,28 @@ private fun Hero() {
 private fun OpportunityCard(opportunity: Opportunity, onClick: () -> Unit) {
     Surface(
         modifier = Modifier.fillMaxWidth().clickable(onClick = onClick),
-        shape = RoundedCornerShape(22.dp),
-        color = Color.White,
-        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFE3E8ED)),
+        shape = MaterialTheme.shapes.large,
+        color = MaterialTheme.colorScheme.surface,
+        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
     ) {
         Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Surface(shape = RoundedCornerShape(10.dp), color = Quiet) {
-                    Text(opportunity.category.uppercase(), modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp), style = MaterialTheme.typography.labelSmall, color = Ink)
+                Surface(shape = RoundedCornerShape(10.dp), color = MaterialTheme.colorScheme.surfaceVariant) {
+                    Text(opportunity.category.uppercase(), modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurface)
                 }
                 Spacer(Modifier.weight(1f))
-                Icon(Icons.AutoMirrored.Rounded.ArrowForward, contentDescription = null, tint = Slate, modifier = Modifier.size(18.dp))
+                Icon(Icons.AutoMirrored.Rounded.ArrowForward, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(18.dp))
             }
-            Text(opportunity.title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, maxLines = 2, overflow = TextOverflow.Ellipsis)
-            Text(opportunity.organization, style = MaterialTheme.typography.bodyMedium, color = Slate)
+            Text(opportunity.title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            Text(opportunity.organization, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Spacer(Modifier.height(2.dp))
-            HorizontalDivider(color = Quiet)
+            HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-                Icon(Icons.Rounded.Place, contentDescription = null, tint = Slate, modifier = Modifier.size(16.dp))
+                Icon(Icons.Rounded.Place, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(16.dp))
                 Spacer(Modifier.width(4.dp))
-                Text(opportunity.location, modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.bodySmall, color = Slate)
-                Spacer(Modifier.width(8.dp))
-                Text(opportunity.pay, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold, color = Ink)
+                Text(opportunity.location, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
+            Text(opportunity.pay, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
         }
     }
 }
@@ -246,10 +246,10 @@ private fun DetailScreen(opportunity: Opportunity?, model: OpportunityViewModel,
         if (opportunity == null) {
             EmptyMessage("Oportunidad no disponible", "Vuelve al listado para elegir otra")
         } else {
-            Text(opportunity.category.uppercase(), style = MaterialTheme.typography.labelMedium, color = Slate)
+            Text(opportunity.category.uppercase(), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Text(opportunity.title, style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
-            Text(opportunity.organization, style = MaterialTheme.typography.titleMedium, color = Slate)
-            Surface(shape = RoundedCornerShape(22.dp), color = Color.White, modifier = Modifier.fillMaxWidth()) {
+            Text(opportunity.organization, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Surface(shape = RoundedCornerShape(22.dp), color = MaterialTheme.colorScheme.surface, modifier = Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     DetailRow("Ubicación", opportunity.location)
                     DetailRow("Pago ofrecido", opportunity.pay)
@@ -257,15 +257,15 @@ private fun DetailScreen(opportunity: Opportunity?, model: OpportunityViewModel,
                 }
             }
             Text("Sobre esta oportunidad", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-            Text(opportunity.description, style = MaterialTheme.typography.bodyLarge, color = Slate)
+            Text(opportunity.description, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
             if (!opportunity.own) {
                 val applied = opportunity.id in model.applications
                 Button(onClick = { model.apply(opportunity.id) }, enabled = !applied, modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp), shape = RoundedCornerShape(16.dp)) {
                     Text(if (applied) "Postulación simulada" else "Simular postulación")
                 }
-                Text("Esta acción solo cambia la demostración local, no envía una postulación real", style = MaterialTheme.typography.bodySmall, color = Slate)
+                Text("Esta acción solo cambia la demostración local, no envía una postulación real", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             } else {
-                Text("Esta es tu publicación de prueba", style = MaterialTheme.typography.bodyMedium, color = Slate)
+                Text("Esta es tu publicación de prueba", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
     }
@@ -274,27 +274,44 @@ private fun DetailScreen(opportunity: Opportunity?, model: OpportunityViewModel,
 @Composable
 private fun DetailRow(label: String, value: String) {
     Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
-        Text(label, style = MaterialTheme.typography.labelMedium, color = Slate)
+        Text(label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Text(value, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold)
     }
 }
 
 @Composable
-private fun PublishScreen(model: OpportunityViewModel, onPublished: () -> Unit) {
+private fun PublishScreen(model: OpportunityViewModel, onBack: () -> Unit, onPublished: () -> Unit) {
     var title by rememberSaveable { mutableStateOf("") }
     var description by rememberSaveable { mutableStateOf("") }
     var location by rememberSaveable { mutableStateOf("") }
     var pay by rememberSaveable { mutableStateOf("") }
     var showError by rememberSaveable { mutableStateOf(false) }
+    var confirmDiscard by rememberSaveable { mutableStateOf(false) }
+    val hasDraft = listOf(title, description, location, pay).any { it.isNotBlank() }
+
+    BackHandler(enabled = hasDraft) { confirmDiscard = true }
+    if (confirmDiscard) {
+        AlertDialog(
+            onDismissRequest = { confirmDiscard = false },
+            title = { Text("¿Descartar esta publicación?") },
+            text = { Text("Los datos que ingresaste se perderán") },
+            confirmButton = {
+                TextButton(onClick = { confirmDiscard = false; onBack() }) { Text("Descartar") }
+            },
+            dismissButton = {
+                TextButton(onClick = { confirmDiscard = false }) { Text("Seguir editando") }
+            },
+        )
+    }
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(22.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
         Text("Publicar", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
-        Text("Cuéntanos qué apoyo necesitas", style = MaterialTheme.typography.bodyLarge, color = Slate)
+        Text("Cuéntanos qué apoyo necesitas", style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
         DemoNotice()
-        Text("Los datos se mostrarán solo en esta demostración", style = MaterialTheme.typography.bodyMedium, color = Slate)
-        OutlinedTextField(title, { title = it }, modifier = Modifier.fillMaxWidth(), label = { Text("Título de la oportunidad") }, singleLine = true, shape = RoundedCornerShape(16.dp))
-        OutlinedTextField(description, { description = it }, modifier = Modifier.fillMaxWidth(), label = { Text("Tareas a realizar") }, minLines = 3, shape = RoundedCornerShape(16.dp))
-        OutlinedTextField(location, { location = it }, modifier = Modifier.fillMaxWidth(), label = { Text("Ubicación o remoto") }, singleLine = true, shape = RoundedCornerShape(16.dp))
-        OutlinedTextField(pay, { pay = it }, modifier = Modifier.fillMaxWidth(), label = { Text("Pago y unidad, por ejemplo S/ 60 por día") }, singleLine = true, shape = RoundedCornerShape(16.dp))
+        Text("Los datos se mostrarán solo en esta demostración", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        DraftField(title, { title = it }, "Título de la oportunidad", "Ingresa un título", showError)
+        DraftField(description, { description = it }, "Tareas a realizar", "Describe las tareas", showError, multiline = true)
+        DraftField(location, { location = it }, "Ubicación o remoto", "Indica la ubicación", showError)
+        DraftField(pay, { pay = it }, "Pago y unidad, por ejemplo S/ 60 por día", "Indica el pago y su unidad", showError)
         if (showError) Text("Completa todos los campos para continuar", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodyMedium)
         Button(onClick = {
             if (model.publish(title, description, location, pay)) {
@@ -308,12 +325,35 @@ private fun PublishScreen(model: OpportunityViewModel, onPublished: () -> Unit) 
 }
 
 @Composable
+private fun DraftField(
+    value: String,
+    onValueChange: (String) -> Unit,
+    label: String,
+    errorMessage: String,
+    showError: Boolean,
+    multiline: Boolean = false,
+) {
+    val isInvalid = showError && value.isBlank()
+    OutlinedTextField(
+        value = value,
+        onValueChange = onValueChange,
+        modifier = Modifier.fillMaxWidth(),
+        label = { Text(label) },
+        singleLine = !multiline,
+        minLines = if (multiline) 3 else 1,
+        isError = isInvalid,
+        supportingText = if (isInvalid) { { Text(errorMessage) } } else null,
+        shape = MaterialTheme.shapes.medium,
+    )
+}
+
+@Composable
 private fun ActivityScreen(model: OpportunityViewModel, open: (String) -> Unit) {
     val myPosts = model.opportunities.filter { it.own }
     val myApplications = model.opportunities.filter { it.id in model.applications }
     LazyColumn(contentPadding = PaddingValues(22.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
         item { Text("Actividad", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold) }
-        item { Text("Sigue tus movimientos de prueba", style = MaterialTheme.typography.bodyLarge, color = Slate) }
+        item { Text("Sigue tus movimientos de prueba", style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant) }
         item { DemoNotice() }
         item { Text("Mis publicaciones", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold) }
         if (myPosts.isEmpty()) item { EmptyMessage("Aún no tienes publicaciones", "Puedes crear una desde Publicar") }
@@ -329,27 +369,27 @@ private fun ProfileScreen() {
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(22.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
         Text("Perfil", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
         DemoNotice()
-        Surface(shape = RoundedCornerShape(24.dp), color = Color.White, modifier = Modifier.fillMaxWidth()) {
+        Surface(shape = RoundedCornerShape(24.dp), color = MaterialTheme.colorScheme.surface, modifier = Modifier.fillMaxWidth()) {
             Column(Modifier.padding(22.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                Box(Modifier.size(72.dp).clip(CircleShape).background(Quiet), contentAlignment = Alignment.Center) {
-                    Icon(Icons.Rounded.PersonOutline, contentDescription = null, tint = Ink, modifier = Modifier.size(36.dp))
+                Box(Modifier.size(72.dp).clip(CircleShape).background(MaterialTheme.colorScheme.surfaceVariant), contentAlignment = Alignment.Center) {
+                    Icon(Icons.Rounded.PersonOutline, contentDescription = null, tint = MaterialTheme.colorScheme.onSurface, modifier = Modifier.size(36.dp))
                 }
                 Spacer(Modifier.height(12.dp))
                 Text("Perfil de demostración", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
                 Spacer(Modifier.height(6.dp))
-                Text("El registro y la edición de perfiles se incorporarán en una etapa posterior", style = MaterialTheme.typography.bodyMedium, color = Slate)
+                Text("El registro y la edición de perfiles se incorporarán en una etapa posterior", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
-        Text("TuEmpuje conecta oportunidades, habilidades y personas", style = MaterialTheme.typography.bodyMedium, color = Slate)
+        Text("TuEmpuje conecta oportunidades, habilidades y personas", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 
 @Composable
 private fun EmptyMessage(title: String, message: String) {
-    Surface(shape = RoundedCornerShape(18.dp), color = Color.White, modifier = Modifier.fillMaxWidth()) {
+    Surface(shape = RoundedCornerShape(18.dp), color = MaterialTheme.colorScheme.surface, modifier = Modifier.fillMaxWidth()) {
         Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Text(title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
-            Text(message, style = MaterialTheme.typography.bodyMedium, color = Slate)
+            Text(message, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }

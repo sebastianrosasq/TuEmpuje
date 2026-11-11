@@ -27,7 +27,7 @@ Si la autenticación real no se termina para la presentación, se puede mostrar 
 | ID | Entregable | Depende de | Estado inicial |
 |---|---|---|---|
 | B-01 | Revisar restricciones del curso y preparar entorno. | Ninguno. | Pendiente |
-| B-02 | Diseñar navegación y pantallas iniciales. | Requisitos iniciales. | Pendiente |
+| B-02 | Diseñar navegación y pantallas iniciales. | Requisitos iniciales. | Prototipo verificado en emulador |
 | B-03 | Crear proyecto Android. | B-01. | Base compilada y abierta en emulador |
 | B-04 | Configurar proveedor de identidad y datos de prueba. | B-01, cuenta y acceso disponibles. | Pendiente |
 | B-05 | Registrar y mantener perfiles. | B-03, B-04. | Pendiente |

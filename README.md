@@ -55,6 +55,8 @@ El repositorio incluye una primera versión Android con navegación y datos fict
 
 Las publicaciones y postulaciones del prototipo son de demostración y se pierden al cerrar el proceso, Firebase, la web, Gemini y los pagos aún no están configurados
 
+La interfaz utiliza Material 3 Expressive con una versión preliminar de la biblioteca, por lo que sus dependencias deberán revisarse antes de una publicación real
+
 ## Ejecutar el prototipo Android
 
 Abrir la carpeta `android/` en Android Studio con JDK 17 y el SDK de Android 36 instalados, sincronizar Gradle y ejecutar la aplicación en un emulador o dispositivo con Android 8 o superior
@@ -85,6 +87,7 @@ TuEmpuje/
 ├── docs/
 │   ├── assets/
 │   │   ├── prototipo-inicio.png
+│   │   ├── prototipo-oscuro.png
 │   │   ├── tuempuje-icono.svg
 │   │   └── tuempuje-simbolo.svg
 │   ├── 00-plan-maestro.md

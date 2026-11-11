@@ -18,7 +18,7 @@ Los sprints restantes describen la evolución del producto, por lo que su inclus
 
 Si el avance es menor al previsto, se priorizarán una app ejecutable, los casos principales y las pruebas de permisos, indicando con claridad los datos simulados y las funciones pendientes
 
-**Estado:** el sprint 01 está verificado con compilación y apertura en emulador, los sprints 02 y 03 tienen una base de demostración en curso y los demás siguen pendientes
+**Estado:** los sprints 01 a 03 cuentan con un prototipo compilado y verificado en emulador, la revisión más amplia de accesibilidad y dispositivos corresponde al sprint 12 y los demás sprints siguen pendientes
 
 ## Sprints
 
