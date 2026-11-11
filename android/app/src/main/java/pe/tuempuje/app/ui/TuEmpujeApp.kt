@@ -42,6 +42,8 @@ import androidx.navigation.compose.rememberNavController
 import pe.tuempuje.app.R
 import pe.tuempuje.app.data.Opportunity
 import pe.tuempuje.app.data.OpportunityViewModel
+import pe.tuempuje.app.data.FirebaseServices
+import pe.tuempuje.app.ui.auth.AccountScreen
 import pe.tuempuje.app.ui.theme.Ink
 
 private data class Destination(val route: String, val label: String, val icon: ImageVector)
@@ -54,7 +56,7 @@ private val destinations = listOf(
 )
 
 @Composable
-fun TuEmpujeApp(model: OpportunityViewModel = viewModel()) {
+fun TuEmpujeApp(services: FirebaseServices?, model: OpportunityViewModel = viewModel()) {
     val nav = rememberNavController()
     val backStackEntry by nav.currentBackStackEntryAsState()
     val currentRoute = backStackEntry?.destination?.route
@@ -110,7 +112,13 @@ fun TuEmpujeApp(model: OpportunityViewModel = viewModel()) {
                 }
             }
             composable("actividad") { ActivityScreen(model) { nav.navigate("detalle/$it") { launchSingleTop = true } } }
-            composable("perfil") { ProfileScreen() }
+            composable("perfil") {
+                if (services != null) {
+                    AccountScreen(services.auth, services.firestore)
+                } else {
+                    ProfileScreen()
+                }
+            }
             composable("detalle/{id}") { entry ->
                 val opportunity = model.find(entry.arguments?.getString("id").orEmpty())
                 DetailScreen(opportunity, model, onBack = { nav.popBackStack() })

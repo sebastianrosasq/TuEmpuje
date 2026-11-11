@@ -16,7 +16,10 @@ android {
         versionName = "0.1.0"
     }
 
-    buildFeatures { compose = true }
+    buildFeatures {
+        compose = true
+        buildConfig = true
+    }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
@@ -38,5 +41,9 @@ dependencies {
     implementation("androidx.compose.material:material-icons-extended")
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.9.0")
     implementation("androidx.navigation:navigation-compose:2.9.8")
+    implementation(platform("com.google.firebase:firebase-bom:34.10.0"))
+    implementation("com.google.firebase:firebase-auth")
+    implementation("com.google.firebase:firebase-firestore")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.10.2")
     debugImplementation("androidx.compose.ui:ui-tooling")
 }

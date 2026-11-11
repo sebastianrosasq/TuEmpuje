@@ -1,0 +1,6 @@
+<resources>
+    <style name="Theme.TuEmpuje" parent="Theme.TuEmpuje.Base">
+        <item name="android:navigationBarColor">#F5F7FA</item>
+        <item name="android:windowLightNavigationBar">true</item>
+    </style>
+</resources>

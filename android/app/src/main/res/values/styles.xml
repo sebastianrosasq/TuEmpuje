@@ -1,9 +1,9 @@
 <resources>
-    <style name="Theme.TuEmpuje" parent="android:style/Theme.Material.Light.NoActionBar">
+    <style name="Theme.TuEmpuje.Base" parent="android:style/Theme.Material.Light.NoActionBar">
         <item name="android:fontFamily">sans</item>
         <item name="android:windowLightStatusBar">true</item>
         <item name="android:statusBarColor">#F5F7FA</item>
-        <item name="android:navigationBarColor">#F5F7FA</item>
-        <item name="android:windowLightNavigationBar">true</item>
+        <item name="android:navigationBarColor">#202B3D</item>
     </style>
+    <style name="Theme.TuEmpuje" parent="Theme.TuEmpuje.Base" />
 </resources>

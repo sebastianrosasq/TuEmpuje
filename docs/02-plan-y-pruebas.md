@@ -29,8 +29,8 @@ Si la autenticación real no se termina para la presentación, se puede mostrar 
 | B-01 | Revisar restricciones del curso y preparar entorno. | Ninguno. | Pendiente |
 | B-02 | Diseñar navegación y pantallas iniciales. | Requisitos iniciales. | Prototipo verificado en emulador |
 | B-03 | Crear proyecto Android. | B-01. | Base compilada y abierta en emulador |
-| B-04 | Configurar proveedor de identidad y datos de prueba. | B-01, cuenta y acceso disponibles. | Pendiente |
-| B-05 | Registrar y mantener perfiles. | B-03, B-04. | Pendiente |
+| B-04 | Configurar proveedor de identidad y datos de prueba. | B-01, cuenta y acceso disponibles. | Emuladores locales verificados, proyecto en la nube pendiente |
+| B-05 | Registrar y mantener perfiles. | B-03, B-04. | Registro, acceso y edición verificados en entorno local |
 | B-06 | Publicar oportunidades desde Android. | B-04, B-05. | Pendiente |
 | B-07 | Ver oportunidades en Android. | B-03, B-06. | Pendiente |
 | B-08 | Postular y ver postulantes. | B-05, B-06, B-07. | Pendiente |
@@ -65,7 +65,7 @@ La presentación puede mostrar, de acuerdo con lo que se haya construido realmen
 | PA-02 | Publicación incompleta. | Dejar remuneración o tareas vacías → mensaje claro y no se crea oferta. | Pendiente |
 | PA-03 | Información compartida. | Crear oferta con una cuenta y consultarla desde otra en Android → título y condiciones coinciden. | Pendiente |
 | PA-04 | Postulación y duplicado. | Candidato postula dos veces → solo una postulación activa y confirmación correcta. | Pendiente |
-| PA-05 | Privacidad entre clientes. | Otro cliente intenta consultar postulaciones ajenas → acceso denegado en backend. | Pendiente |
+| PA-05 | Privacidad entre clientes. | Otro cliente intenta consultar postulaciones ajenas → acceso denegado en backend. | Verificado en reglas locales; pendiente en la nube |
 | PA-06 | Límite de vacantes. | Dos selecciones simultáneas para una vacante → como máximo una contratación confirmada. | Pendiente |
 | PA-07 | Resultado y estado. | Participantes completan trabajo → estado correcto; pago sigue independiente. | Pendiente |
 | PA-08 | Moderación. | Usuario normal intenta acción de administrador → denegada; administrador autorizado registra motivo. | Pendiente |
@@ -77,6 +77,17 @@ La presentación puede mostrar, de acuerdo con lo que se haya construido realmen
 | PA-14 | Clasificador futuro. | Comparar el modelo con reglas simples y ejemplos reservados para prueba final; registrar resultados por categoría. | Posterior |
 
 Además: pruebas unitarias de validación y reglas; integración de repositorios y permisos; prueba manual en emulador y al menos un equipo físico si está disponible; revisión de accesibilidad, errores y datos personales; pruebas de restauración y operación antes del piloto real. Priorizar pruebas significativas de permisos, postulaciones y transiciones.
+
+### Resultados del entorno local
+
+- Compilación Android y `lintDebug`: correctos, con ocho avisos de versiones de dependencias
+- Nueve pruebas de reglas de Firestore: aprobadas, incluidos perfiles privados, suplantación, duplicados y bloqueo de selección
+- Android en emulador: registro de dos cuentas ficticias, edición y recuperación de perfil, cierre de sesión y acceso posterior
+- Acceso con contraseña incorrecta y servicio local apagado: se mostró un error y se conservó el formulario
+- El análisis detectó y permitió corregir dos errores de compatibilidad de estilos con Android 8
+- La auditoría de las herramientas npm de desarrollo mantiene 14 avisos moderados documentados en [Identidad y reglas de datos](../infra/README.md)
+
+Estas pruebas corresponden al emulador local, no validan un proyecto Firebase en la nube ni sustituyen las pruebas en dispositivos físicos
 
 ## 6. Criterios de salida
 

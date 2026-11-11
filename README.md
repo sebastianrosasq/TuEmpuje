@@ -51,15 +51,21 @@ Las tecnologías pueden ajustarse según los requisitos del curso y las necesida
 
 El proyecto se encuentra en **desarrollo inicial**
 
-El repositorio incluye una primera versión Android con navegación y datos ficticios en memoria
+El repositorio incluye una primera versión Android con navegación, registro, acceso y edición de perfil en un entorno local de prueba
 
-Las publicaciones y postulaciones del prototipo son de demostración y se pierden al cerrar el proceso, Firebase, la web, Gemini y los pagos aún no están configurados
+Las cuentas y perfiles usan los emuladores locales de Firebase, todavía no existe un proyecto Firebase conectado a la nube
+
+Las publicaciones y postulaciones son simuladas y se pierden al cerrar el proceso, la web, Gemini y los pagos aún no están implementados
 
 La interfaz utiliza Material 3 Expressive con una versión preliminar de la biblioteca, por lo que sus dependencias deberán revisarse antes de una publicación real
 
 ## Ejecutar el prototipo Android
 
-Abrir la carpeta `android/` en Android Studio con JDK 17 y el SDK de Android 36 instalados, sincronizar Gradle y ejecutar la aplicación en un emulador o dispositivo con Android 8 o superior
+Para probar las cuentas, iniciar primero los emuladores locales de Firebase siguiendo [Identidad y reglas de datos](infra/README.md)
+
+Abrir la carpeta `android/` en Android Studio con JDK 17 y el SDK de Android 36 instalados, sincronizar Gradle y ejecutar la aplicación en el emulador de Android con API 26 o superior
+
+La dirección de desarrollo `10.0.2.2` conecta el emulador Android con los servicios del equipo anfitrión, por lo que esta configuración de cuenta no funciona directamente en un teléfono físico
 
 En Windows también se puede compilar desde `android/` con `./gradlew.bat assembleDebug`, el APK generado se encontrará en `android/app/build/outputs/apk/debug/`
 
@@ -70,6 +76,7 @@ En Windows también se puede compilar desde `android/` con `./gradlew.bat assemb
 | [Documento de proyecto](docs/03-documento-de-proyecto.md) | Problema, justificación, objetivos y alcance |
 | [Plan maestro](docs/00-plan-maestro.md) | Flujo general, arquitectura y etapas |
 | [Arquitectura](docs/08-arquitectura.md) | Componentes, datos y decisiones técnicas |
+| [Identidad y reglas](infra/README.md) | Emuladores, modelo de datos y pruebas de acceso |
 | [Requisitos](docs/01-requisitos.md) | Reglas de negocio, permisos y criterios de aceptación |
 | [Plan de trabajo y pruebas](docs/02-plan-y-pruebas.md) | Prioridades, entregables y escenarios de prueba |
 | [Plan de 16 sprints](docs/09-sprints.md) | Objetivos, dependencias y criterios de aceptación |
@@ -84,6 +91,7 @@ En Windows también se puede compilar desde `android/` con `./gradlew.bat assemb
 ```text
 TuEmpuje/
 ├── android/                Proyecto Android en Kotlin y Compose
+├── infra/                  Emuladores y reglas de Firebase
 ├── docs/
 │   ├── assets/
 │   │   ├── prototipo-inicio.png
@@ -108,7 +116,7 @@ TuEmpuje/
 └── README.md
 ```
 
-Los directorios de la web y los servicios se incorporarán cuando comience su implementación
+La web y los servicios de producción se incorporarán cuando comience su implementación
 
 ## Criterios de trabajo
 
