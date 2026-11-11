@@ -13,8 +13,8 @@ El símbolo es una propuesta de identidad para el proyecto y sus antecedentes de
 ## Objetivos
 
 - Mostrar las tareas, el pago y las condiciones antes de postular
-- Facilitar la publicación de oportunidades desde la web
-- Mantener una experiencia coherente entre Android y la plataforma web
+- Facilitar la publicación y gestión de oportunidades desde Android
+- Mantener una identidad visual coherente entre la aplicación y su página de presentación
 - Comunicar con claridad los cambios de estado y las acciones disponibles
 
 ## Aplicación móvil
@@ -26,18 +26,19 @@ El símbolo es una propuesta de identidad para el proyecto y sus antecedentes de
 | Detalle | Tareas, requisitos, duración, ubicación y pago ofrecido |
 | Postulación | Revisión del perfil y confirmación de disponibilidad |
 | Mis postulaciones | Solicitudes enviadas y estado de cada una |
+| Publicar oportunidad | Formulario con tareas, requisitos, ubicación, horario, pago y vacantes |
+| Mis publicaciones | Oportunidades propias, postulantes y selección de candidatos |
 | Perfil | Habilidades, disponibilidad y oportunidades guardadas |
 
 La navegación y los controles se diseñarán para Android con Jetpack Compose y Material Design 3
 
-## Plataforma web
+## Página web de presentación
 
-| Sección | Contenido principal |
-|---|---|
-| Panel de cliente | Oportunidades publicadas y postulaciones recibidas |
-| Publicación | Formulario con tareas, requisitos, ubicación, horario, pago y vacantes |
-| Postulantes | Perfiles y opciones de revisión y selección |
-| Administración | Gestión de publicaciones y reportes según permisos |
+La página explicará qué es TuEmpuje, cómo funciona y a quién ayuda
+
+Cuando la aplicación tenga una distribución disponible, incluirá un enlace a la instalación
+
+La publicación y gestión de oportunidades corresponden a la aplicación Android
 
 ## Criterios de interfaz
 
@@ -50,8 +51,8 @@ La navegación y los controles se diseñarán para Android con Jetpack Compose y
 
 ## Recorrido principal
 
-1. El cliente publica una oportunidad desde la web
-2. La oportunidad aparece en la aplicación móvil
+1. El cliente publica una oportunidad desde la aplicación
+2. La oportunidad aparece para otras personas en la aplicación
 3. El postulante revisa los detalles y envía su solicitud
 4. El cliente revisa el perfil y selecciona a un candidato
 5. El postulante consulta el estado actualizado

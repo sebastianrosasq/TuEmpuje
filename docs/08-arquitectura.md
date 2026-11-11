@@ -1,8 +1,10 @@
 # Arquitectura de TuEmpuje
 
-La arquitectura organiza la aplicación móvil, la web y los servicios alrededor de un recorrido compartido
+La arquitectura organiza la aplicación móvil, la página de presentación y los servicios alrededor de un recorrido compartido
 
-Un cliente publica una oportunidad desde la web, una persona la consulta desde Android y ambos pueden seguir el estado de la postulación
+Un cliente publica una oportunidad desde Android, otra persona la consulta y postula desde la misma aplicación y ambos pueden seguir el estado de la postulación
+
+La página web presentará TuEmpuje y dirigirá a las personas a la aplicación cuando exista un enlace disponible
 
 ## Estado
 
@@ -14,8 +16,8 @@ Las aplicaciones y servicios todavía no están implementados
 
 | Componente | Responsabilidad | Tecnología propuesta |
 |---|---|---|
-| Android | Presentar oportunidades, perfiles y postulaciones | Kotlin y Jetpack Compose |
-| Web | Publicar oportunidades y revisar postulantes | React y TypeScript |
+| Android | Publicar y consultar oportunidades, postular y seleccionar candidatos | Kotlin y Jetpack Compose |
+| Página de presentación | Explicar el proyecto y dirigir a la aplicación | Tecnología por definir |
 | Identidad | Autenticar cuentas y gestionar sesiones | Firebase Authentication |
 | Datos compartidos | Conservar oportunidades, perfiles y postulaciones | Cloud Firestore |
 | Datos locales | Mantener favoritos y datos locales definidos | Room sobre SQLite |
@@ -28,11 +30,11 @@ Las aplicaciones y servicios todavía no están implementados
 ```mermaid
 flowchart LR
     A[Aplicación Android] --> Auth[Identidad]
-    W[Web de clientes] --> Auth
+    W[Página de presentación] -. enlace cuando exista .-> A
     A --> Shared[Datos compartidos]
-    W --> Shared
     A --> Local[Datos locales]
-    Shared --> Server[Lógica protegida]
+    A --> Server[Lógica protegida]
+    Server --> Shared
     Server -. etapa posterior .-> AI[Gemini]
     Server -. etapa posterior .-> Pay[Proveedor de pagos]
 ```
@@ -64,7 +66,9 @@ La [guía de arquitectura Android](https://developer.android.com/topic/architect
 
 ## Datos compartidos y locales
 
-Firestore es la opción propuesta para compartir información entre Android y la web
+Firestore es la opción propuesta para compartir información entre las cuentas que utilizan Android
+
+La página de presentación no requiere acceso a cuentas, publicaciones ni postulaciones para cumplir su función inicial
 
 Room se plantea para conservar oportunidades guardadas y otras consultas locales que se definan durante el desarrollo
 
@@ -110,9 +114,10 @@ Los pagos se integrarán después del recorrido principal y tendrán estados ind
 
 | Decisión | Motivo | Revisión pendiente |
 |---|---|---|
-| Mantener Android y web en el mismo repositorio | Facilitar el seguimiento del proyecto y su documentación | Revaluar cuando existan ambos componentes |
+| Mantener Android y la página de presentación en el mismo repositorio | Facilitar el seguimiento del proyecto y su documentación | Revisar su organización cuando existan ambos componentes |
 | Usar una arquitectura Android por responsabilidades | Mantener claras las funciones de interfaz, estado y datos | Ajustar el número de módulos al tamaño real |
-| Compartir datos entre Android y web | Permitir un recorrido continuo entre clientes y postulantes | Confirmar configuración y condiciones de Firebase |
+| Concentrar el recorrido en Android | Permitir que clientes y postulantes utilicen la misma aplicación | Confirmar configuración y condiciones de Firebase |
+| Destinar la web a presentación | Explicar el proyecto y facilitar el acceso a la aplicación | Definir la página y el enlace de descarga cuando corresponda |
 | Reservar las operaciones sensibles al sistema confiable | Proteger permisos, vacantes y datos privados | Definir las reglas y funciones específicas |
 | Posponer pagos | Completar y probar primero la publicación y postulación | Evaluar proveedor, costos y condiciones de operación |
 

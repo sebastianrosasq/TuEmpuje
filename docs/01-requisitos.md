@@ -4,7 +4,9 @@
 
 ## 1. Alcance y actores
 
-La plataforma permite publicar, encontrar y gestionar oportunidades de trabajo y ayudantías. Actores: visitante, persona que busca trabajo, cliente (negocio o profesional), administrador y, en una etapa posterior, proveedor de pagos. Una cuenta puede actuar como cliente y como postulante sin crear identidades separadas. Los roles son permisos asociados a acciones; no presuponen que una persona tenga una profesión o acreditación.
+La aplicación Android permitirá publicar, encontrar y gestionar oportunidades de trabajo y ayudantías. Actores: visitante, persona que busca trabajo y cliente (negocio o profesional); la administración y el proveedor de pagos corresponden a etapas posteriores. Una cuenta puede actuar como cliente y como postulante sin crear identidades separadas. Los roles son permisos asociados a acciones; no presuponen que una persona tenga una profesión o acreditación.
+
+Una página web de presentación podrá explicar el proyecto y enlazar a la descarga cuando la aplicación esté disponible. No forma parte del recorrido de publicación y postulación.
 
 ### Modalidades de trabajo
 
@@ -48,19 +50,19 @@ Prioridades: P0 = recorrido básico para el curso; P1 = siguiente corte si hay t
 |---|---|---|---|
 | RF-01 | Crear cuenta, iniciar y cerrar sesión. | P0 | Una cuenta válida inicia sesión; una sesión cerrada no accede a funciones protegidas. |
 | RF-02 | Completar perfil y elegir funciones de cliente o postulante. | P0 | Los cambios del usuario autenticado se guardan y reaparecen en su perfil. |
-| RF-03 | Crear oportunidad desde la web. | P0 | Sin campos obligatorios no se publica; con datos válidos se guarda con responsable y estado. |
-| RF-04 | Listar y ver el detalle desde Android. | P0 | La app muestra datos guardados por la web y maneja carga, ausencia de resultados y error de conexión. |
+| RF-03 | Crear oportunidad desde Android. | P0 | Sin campos obligatorios no se publica; con datos válidos se guarda con responsable y estado. |
+| RF-04 | Listar y ver el detalle desde Android. | P0 | La app muestra las oportunidades compartidas y maneja carga, ausencia de resultados y error de conexión. |
 | RF-05 | Buscar o filtrar oportunidades. | P0 | Al elegir una categoría o modalidad solo se muestran coincidencias; se pueden limpiar filtros. |
 | RF-06 | Postular desde Android. | P0 | Se crea la postulación asociada a usuario y oportunidad; un segundo envío duplicado se rechaza o se muestra como ya postulado. |
-| RF-07 | Revisar postulaciones en web. | P0 | El dueño consulta sus candidatos; otro cliente no puede acceder a la misma lista. |
+| RF-07 | Revisar postulaciones desde Android. | P0 | El dueño consulta sus candidatos; otro cliente no puede acceder a la misma lista. |
 | RF-08 | Seleccionar a un candidato. | P0 | Se actualiza su estado sin superar vacantes y se conserva quién tomó la decisión. |
 | RF-09 | Consultar el estado de postulación. | P0 | El postulante ve el estado actualizado desde su cuenta. |
 | RF-10 | Registrar condiciones y estado de trabajo. | P0 | La contratación muestra participantes, tareas y condiciones aceptadas y admite cambios de estado autorizados. |
 | RF-11 | Finalizar trabajo y registrar experiencia. | P1 | La finalización queda vinculada a una contratación; la experiencia refleja tareas y visibilidad elegida. |
 | RF-12 | Mensajería. | P1 | Únicamente participantes autorizados pueden leer y escribir en la conversación. |
 | RF-13 | Notificaciones. | P1 | Una selección produce un aviso pertinente; el usuario puede administrar el permiso del dispositivo. |
-| RF-14 | Reportar una oportunidad o usuario. | P1 | El reporte guarda motivo y estado y aparece en la cola de administración autorizada. |
-| RF-15 | Administrar reportes y publicaciones. | P1 | El administrador autorizado puede revisar, cambiar estado y registrar motivo; otros usuarios reciben denegación. |
+| RF-14 | Reportar una oportunidad o usuario. | P2 | El reporte guarda motivo y estado y aparece en la cola de administración autorizada. |
+| RF-15 | Administrar reportes y publicaciones. | P2 | El administrador autorizado puede revisar, cambiar estado y registrar motivo; otros usuarios reciben denegación. |
 | RF-16 | Reseñas bidireccionales. | P1 | Solo participantes de una contratación finalizada pueden dejar una reseña vinculada a ella. |
 | RF-17 | Solicitar eliminación de cuenta. | P1 | El usuario puede iniciar el trámite dentro de la app y mediante recurso web; se informa la conservación aplicable. |
 | RF-18 | Procesar pagos mediante un proveedor. | P2 | Solo el servidor confirma un evento válido del proveedor y actualiza el estado sin procesar duplicados. |
@@ -99,7 +101,7 @@ Las transiciones deben comprobarse en servidor; un usuario no debe poder convert
 
 | ID | Requisito | Evidencia esperada |
 |---|---|---|
-| RNF-01 | La interfaz se adapta a móvil y web; controles accesibles y mensajes claros. | Revisión en Android y en pantalla web pequeña/grande. |
+| RNF-01 | La aplicación Android ofrece controles accesibles y mensajes claros; la página informativa, si se construye, se adapta a distintas pantallas. | Revisión en Android y, cuando corresponda, de la página informativa. |
 | RNF-02 | Android separa presentación, estado y acceso a datos. | Código organizado por responsabilidades y revisable. |
 | RNF-03 | Autenticación y autorización se aplican del lado confiable. | Intentos de lectura/escritura de otra cuenta reciben denegación. |
 | RNF-04 | Datos en tránsito protegidos en ambientes públicos; secretos fuera del cliente y Git. | Configuración HTTPS y revisión del repositorio. |
@@ -131,7 +133,7 @@ Las transiciones deben comprobarse en servidor; un usuario no debe poder convert
 
 | Flujo | Requisitos | Prueba de aceptación |
 |---|---|---|
-| Publicar desde web | RF-01, RF-02, RF-03 | PA-01 y PA-02 en plan de pruebas. |
+| Publicar desde Android | RF-01, RF-02, RF-03 | PA-01 y PA-02 en plan de pruebas. |
 | Consultar y postular desde Android | RF-04, RF-05, RF-06 | PA-03 y PA-04. |
 | Revisar y seleccionar | RF-07, RF-08, RF-09, RF-19 | PA-05 y PA-06. |
 | Trabajo y experiencia | RF-10, RF-11 | PA-07. |
@@ -144,7 +146,7 @@ Las transiciones deben comprobarse en servidor; un usuario no debe poder convert
 
 - Fecha y hora exacta de entrega y mínimos exigidos por el docente.
 - Si la universidad exige arquitectura, servidor o herramientas específicas.
-- Proveedor de datos e identidad y disponibilidad real de su plan; Android y web deben compartir la misma fuente.
+- Configuración de datos e identidad y disponibilidad real del plan de Firebase; la app debe compartir datos entre cuentas autorizadas.
 - Política concreta de cancelación, supervisión y disputa; identidad del responsable de soporte.
 - Condiciones legales de un piloto; inscripción aplicable y modalidad de contratación.
 - Marca TuEmpuje, dominio y disponibilidad en tiendas.

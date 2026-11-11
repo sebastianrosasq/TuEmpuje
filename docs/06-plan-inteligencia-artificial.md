@@ -42,7 +42,7 @@ Los campos que no se hayan indicado deben permanecer vacíos o marcados como pen
 ## 3. Flujo técnico propuesto
 
 ```text
-Web de cliente
+Aplicación Android del cliente
    │ descripción proporcionada voluntariamente
    ▼
 Servicio de TuEmpuje con control de acceso y límites

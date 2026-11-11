@@ -29,14 +29,16 @@ Publicar una oportunidad  →  Encontrar y postular  →  Revisar y seleccionar
 
 Cada publicación debe indicar las tareas, los conocimientos requeridos, el lugar, la duración y el pago ofrecido
 
-La primera versión se centrará en conectar la publicación web con la consulta y postulación desde Android
+La primera versión reunirá en Android la publicación, consulta, postulación y selección de candidatos
+
+Una página web de presentación podrá explicar el proyecto y dirigir a las personas a la aplicación cuando exista un enlace de instalación
 
 ## Componentes previstos
 
 | Componente | Función | Tecnología propuesta |
 |---|---|---|
-| Aplicación móvil | Buscar oportunidades, postular y consultar el estado | Kotlin, Jetpack Compose y Material 3 |
-| Plataforma web | Publicar oportunidades y revisar postulantes | React y TypeScript |
+| Aplicación móvil | Publicar oportunidades, postular y gestionar candidatos | Kotlin, Jetpack Compose y Material 3 |
+| Página web | Presentar el proyecto y dirigir a la aplicación | Tecnología por definir |
 | Identidad y datos | Gestionar cuentas y compartir información | Firebase Authentication y Cloud Firestore |
 | Persistencia local | Conservar oportunidades guardadas en el dispositivo | Room y SQLite |
 | Asistencia | Ayudar a redactar borradores de oportunidades | Gemini |

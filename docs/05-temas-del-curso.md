@@ -18,7 +18,7 @@ El proyecto debe demostrar lo aprendido en el curso sin añadir funciones que no
 | 8 | MVVM + UDF con persistencia. | Separar pantalla, ViewModel y repositorio; las acciones actualizan el estado que observa la interfaz. | Una acción de guardar actualiza la pantalla y persiste mediante el repositorio. | Principal |
 | 9 | Consumo de API con Retrofit. | Consumir un servicio REST concreto cuando se elija y documente uno que TuEmpuje realmente necesite. | Una petición obtiene y presenta datos reales del servicio, con carga y error. | Condicionado |
 | 10 | CRUD de API con Retrofit II. | Si se decide construir una API REST propia, usar Retrofit para las operaciones autorizadas que esa API exponga. | Crear, consultar, modificar y eliminar los recursos realmente implementados y permitidos. | Condicionado |
-| 11 | Firebase: Firestore y Authentication. | Gestionar cuentas y compartir oportunidades y postulaciones entre Android y web. | La web publica una oferta de prueba y la app la consulta; solo el propietario ve postulantes. | Principal, sujeto a configuración |
+| 11 | Firebase: Firestore y Authentication. | Gestionar cuentas y compartir oportunidades y postulaciones entre usuarios de Android. | Una cuenta publica una oferta en la app y otra la consulta; solo el propietario ve postulantes. | Principal, sujeto a configuración |
 | 12 | Google Maps SDK. | Mostrar, como mejora, la ubicación aproximada de una oportunidad presencial. | Abrir un mapa con una ubicación de ejemplo sin revelar información privada. | Opcional |
 | 13 | Animaciones en Jetpack Compose. | Añadir una transición breve al mostrar confirmación de postulación o filtros. | La animación acompaña el cambio de estado y no bloquea el uso. | Opcional |
 | 14 | Widgets con Jetpack Glance. | Mostrar en un widget el número de oportunidades guardadas o un acceso a ellas. | Agregar el widget y abrir la sección correcta de la app. | Opcional |
@@ -46,7 +46,7 @@ La interfaz presenta el estado y envía acciones; el ViewModel coordina la lógi
 
 ## 3. Cómo se combinan Room y Firestore
 
-**Firestore** sería la fuente compartida para que un cliente publique desde la web y un candidato consulte desde Android. **Room** puede conservar favoritos y una copia local de los datos que se decida mostrar sin conexión.
+**Firestore** sería la fuente compartida para que un cliente publique desde Android y un candidato consulte desde otra cuenta en la misma app. **Room** puede conservar favoritos y una copia local de los datos que se decida mostrar sin conexión.
 
 Firestore también ofrece persistencia local propia. Si se utilizan ambas opciones, el repositorio debe decidir qué información gestiona cada una, cuándo se actualiza y qué se muestra si la conexión falla. Para un primer avance, es más claro utilizar Room para favoritos y Firestore para los datos compartidos; la caché más amplia puede añadirse después si resulta necesaria. [Persistencia sin conexión de Firestore](https://firebase.google.com/docs/firestore/manage-data/enable-offline).
 
@@ -72,11 +72,11 @@ La API y sus rutas todavía no están definidas. No se debe inventar un servicio
 
 ## 6. Qué mostrar en la presentación
 
-1. El recorrido principal de negocio entre la web y Android.
+1. El recorrido principal de publicación, postulación y selección en Android.
 2. El código de una pantalla Compose y su ViewModel.
 3. La navegación hacia el detalle de una oportunidad.
 4. La persistencia de un favorito con Room, si llega a implementarse.
-5. Una oferta publicada en web y consultada desde Android con Firebase, si está configurado.
+5. Una oferta publicada por una cuenta y consultada por otra en Android con Firebase, si está configurado.
 6. Una petición Retrofit real, únicamente si se integró una API y se puede explicar su finalidad.
 7. Las mejoras restantes y su prioridad, sin presentarlas como funciones terminadas.
 

@@ -9,24 +9,24 @@ El objetivo de cada día es entregar una parte visible que se conecte con lo ant
 | Sprint | Resultado | Trabajo principal | Evidencia |
 |---|---|---|---|
 | 0 | Bases y recorrido definidos. | Plan, requisitos, mapa de pantallas, decisiones técnicas, backlog, diseño del flujo y prototipo inicial si el tiempo alcanza. | Documentos y explicación del recorrido; distinguir boceto y función real. |
-| 1 | Avance visible. | Proyecto Android y web iniciales; navegación; pantallas de oportunidades y publicación; datos de prueba. Conectar una fuente compartida si es viable. | Abrir ambas superficies y demostrar lo que ya funciona, explicando límites. |
+| 1 | Avance visible. | Proyecto Android inicial; navegación; pantallas de oportunidades y publicación; datos de prueba. Conectar una fuente compartida si es viable. | Abrir la aplicación y demostrar lo que ya funciona, explicando límites. |
 | 2 | Acceso y perfiles. | Configurar identidad y datos; registro, acceso, permisos básicos y perfiles de cliente/postulante. | Dos cuentas de prueba con perfiles diferenciados; errores comprensibles. |
-| 3 | Publicación real. | Crear/listar oportunidad desde la web; validar campos y propiedad; persistir datos. | Crear oferta y verla luego de actualizar la web. |
-| 4 | Descubrimiento Android. | Listado, detalle, filtros y conexión a la misma fuente de datos. | La oferta creada en web aparece en Android. |
-| 5 | Postulación. | Crear postulación desde Android; impedir duplicados; listar en web. | Un candidato de prueba postula y el cliente ve su registro. |
+| 3 | Publicación real. | Crear y listar una oportunidad desde Android; validar campos y propiedad; persistir datos. | Crear una oferta y verla tras volver a consultar. |
+| 4 | Descubrimiento Android. | Listado, detalle, filtros y conexión a la misma fuente de datos. | La oferta creada por una cuenta aparece al consultar con otra. |
+| 5 | Postulación. | Crear postulación desde Android; impedir duplicados; listar postulantes en la app. | Un candidato de prueba postula y el cliente ve su registro. |
 | 6 | Selección y seguimiento. | Selección, límite de vacantes, estado consultable y acuerdo básico. | Cliente selecciona y el postulante ve el estado. |
 | 7 | Cierre del recorrido. | Finalización, historial básico si es viable y manejo de errores. | Demostración completa de publicación a trabajo finalizado. |
-| 8 | Calidad y panel. | Corregir fallos; autorización; estados vacíos; panel de administración mínimo o cola de reportes según tiempo. | Pruebas de permisos y recorrido en emulador y navegador. |
+| 8 | Calidad. | Corregir fallos; comprobar autorización y estados vacíos; evaluar reportes según tiempo. | Pruebas de permisos y recorrido en emulador. |
 | 9–10, si están disponibles | Entrega y refuerzo. | Documentación de instalación y arquitectura; pruebas de dispositivos; preparación de presentación y video; mejoras priorizadas. | Versión reproducible y relación clara de pendientes. |
 | Posterior al flujo principal | Pasarela y producción. | Revisar modelo de cobro, proveedor, sandbox, webhooks y operación; después seguridad, regulación y habilitación real. | Registro de pruebas y validación del proveedor. |
 
-El calendario se ajustará según el tiempo disponible y el avance de cada iteración. La integración de pagos se reserva para una etapa posterior al recorrido académico principal.
+El calendario se ajustará según el tiempo disponible y el avance de cada iteración. La web se plantea como una página de presentación posterior que dirigirá a la descarga cuando esté disponible. La integración de pagos se reserva para una etapa posterior al recorrido académico principal.
 
 ## 2. Prioridades si falta tiempo
 
-**Imprescindible:** Android en Kotlin ejecutable, web de cliente, una fuente común de datos, publicación, listado, postulación, revisión y selección; estados y datos de demostración claramente indicados.
+**Imprescindible:** Android en Kotlin ejecutable, una fuente común de datos, publicación, listado, postulación, revisión y selección desde la app; estados y datos de demostración claramente indicados.
 
-**Siguiente:** identidad real con permisos, acuerdo, finalización, panel administrativo mínimo y reportes.
+**Siguiente:** identidad real con permisos, acuerdo, finalización y reportes; las herramientas de administración se definirán después.
 
 **Después del recorrido principal:** el asistente con Gemini para preparar borradores, si el plazo y la configuración lo permiten. El entrenamiento y evaluación de un modelo propio se prepararán por separado cuando sea posible. También quedan para iteraciones posteriores la mensajería, notificaciones, reseñas, pagos, validación profesional y funciones de colas. Mantenerlos documentados sin simular que existen.
 
@@ -40,10 +40,10 @@ Si la autenticación real no se termina para la presentación, se puede mostrar 
 |---|---|---|---|
 | B-01 | Revisar restricciones del curso y preparar entorno. | Ninguno. | Pendiente |
 | B-02 | Diseñar navegación y pantallas iniciales. | Requisitos iniciales. | Pendiente |
-| B-03 | Crear proyecto Android y web. | B-01. | Pendiente |
+| B-03 | Crear proyecto Android. | B-01. | Pendiente |
 | B-04 | Configurar proveedor de identidad y datos de prueba. | B-01, cuenta y acceso disponibles. | Pendiente |
 | B-05 | Registrar y mantener perfiles. | B-03, B-04. | Pendiente |
-| B-06 | Publicar oportunidades desde web. | B-04, B-05. | Pendiente |
+| B-06 | Publicar oportunidades desde Android. | B-04, B-05. | Pendiente |
 | B-07 | Ver oportunidades en Android. | B-03, B-06. | Pendiente |
 | B-08 | Postular y ver postulantes. | B-05, B-06, B-07. | Pendiente |
 | B-09 | Seleccionar y consultar estado. | B-08. | Pendiente |
@@ -62,20 +62,20 @@ La presentación puede mostrar, de acuerdo con lo que se haya construido realmen
 
 1. Problema y públicos de TuEmpuje.
 2. Diagrama del recorrido completo.
-3. Formulario de publicación web.
+3. Formulario Android de publicación.
 4. Pantalla Android de búsqueda y detalle de oportunidad.
-5. Explicación del dato compartido o aclaración de que todavía es ficticio.
+5. Explicación del dato compartido entre cuentas o aclaración de que todavía es ficticio.
 6. Requisitos, arquitectura, prioridades y calendario restante.
 
-**Regla:** no afirmar que Android y web están conectados si aún no comparten una fuente; no mostrar transacciones ficticias como pagos reales; no presentar una pantalla como funcional si es una maqueta.
+**Regla:** no afirmar que las cuentas comparten datos si aún no existe una fuente común; no mostrar transacciones ficticias como pagos reales; no presentar una pantalla como funcional si es una maqueta.
 
 ## 5. Pruebas de aceptación
 
 | ID | Escenario | Pasos y resultado esperado | Estado |
 |---|---|---|---|
-| PA-01 | Publicación correcta. | Cliente autenticado ingresa campos válidos en web → oferta guardada con su identificador. | Pendiente |
+| PA-01 | Publicación correcta. | Cliente autenticado ingresa campos válidos en Android → oferta guardada con su identificador. | Pendiente |
 | PA-02 | Publicación incompleta. | Dejar remuneración o tareas vacías → mensaje claro y no se crea oferta. | Pendiente |
-| PA-03 | Información compartida. | Crear oferta en web y consultar Android → título y condiciones coinciden. | Pendiente |
+| PA-03 | Información compartida. | Crear oferta con una cuenta y consultarla desde otra en Android → título y condiciones coinciden. | Pendiente |
 | PA-04 | Postulación y duplicado. | Candidato postula dos veces → solo una postulación activa y confirmación correcta. | Pendiente |
 | PA-05 | Privacidad entre clientes. | Otro cliente intenta consultar postulaciones ajenas → acceso denegado en backend. | Pendiente |
 | PA-06 | Límite de vacantes. | Dos selecciones simultáneas para una vacante → como máximo una contratación confirmada. | Pendiente |
@@ -95,7 +95,7 @@ Además: pruebas unitarias de validación y reglas; integración de repositorios
 ### Para entregar al curso
 
 - El recorrido seleccionado funciona de inicio a fin o se muestra de forma transparente qué queda simulado.
-- Hay instrucciones reproducibles para abrir Android y web.
+- Hay instrucciones reproducibles para abrir Android.
 - No hay secretos ni datos reales en el repositorio.
 - Las pruebas ejecutadas y las limitaciones se documentan.
 - La presentación distingue idea, alcance construido y trabajo futuro.

@@ -11,7 +11,7 @@ Las carpetas de código se añadirán cuando exista una implementación que las 
 ```text
 TuEmpuje/
 ├── android/       Aplicación móvil en Kotlin
-├── web/           Plataforma web para clientes y administración
+├── web/           Página de presentación y acceso a la aplicación
 ├── backend/       Lógica que deba ejecutarse en servidor
 ├── infra/         Reglas de acceso y configuración de servicios
 └── docs/          Documentación del proyecto
@@ -30,7 +30,11 @@ Esta estructura representa una dirección de trabajo y puede ajustarse a las nec
 
 El equipo revisará el resultado de cada etapa y actualizará las decisiones y pendientes del proyecto
 
-La primera meta de implementación es conectar la publicación desde la web con la consulta y postulación en Android
+La primera meta de implementación es completar en Android el recorrido de publicación, consulta, postulación y selección con datos compartidos
+
+La página web se desarrollará como presentación del proyecto y dirigirá a la aplicación cuando exista un enlace de acceso
+
+Las herramientas de administración se definirán en una etapa posterior según las necesidades del proyecto
 
 ## Commits
 

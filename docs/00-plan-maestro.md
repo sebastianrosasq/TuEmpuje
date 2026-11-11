@@ -16,7 +16,7 @@ Se ha elegido Gemini como proveedor inicial de asistencia con IA. El [plan de in
 
 **Por qué:** una persona puede tener habilidades sin experiencia laboral demostrable, mientras que quien ofrece trabajo puede necesitar ayuda de duración y alcance definidos. La demanda por la plataforma y la disposición a pagar siguen sin validar.
 
-**Cómo:** una aplicación Android en Kotlin para consultar y gestionar oportunidades, una web para que clientes publiquen y revisen candidatos y un backend común que conserve información, reglas y permisos. Un panel de administración gestionará reportes y moderación.
+**Cómo:** una aplicación Android en Kotlin para publicar, consultar y gestionar oportunidades, respaldada por servicios compartidos que conserven información, reglas y permisos. Una página web de presentación podrá explicar el proyecto y dirigir a la descarga cuando esté disponible.
 
 **Resultado académico deseado:** demostrar el recorrido completo de una oportunidad con datos de prueba: crear → consultar → postular → seleccionar → confirmar → finalizar → registrar experiencia.
 
@@ -26,14 +26,14 @@ Se ha elegido Gemini como proveedor inicial de asistencia con IA. El [plan de in
 
 ### Objetivo general
 
-Desarrollar un prototipo funcional de TuEmpuje, compuesto por una aplicación Android y una plataforma web, que permita a jóvenes y otras personas encontrar y postular a oportunidades y a profesionales y negocios publicarlas y gestionar postulaciones.
+Desarrollar un prototipo funcional de TuEmpuje para Android que permita a jóvenes y otras personas encontrar y postular a oportunidades y a profesionales y negocios publicarlas y gestionar postulaciones.
 
 ### Objetivos específicos
 
 1. Identificar actores, necesidades y reglas para publicar, postular y seleccionar.
-2. Diseñar interfaces móviles y web que comuniquen claramente las tareas y condiciones de cada oportunidad.
+2. Diseñar interfaces móviles que comuniquen claramente las tareas y condiciones de cada oportunidad.
 3. Implementar cuentas y perfiles básicos para postulantes y clientes, con acceso controlado según la función de cada usuario.
-4. Implementar la publicación y consulta de oportunidades sobre una fuente de datos compartida entre Android y web.
+4. Implementar la publicación y consulta de oportunidades sobre una fuente de datos compartida entre usuarios de Android.
 5. Permitir postular y revisar el estado de la postulación; permitir al cliente revisar y seleccionar candidatos para sus propias ofertas.
 6. Probar el recorrido principal, la validación de datos y los permisos para documentar sus resultados y limitaciones.
 7. Definir una ruta posterior para moderación, experiencia laboral y pagos, condicionada a tiempo disponible y validación operativa.
@@ -75,15 +75,15 @@ Entregables:
 
 - Este plan, requisitos con identificadores y backlog priorizado.
 - Boceto o interfaz Android inicial con listado y detalle de oportunidades.
-- Boceto o interfaz web para crear/publicar una oportunidad.
+- Boceto o interfaz Android para crear una oportunidad.
 - Diagrama sencillo del flujo, modelo de información y roles.
 - Registro del estado real: funcional, simulado o pendiente.
 
 ### B. Versión académica funcional
 
-Flujo prioritario: acceso y perfiles básicos; cliente publica desde la web; oportunidad visible en Android; estudiante postula; cliente ve postulaciones; cliente selecciona; ambas partes pueden consultar estado. Usar una misma fuente de datos para web y Android y demostrarlo con una oferta creada durante la presentación.
+Flujo prioritario en Android: acceso y perfiles básicos; cliente publica una oportunidad; estudiante la consulta y postula; cliente ve postulaciones y selecciona; ambas partes pueden consultar estado. Usar una fuente de datos compartida y demostrarlo con cuentas de prueba.
 
-Si queda tiempo: historial sencillo y notificaciones internas. El panel de administración tendrá como mínimo una vista restringida de publicaciones/reportes si resulta viable en el plazo. Un inicio de sesión simulado o datos locales solo sirven para demostrar el recorrido y deben rotularse como tales.
+Si queda tiempo: historial sencillo y notificaciones internas. La moderación y sus herramientas se definirán en una etapa posterior. Un inicio de sesión simulado o datos locales solo sirven para demostrar el recorrido y deben rotularse como tales.
 
 ### C. Versión previa a producción y piloto real
 
@@ -131,20 +131,17 @@ Profesional o negocio                      Joven o trabajador
 7. Mis postulaciones y estados.
 8. Trabajo o acuerdo seleccionado.
 9. Perfil profesional e historial: posterior al recorrido básico.
-10. Mensajes, notificaciones y reporte: según prioridad y disponibilidad.
+10. Publicación y edición de oportunidades.
+11. Lista y detalle de postulantes, selección y seguimiento.
+12. Mensajes, notificaciones y reporte: según prioridad y disponibilidad.
 
-### Web: negocio o profesional contratante
+### Web de presentación
 
-1. Inicio/acceso y perfil de cliente.
-2. Panel con oportunidades publicadas.
-3. Formulario para crear y editar oportunidades.
-4. Lista y detalle de postulantes.
-5. Selección y seguimiento del trabajo.
-6. Ayuda y reportes.
+Página informativa prevista para presentar la propuesta, explicar cómo funciona y dirigir a la descarga oficial de la app cuando esté disponible. No sustituye los recorridos de la aplicación.
 
 ### Administración
 
-Vista separada o ruta protegida dentro de la web: listado y revisión de ofertas, reportes, acciones de moderación y auditoría. Las acciones de administración se autorizan en el servidor, no solo en la interfaz.
+Las herramientas de revisión de ofertas, reportes, moderación y auditoría se definirán después del recorrido principal. Las acciones de administración se autorizan en el servidor, no solo en la interfaz.
 
 ## 7. Estructura de información
 
@@ -173,8 +170,8 @@ Entidades iniciales; los campos definitivos se ajustan al proveedor y diseño:
 | Componente | Propuesta | Motivo | Alternativa / límite |
 |---|---|---|---|
 | Android | Kotlin + Jetpack Compose, Material 3, Navigation Compose y ViewModel con flujo unidireccional de datos. | Aprovecha los temas del curso y separa interfaz, estado y datos. | Las interfaces se implementarán y probarán en Android. |
-| Web cliente y administración | React + TypeScript, con diseño responsive. | Comparte componentes y estado entre paneles. | Una sola web con áreas por permisos; si el curso exige otra tecnología, ajustar. |
-| Autenticación y datos | Firebase Authentication + Cloud Firestore. | Servicio administrado y SDK disponibles para Android y web. | No es obligatorio: si el curso exige servidor propio, evaluar Ktor + PostgreSQL. Configuración y costos se verifican antes de usar cuentas reales. |
+| Web de presentación | Landing responsive, tecnología por definir. | Explica TuEmpuje y dirige a la app cuando exista un enlace de descarga. | No incluye publicación ni gestión de postulaciones; no es prioritaria para el recorrido académico. |
+| Autenticación y datos | Firebase Authentication + Cloud Firestore. | Servicio administrado y SDK disponibles para Android. | Si el curso exige servidor propio, evaluar Ktor + PostgreSQL. Configuración y costos se verifican antes de usar cuentas reales. |
 | Datos locales Android | Room sobre SQLite para oportunidades guardadas y caché local controlada. | Permite aplicar persistencia estudiada y consultar datos disponibles con mala conexión. | Firestore también tiene caché propia; el repositorio debe definir cuál se utiliza para cada lectura y cómo se actualiza. |
 | API HTTP Android | Retrofit para una API REST específica cuando se defina un servicio propio o externo. | Permite aplicar el consumo de API aprendido en el curso. | No se necesita Retrofit para acceder a Firestore mediante su SDK; no duplicar escrituras de oportunidades. |
 | Asistencia con IA | Gemini para sugerir un borrador de oportunidad que revisará el cliente. | Ayuda a estructurar tareas y detectar campos faltantes. | Integración pendiente. Si falla, el formulario manual permanece disponible. |
@@ -183,18 +180,19 @@ Entidades iniciales; los campos definitivos se ajustan al proveedor y diseño:
 | Lógica privilegiada | Cloud Functions o backend equivalente. | Centraliza selección, validaciones sensibles y futuras integraciones. | Requiere verificar límites, plan y costos; desarrollo local con emuladores cuando sea posible. |
 | Reglas y almacenamiento | Reglas de seguridad de Firebase y almacenamiento de archivos según necesidad. | Control por usuario y recurso. | Las reglas no protegen automáticamente operaciones hechas con SDK de administración; esas rutas necesitan autorización explícita. |
 | Notificaciones | Firebase Cloud Messaging, etapa posterior al recorrido básico. | Notificaciones móviles. | Requiere permisos y configuración de proyecto. |
-| Control de versiones | Git y repositorio remoto cuando se configure. | Historial y revisión de cambios. | Repositorio local preparado; remoto pendiente. |
+| Control de versiones | Git y repositorio remoto. | Historial y revisión de cambios. | El repositorio contiene documentación; la implementación está pendiente. |
 | Pagos | Proveedor por seleccionar; Mercado Pago es candidato para evaluar en Perú. | Ofrece documentación de marketplace y entorno de prueba. | Integración al final; disponibilidad, medios, comisiones y elegibilidad deben confirmarse para el caso concreto. |
 
 La arquitectura se organiza en componentes según las necesidades del proyecto. Android Developers recomienda capas de interfaz y datos, repositorios y flujo de datos unidireccional; esas recomendaciones se adaptan al proyecto. [Documentación de arquitectura Android](https://developer.android.com/topic/architecture/recommendations).
 
 ```text
-Android (Kotlin + Compose) ──┐
-                             ├──► Identidad / datos / reglas ──► Base de datos
-Web cliente (React) ─────────┤              │
-                             │              ├──► Lógica privilegiada / auditoría
-Panel administrador ─────────┘              ├──► Gemini: asistencia propuesta
-                                            └──► Proveedor de pagos: etapa final
+Android (Kotlin + Compose) ──► Identidad / datos / reglas ──► Base de datos
+                                          │
+                                          ├──► Lógica privilegiada / auditoría
+                                          ├──► Gemini: asistencia propuesta
+                                          └──► Proveedor de pagos: etapa final
+
+Web de presentación ──► información y descarga de la app cuando esté disponible
 ```
 
 En Android, la UI envía acciones al ViewModel; este consulta un repositorio. El repositorio usa Firestore para información compartida y Room para la vista local definida. Si se incorpora una API REST, Retrofit se integra como otra fuente del repositorio para una necesidad concreta. Las postulaciones y selecciones se confirman con el servidor; sin conexión no se muestran como aceptadas.
@@ -213,8 +211,7 @@ TuEmpuje/
 │       ├── data/            # modelos de datos, fuentes y repositorios
 │       ├── domain/          # reglas de negocio cuando aporten claridad
 │       └── features/        # acceso, oportunidades, postulaciones, perfil
-├── web/                     # aplicación cliente y administración
-│   └── src/                 # vistas, componentes, servicios y permisos
+├── web/                     # página de presentación futura
 ├── backend/                 # funciones o servicios de negocio
 ├── infra/                   # reglas de acceso, índices y configuración
 └── tests/                   # pruebas integradas y escenarios compartidos
@@ -238,7 +235,7 @@ Cada día: escoger un objetivo comprobable → diseñar el flujo → implementar
 
 **Definición de listo para empezar:** objetivo, actor, datos requeridos, restricciones y ejemplo de aceptación entendidos; dependencias identificadas.
 
-**Definición de terminado para el curso:** se ejecuta desde una instalación documentada, cumple los criterios del alcance elegido, se verifica en Android y web cuando corresponde, maneja error básico, no expone secretos, no rompe el recorrido anterior y registra qué es real o simulado.
+**Definición de terminado para el curso:** se ejecuta desde una instalación documentada, cumple los criterios del alcance elegido, se verifica en Android, maneja error básico, no expone secretos, no rompe el recorrido anterior y registra qué es real o simulado.
 
 **Definición adicional para producción:** permisos revisados en servidor, protección de datos, pruebas de seguridad, registros de incidentes, recuperación y respaldo, soporte y condiciones de operación. Pasarela y liberación están sujetas a requisitos de terceros.
 
@@ -265,7 +262,7 @@ Después de publicar: responder incidencias, revisar errores, mantener dependenc
 
 | Riesgo o incógnita | Impacto | Tratamiento |
 |---|---|---|
-| Plazo de 7–10 días | Alto | Priorizar un solo recorrido integrado; panel y autenticación se abordan con servicios administrados si resultan viables. |
+| Plazo de 7–10 días | Alto | Priorizar un solo recorrido integrado en Android; autenticación y datos se abordan con servicios administrados si resultan viables. |
 | Falta de trabajos reales | Alto | Validar con negocios y profesionales; el prototipo usa datos ficticios. |
 | Complejidad de permisos y datos | Alto | Acceso por recurso, reglas y pruebas antes de cualquier piloto real. |
 | Pasarela y retiros no compatibles | Alto | Dejar pagos al final y confirmar con proveedor; usar sandbox antes de producción. |
