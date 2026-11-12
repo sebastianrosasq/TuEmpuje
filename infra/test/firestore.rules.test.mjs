@@ -135,6 +135,16 @@ test('dos selecciones simultáneas no pueden cubrir la misma vacante', async () 
   if (final.data().selectedCount !== 1) throw new Error('El conteo de seleccionados es incorrecto');
 });
 
+test('no se aceptan postulaciones nuevas cuando las vacantes están cubiertas', async () => {
+  await assertSucceeds(setDoc(doc(user('candidato'), 'opportunities', 'oferta', 'applications', 'candidato'), application('candidato')));
+  const db = user('cliente');
+  const batch = writeBatch(db);
+  batch.update(doc(db, 'opportunities', 'oferta'), { selectedCount: 1, lastSelectedApplicantId: 'candidato' });
+  batch.update(doc(db, 'opportunities', 'oferta', 'applications', 'candidato'), { status: 'selected', selectedAt: serverTimestamp() });
+  await assertSucceeds(batch.commit());
+  await assertFails(setDoc(doc(user('otro'), 'opportunities', 'oferta', 'applications', 'otro'), application('otro')));
+});
+
 test('postulaciones solo las leen su titular y el dueño de la oportunidad', async () => {
   const path = ['opportunities', 'oferta', 'applications', 'candidato'];
   await assertSucceeds(setDoc(doc(user('candidato'), ...path), application('candidato')));

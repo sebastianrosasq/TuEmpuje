@@ -158,6 +158,7 @@ Con una escala de texto de 1,8 o más, la navegación se distribuye en dos filas
 - En una pantalla de 360 dp de ancho se comprobó el acceso al formulario con fuente al 200 % y animaciones desactivadas, los destinos y el botón principal superaron el tamaño táctil mínimo
 - La fuente Rive pasó `--verify`, se comprobaron sus nueve estados y el recurso publicado se ejecutó en Android con la GPU del equipo
 - En emuladores locales de Firebase se probaron acceso, publicación, postulación desde otra cuenta, selección, estado recibido por el postulante y guardado del perfil
+- En Firebase de desarrollo se verificaron publicación, postulación y selección entre dos cuentas temporales mediante el SDK, queda pendiente repetir el recorrido completo desde Android en un teléfono físico
 - Se comprobaron los guardados, el cambio de tema y las opciones de movimiento y mascota, así como su persistencia al reiniciar
 - En un emulador Android 36 se revisaron Explorar, el detalle, Publicar, Actividad y la vista de candidatos con datos ficticios
 - Se comprobaron búsqueda sin resultados, recuperación de filtros, error del formulario, conservación del borrador y publicación simulada

@@ -176,6 +176,10 @@ class OpportunityViewModel(private val services: FirebaseServices?) : ViewModel(
         val db = services?.firestore ?: return
         val opportunity = find(id) ?: run { error = "La oportunidad ya no está disponible"; return }
         if (opportunity.own || id in applications) return
+        if (opportunity.selectedCount >= opportunity.vacancies) {
+            error = "Las vacantes de esta oportunidad ya están cubiertas"
+            return
+        }
         operation("No se confirmó la postulación, revisa tu actividad antes de volver a intentarlo") {
             val profile = db.collection("users").document(uid).get(Source.SERVER).await()
             val name = profile.getString("displayName") ?: throw IllegalStateException("Completa tu perfil antes de postular")

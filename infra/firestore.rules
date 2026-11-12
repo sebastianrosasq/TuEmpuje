@@ -95,6 +95,7 @@ service cloud.firestore {
           && exists(/databases/$(database)/documents/users/$(request.auth.uid))
           && exists(opportunityPath(opportunityId))
           && opportunity().data.status == 'published'
+          && opportunity().data.selectedCount < opportunity().data.vacancies
           && opportunity().data.ownerId != request.auth.uid
           && request.resource.data.keys().hasAll(['applicantId', 'applicantName', 'status', 'createdAt'])
           && request.resource.data.keys().hasOnly(['applicantId', 'applicantName', 'status', 'createdAt'])
