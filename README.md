@@ -51,13 +51,15 @@ Las tecnologías pueden ajustarse según los requisitos del curso y las necesida
 
 El proyecto se encuentra en **desarrollo inicial**
 
-El repositorio incluye una primera versión Android con navegación, registro, acceso y edición de perfil
+El repositorio incluye una aplicación Android en desarrollo con navegación, cuenta, perfil, ajustes y guardados locales
 
 Las cuentas y los perfiles pueden probarse con los emuladores locales o con un proyecto Firebase de desarrollo en la nube, utilizando datos ficticios
 
-Las publicaciones y postulaciones son simuladas y se pierden al cerrar el proceso, la web, Gemini y los pagos aún no están implementados
+Las oportunidades, postulaciones y selección de candidatos están conectadas a Firestore en el entorno de desarrollo, las reglas y el recorrido entre cuentas se verificaron con los emuladores de Firebase
 
-El prototipo incluye filtros, condiciones de publicación y una vista de candidatos con perfiles ficticios, el botón para acceder con Google está visible pero todavía no funciona
+El acceso con Google está integrado y configurado en el proyecto de desarrollo, queda por probar el inicio de sesión completo con una cuenta de Google en un teléfono compatible
+
+La web, Gemini, los pagos, la mensajería y el seguimiento completo de una contratación todavía no están implementados, el proyecto de desarrollo y sus cuentas se usan únicamente con datos ficticios
 
 El sistema visual comparte avisos, botones y estados vacíos, con transiciones y una navegación que se adapta al texto ampliado, las pruebas y limitaciones están registradas en [Diseño y navegación](docs/10-diseno-y-navegacion.md)
 

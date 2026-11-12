@@ -1,4 +1,5 @@
 import java.util.Properties
+import groovy.json.JsonSlurper
 
 plugins {
     id("com.android.application")
@@ -16,6 +17,20 @@ val firebaseProperties = Properties().apply {
 }
 fun firebaseValue(name: String): String = firebaseProperties.getProperty(name)?.trim().orEmpty()
 fun quoted(value: String): String = "\"" + value.replace("\\", "\\\\").replace("\"", "\\\"") + "\""
+val googleWebClientId = if (backend == "cloud") runCatching {
+    val config = JsonSlurper().parse(rootProject.file("app/google-services.json")) as Map<*, *>
+    val info = config["project_info"] as Map<*, *>
+    require(info["project_id"] == firebaseValue("projectId"))
+    val clients = config["client"] as List<*>
+    val client = clients.map { it as Map<*, *> }.first {
+        val clientInfo = it["client_info"] as Map<*, *>
+        val androidInfo = clientInfo["android_client_info"] as Map<*, *>
+        androidInfo["package_name"] == "pe.tuempuje.app"
+    }
+    (client["oauth_client"] as? List<*>)?.map { it as Map<*, *> }
+        ?.firstOrNull { (it["client_type"] as? Number)?.toInt() == 3 }
+        ?.get("client_id") as? String ?: ""
+}.getOrDefault("") else ""
 if (backend == "cloud") {
     require(listOf("projectId", "applicationId", "apiKey").all { firebaseValue(it).isNotEmpty() }) {
         "Para el entorno cloud configura projectId, applicationId y apiKey en android/firebase.local.properties"
@@ -36,6 +51,7 @@ android {
         buildConfigField("String", "FIREBASE_PROJECT_ID", quoted(firebaseValue("projectId")))
         buildConfigField("String", "FIREBASE_APPLICATION_ID", quoted(firebaseValue("applicationId")))
         buildConfigField("String", "FIREBASE_API_KEY", quoted(firebaseValue("apiKey")))
+        buildConfigField("String", "FIREBASE_WEB_CLIENT_ID", quoted(googleWebClientId))
     }
 
     buildFeatures {
@@ -63,9 +79,14 @@ dependencies {
     implementation("androidx.compose.material:material-icons-extended")
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.9.0")
     implementation("androidx.navigation:navigation-compose:2.9.8")
+    implementation("app.rive:rive-android:11.16.3")
+    implementation("androidx.credentials:credentials:1.6.0")
+    implementation("androidx.credentials:credentials-play-services-auth:1.6.0")
+    implementation("com.google.android.libraries.identity.googleid:googleid:1.1.1")
     implementation(platform("com.google.firebase:firebase-bom:34.10.0"))
     implementation("com.google.firebase:firebase-auth")
     implementation("com.google.firebase:firebase-firestore")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.10.2")
+    testImplementation("junit:junit:4.13.2")
     debugImplementation("androidx.compose.ui:ui-tooling")
 }

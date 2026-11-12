@@ -2,7 +2,7 @@ import { after, before, beforeEach, test } from 'node:test';
 import { readFile } from 'node:fs/promises';
 import { assertFails, assertSucceeds, initializeTestEnvironment } from '@firebase/rules-unit-testing';
 import {
-  collection, doc, getDoc, getDocs, query, serverTimestamp, setDoc, updateDoc, where,
+  collection, collectionGroup, doc, getDoc, getDocs, query, runTransaction, serverTimestamp, setDoc, updateDoc, where, writeBatch,
 } from 'firebase/firestore';
 
 const projectId = 'demo-tuempuje';
@@ -12,16 +12,20 @@ const user = (uid) => env.authenticatedContext(uid, { email: `${uid}@example.inv
 const profile = (uid) => ({ uid, displayName: `Perfil ${uid}`, email: `${uid}@example.invalid` });
 const opportunity = (uid) => ({
   ownerId: uid,
+  ownerName: `Perfil ${uid}`,
   title: 'Ayudante de fotografía',
   description: 'Apoyo con equipo durante una sesión',
   location: 'Arequipa',
   pay: 'S/ 60 por jornada',
   duration: '4 horas',
+  category: 'Ayudantía',
+  requirements: 'Puntualidad',
   vacancies: 1,
+  selectedCount: 0,
   status: 'published',
   createdAt: serverTimestamp(),
 });
-const application = (uid) => ({ applicantId: uid, status: 'pending', createdAt: serverTimestamp() });
+const application = (uid) => ({ applicantId: uid, applicantName: `Perfil ${uid}`, status: 'pending', createdAt: serverTimestamp() });
 
 before(async () => {
   env = await initializeTestEnvironment({
@@ -51,9 +55,12 @@ test('solo el titular crea, lee y edita su perfil privado', async () => {
   await assertSucceeds(setDoc(own, profile('nueva')));
   await assertSucceeds(getDoc(own));
   await assertSucceeds(updateDoc(own, { displayName: 'Nombre actualizado' }));
+  await assertSucceeds(updateDoc(own, { skills: 'Edición', experience: 'Proyectos personales', availability: 'Tardes' }));
   await assertFails(getDoc(doc(user('otro'), 'users', 'nueva')));
   await assertFails(getDocs(collection(user('otro'), 'users')));
   await assertFails(updateDoc(doc(user('otro'), 'users', 'nueva'), { displayName: 'Cambio ajeno' }));
+  await assertFails(updateDoc(doc(user('otro'), 'users', 'nueva'), { skills: 'Cambio ajeno' }));
+  await assertFails(updateDoc(own, { skills: 'x'.repeat(501) }));
 });
 
 test('impide suplantación de correo, identidad y privilegios en perfiles', async () => {
@@ -86,6 +93,7 @@ test('solo se crean oportunidades propias y con campos válidos', async () => {
   const db = user('cliente');
   await assertSucceeds(setDoc(doc(db, 'opportunities', 'valida'), opportunity('cliente')));
   await assertFails(setDoc(doc(db, 'opportunities', 'suplantada'), opportunity('otro')));
+  await assertFails(setDoc(doc(db, 'opportunities', 'nombre-falso'), { ...opportunity('cliente'), ownerName: 'Otro nombre' }));
   await assertFails(setDoc(doc(db, 'opportunities', 'incompleta'), { ...opportunity('cliente'), title: '' }));
   await assertFails(setDoc(doc(db, 'opportunities', 'vacantes'), { ...opportunity('cliente'), vacancies: 0 }));
   await assertFails(setDoc(doc(db, 'opportunities', 'estado'), { ...opportunity('cliente'), status: 'closed' }));
@@ -105,8 +113,26 @@ test('la postulación exige identidad propia y no puede duplicarse', async () =>
   await assertSucceeds(setDoc(ref, application('candidato')));
   await assertFails(setDoc(ref, application('candidato')));
   await assertFails(setDoc(doc(candidate, 'opportunities', 'oferta', 'applications', 'otro'), application('otro')));
+  await assertFails(setDoc(doc(user('otro'), 'opportunities', 'oferta', 'applications', 'otro'), { ...application('otro'), applicantName: 'Nombre ajeno' }));
   await assertFails(setDoc(doc(user('cliente'), 'opportunities', 'oferta', 'applications', 'cliente'), application('cliente')));
   await assertFails(setDoc(doc(user('otro'), 'opportunities', 'inexistente', 'applications', 'otro'), application('otro')));
+});
+
+test('dos selecciones simultáneas no pueden cubrir la misma vacante', async () => {
+  for (const uid of ['candidato', 'otro']) {
+    await assertSucceeds(setDoc(doc(user(uid), 'opportunities', 'oferta', 'applications', uid), application(uid)));
+  }
+  const db = user('cliente');
+  const job = doc(db, 'opportunities', 'oferta');
+  const select = (uid) => runTransaction(db, async (transaction) => {
+    const current = await transaction.get(job);
+    transaction.update(job, { selectedCount: current.data().selectedCount + 1, lastSelectedApplicantId: uid });
+    transaction.update(doc(db, 'opportunities', 'oferta', 'applications', uid), { status: 'selected', selectedAt: serverTimestamp() });
+  });
+  const results = await Promise.allSettled([select('candidato'), select('otro')]);
+  if (results.filter((r) => r.status === 'fulfilled').length !== 1) throw new Error('La vacante debe asignarse una sola vez');
+  const final = await getDoc(job);
+  if (final.data().selectedCount !== 1) throw new Error('El conteo de seleccionados es incorrecto');
 });
 
 test('postulaciones solo las leen su titular y el dueño de la oportunidad', async () => {
@@ -118,12 +144,30 @@ test('postulaciones solo las leen su titular y el dueño de la oportunidad', asy
   await assertFails(getDoc(doc(user('otro'), ...path)));
   await assertFails(getDocs(collection(user('otro'), 'opportunities', 'oferta', 'applications')));
   await assertFails(getDoc(doc(env.unauthenticatedContext().firestore(), ...path)));
+  await assertSucceeds(getDocs(query(collectionGroup(user('candidato'), 'applications'), where('applicantId', '==', 'candidato'))));
+  await assertFails(getDocs(collectionGroup(user('otro'), 'applications')));
 });
 
-test('no se pueden seleccionar candidatos ni falsificar estados desde el cliente', async () => {
+test('no se pueden falsificar estados ni seleccionar sin actualizar las vacantes', async () => {
   const path = ['opportunities', 'oferta', 'applications', 'candidato'];
   await assertSucceeds(setDoc(doc(user('candidato'), ...path), application('candidato')));
   await assertFails(updateDoc(doc(user('cliente'), ...path), { status: 'selected' }));
   await assertFails(updateDoc(doc(user('candidato'), ...path), { status: 'selected' }));
   await assertFails(setDoc(doc(user('otro'), 'opportunities', 'oferta', 'applications', 'otro'), { ...application('otro'), status: 'selected' }));
+});
+
+test('solo el dueño selecciona de forma atómica y no supera las vacantes', async () => {
+  await assertSucceeds(setDoc(doc(user('candidato'), 'opportunities', 'oferta', 'applications', 'candidato'), application('candidato')));
+  await assertSucceeds(setDoc(doc(user('otro'), 'opportunities', 'oferta', 'applications', 'otro'), application('otro')));
+  const db = user('cliente');
+  const job = doc(db, 'opportunities', 'oferta');
+  const first = doc(db, 'opportunities', 'oferta', 'applications', 'candidato');
+  const batch = writeBatch(db);
+  batch.update(job, { selectedCount: 1, lastSelectedApplicantId: 'candidato' });
+  batch.update(first, { status: 'selected', selectedAt: serverTimestamp() });
+  await assertSucceeds(batch.commit());
+  const second = writeBatch(db);
+  second.update(job, { selectedCount: 2, lastSelectedApplicantId: 'otro' });
+  second.update(doc(db, 'opportunities', 'oferta', 'applications', 'otro'), { status: 'selected', selectedAt: serverTimestamp() });
+  await assertFails(second.commit());
 });

@@ -4,11 +4,14 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.background
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
@@ -24,23 +27,33 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Visibility
 import androidx.compose.material.icons.rounded.VisibilityOff
+import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.credentials.CredentialManager
+import androidx.credentials.ClearCredentialStateRequest
+import androidx.credentials.CustomCredential
+import androidx.credentials.GetCredentialRequest
+import androidx.credentials.exceptions.GetCredentialCancellationException
+import com.google.android.libraries.identity.googleid.GetSignInWithGoogleOption
+import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import pe.tuempuje.app.auth.AccountUiState
@@ -52,21 +65,31 @@ import pe.tuempuje.app.ui.components.AppLoadingState
 import pe.tuempuje.app.ui.components.Empu
 import pe.tuempuje.app.ui.components.EmpuMood
 import pe.tuempuje.app.BuildConfig
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.CancellationException
 
 @Composable
-fun AccountScreen(auth: FirebaseAuth, firestore: FirebaseFirestore, isLocal: Boolean, onMascotDemo: () -> Unit) {
+fun AccountScreen(auth: FirebaseAuth, firestore: FirebaseFirestore, isLocal: Boolean, onSettings: () -> Unit, onSaved: () -> Unit, onMascotDemo: () -> Unit) {
     val factory = remember(auth, firestore) { AccountViewModelFactory(auth, firestore) }
     val account: AccountViewModel = viewModel(factory = factory)
     val state by account.state.collectAsState()
     var showExperience by rememberSaveable(state.uid) { mutableStateOf(false) }
     val scrollState = rememberScrollState()
+    val context = LocalContext.current
+    val credentialManager = remember(context) { CredentialManager.create(context) }
+    val scope = rememberCoroutineScope()
+    val signOut = {
+        account.signOut()
+        scope.launch { runCatching { credentialManager.clearCredentialState(ClearCredentialStateRequest()) } }
+        Unit
+    }
 
     LaunchedEffect(state.error) {
         if (state.error != null) scrollState.animateScrollTo(0)
     }
 
     if (showExperience && state.uid != null) {
-        ExperiencePreview(onBack = { showExperience = false })
+        ExperienceEditor(state, account, onBack = { showExperience = false })
         return
     }
 
@@ -74,9 +97,12 @@ fun AccountScreen(auth: FirebaseAuth, firestore: FirebaseFirestore, isLocal: Boo
         modifier = Modifier.verticalScroll(scrollState).padding(22.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
-        Text("Perfil", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Text("Perfil", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
+            IconButton(onClick = onSettings) { Icon(Icons.Rounded.Settings, contentDescription = "Personalizar aplicación") }
+        }
         Text(
-            "Las oportunidades y postulaciones siguen siendo simuladas en esta versión",
+            "Administra tu cuenta y personaliza tu experiencia",
             style = MaterialTheme.typography.bodyLarge,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -89,11 +115,14 @@ fun AccountScreen(auth: FirebaseAuth, firestore: FirebaseFirestore, isLocal: Boo
             AppLoadingState("Cargando cuenta")
         }
         state.error?.let { AccountError(it) }
+        state.message?.let { AppNotice(it) }
         when {
             state.uid == null -> AuthForm(account, state.loading, state.error != null)
-            state.profileLoadFailed -> ProfileUnavailable(account, state.loading)
-            else -> ProfileForm(state, account, onShowExperience = { showExperience = true })
+            state.profileLoadFailed -> ProfileUnavailable(account, state.loading, signOut)
+            else -> ProfileForm(state, account, onShowExperience = { showExperience = true }, onSignOut = signOut)
         }
+        OutlinedButton(onClick = onSaved, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) { Text("Oportunidades guardadas") }
+        OutlinedButton(onClick = onSettings, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) { Text("Personalizar aplicación") }
         if (BuildConfig.DEBUG) {
             TextButton(onClick = onMascotDemo) { Text("Probar expresiones de Empu") }
         }
@@ -109,13 +138,11 @@ private fun AuthForm(account: AccountViewModel, loading: Boolean, hasError: Bool
     var passwordVisible by rememberSaveable { mutableStateOf(false) }
     var emailFocused by remember { mutableStateOf(false) }
     var passwordFocused by remember { mutableStateOf(false) }
-    val mood = when {
-        passwordFocused && !passwordVisible -> EmpuMood.PASSWORD
-        loading -> EmpuMood.LOADING
-        hasError -> EmpuMood.SAD
-        emailFocused -> EmpuMood.LOOKING
-        else -> EmpuMood.IDLE
-    }
+    var googleBusy by remember { mutableStateOf(false) }
+    val context = LocalContext.current
+    val credentialManager = remember(context) { CredentialManager.create(context) }
+    val scope = rememberCoroutineScope()
+    val mood = accountEmpuMood(loading, hasError, emailFocused, passwordFocused, passwordVisible)
 
     Surface(color = MaterialTheme.colorScheme.surface, shape = MaterialTheme.shapes.large) {
         Column(Modifier.fillMaxWidth().padding(20.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
@@ -171,12 +198,33 @@ private fun AuthForm(account: AccountViewModel, loading: Boolean, hasError: Bool
                 enabled = !loading,
             )
             OutlinedButton(
-                onClick = {},
-                enabled = false,
+                onClick = {
+                    googleBusy = true
+                    scope.launch {
+                        try {
+                            val option = GetSignInWithGoogleOption.Builder(BuildConfig.FIREBASE_WEB_CLIENT_ID).build()
+                            val request = GetCredentialRequest.Builder().addCredentialOption(option).build()
+                            val credential = credentialManager.getCredential(context, request).credential
+                            if (credential is CustomCredential && credential.type == GoogleIdTokenCredential.TYPE_GOOGLE_ID_TOKEN_CREDENTIAL) {
+                                account.signInWithGoogle(GoogleIdTokenCredential.createFrom(credential.data).idToken)
+                            } else {
+                                account.reportGoogleError("No se pudo leer la credencial de Google")
+                            }
+                        } catch (_: GetCredentialCancellationException) {
+                        } catch (exception: CancellationException) {
+                            throw exception
+                        } catch (_: Exception) {
+                            account.reportGoogleError("No se pudo iniciar sesión con Google, inténtalo nuevamente")
+                        } finally {
+                            googleBusy = false
+                        }
+                    }
+                },
+                enabled = !loading && !googleBusy && BuildConfig.FIREBASE_WEB_CLIENT_ID.isNotBlank(),
                 modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
-            ) { Text("Continuar con Google · próximamente") }
+            ) { Text(if (BuildConfig.FIREBASE_WEB_CLIENT_ID.isBlank()) "Google no está configurado en este entorno" else "Continuar con Google") }
             if (!register) {
-                TextButton(enabled = false, onClick = {}) { Text("Recuperar contraseña · próximamente") }
+                TextButton(enabled = !loading, onClick = { account.resetPassword(email) }) { Text("Recuperar contraseña") }
             }
             TextButton(enabled = !loading, onClick = { register = !register; password = "" }) {
                 Text(if (register) "Ya tengo una cuenta" else "Crear una cuenta")
@@ -186,7 +234,7 @@ private fun AuthForm(account: AccountViewModel, loading: Boolean, hasError: Bool
 }
 
 @Composable
-private fun ProfileForm(state: AccountUiState, account: AccountViewModel, onShowExperience: () -> Unit) {
+private fun ProfileForm(state: AccountUiState, account: AccountViewModel, onShowExperience: () -> Unit, onSignOut: () -> Unit) {
     var editing by rememberSaveable(state.uid, state.needsProfile) { mutableStateOf(state.needsProfile) }
     var name by rememberSaveable(state.uid, state.displayName) { mutableStateOf(state.displayName) }
     LaunchedEffect(state.loading) {
@@ -222,55 +270,74 @@ private fun ProfileForm(state: AccountUiState, account: AccountViewModel, onShow
                     TextButton(enabled = !state.loading, onClick = { name = state.displayName; editing = false }) { Text("Cancelar") }
                 }
             } else {
-                Text(state.displayName, style = MaterialTheme.typography.titleMedium)
-                Text(state.email, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Box(
+                        modifier = Modifier.size(56.dp).background(MaterialTheme.colorScheme.primaryContainer, CircleShape),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Text(state.displayName.trim().firstOrNull()?.uppercase() ?: "", style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.onPrimaryContainer)
+                    }
+                    Column(Modifier.weight(1f)) {
+                        Text(state.displayName, style = MaterialTheme.typography.titleMedium)
+                        Text(state.email, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
                 OutlinedButton(enabled = !state.loading, onClick = { editing = true }) { Text("Editar nombre") }
                 OutlinedButton(enabled = !state.loading, onClick = onShowExperience, modifier = Modifier.fillMaxWidth()) { Text("Habilidades y experiencia") }
             }
-            TextButton(enabled = !state.loading, onClick = account::signOut) { Text("Cerrar sesión") }
+            TextButton(enabled = !state.loading, onClick = onSignOut) { Text("Cerrar sesión") }
         }
     }
 }
 
 @Composable
-private fun ExperiencePreview(onBack: () -> Unit) {
-    var skills by rememberSaveable { mutableStateOf("") }
-    var experience by rememberSaveable { mutableStateOf("") }
-    var availability by rememberSaveable { mutableStateOf("") }
+private fun ExperienceEditor(state: AccountUiState, account: AccountViewModel, onBack: () -> Unit) {
+    var skills by rememberSaveable(state.uid) { mutableStateOf(state.skills) }
+    var experience by rememberSaveable(state.uid) { mutableStateOf(state.experience) }
+    var availability by rememberSaveable(state.uid) { mutableStateOf(state.availability) }
     var confirmDiscard by rememberSaveable { mutableStateOf(false) }
-    val hasDraft = listOf(skills, experience, availability).any { it.isNotBlank() }
-    val leave = { if (hasDraft) confirmDiscard = true else onBack() }
+    var saving by remember { mutableStateOf(false) }
+    val hasDraft = skills != state.skills || experience != state.experience || availability != state.availability
+    val leave = { if (!state.loading) { if (hasDraft) confirmDiscard = true else onBack() } }
     BackHandler { leave() }
+    LaunchedEffect(state.loading, state.error, saving) {
+        if (saving && !state.loading) {
+            saving = false
+            if (state.error == null) onBack()
+        }
+    }
     if (confirmDiscard) {
         AlertDialog(
             onDismissRequest = { confirmDiscard = false },
-            title = { Text("¿Salir de la vista previa?") },
-            text = { Text("Los datos escritos todavía no se guardan y se perderán al salir") },
+            title = { Text("¿Descartar los cambios?") },
+            text = { Text("Los cambios que no guardaste se perderán") },
             confirmButton = { TextButton(onClick = { confirmDiscard = false; onBack() }) { Text("Salir") } },
             dismissButton = { TextButton(onClick = { confirmDiscard = false }) { Text("Seguir revisando") } },
         )
     }
     Column(Modifier.verticalScroll(rememberScrollState()).padding(22.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        TextButton(onClick = leave) { Text("Volver al perfil") }
+        TextButton(onClick = leave, enabled = !state.loading) { Text("Volver al perfil") }
         Text("Habilidades y experiencia", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
-        AppNotice("Vista de diseño · estos datos todavía no se guardan")
+        AppNotice("Estos datos son privados y todavía no se comparten con quienes publican oportunidades")
+        state.error?.let { AccountError(it) }
         Surface(shape = MaterialTheme.shapes.large, color = MaterialTheme.colorScheme.surface) {
             Column(Modifier.fillMaxWidth().padding(20.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
                 Text("Cuéntanos sobre ti", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
                 Text("Tus conocimientos también pueden venir de estudios o proyectos personales", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                OutlinedTextField(value = skills, onValueChange = { skills = it }, label = { Text("Habilidades") }, placeholder = { Text("Ejemplo: edición de video") }, modifier = Modifier.fillMaxWidth())
-                OutlinedTextField(value = experience, onValueChange = { experience = it }, label = { Text("Proyectos o experiencia") }, minLines = 3, modifier = Modifier.fillMaxWidth())
-                OutlinedTextField(value = availability, onValueChange = { availability = it }, label = { Text("Disponibilidad") }, placeholder = { Text("Ejemplo: fines de semana") }, modifier = Modifier.fillMaxWidth())
-                Button(onClick = {}, enabled = false, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) { Text("Guardar · próximamente") }
+                OutlinedTextField(value = skills, onValueChange = { skills = it.take(500) }, enabled = !state.loading, label = { Text("Habilidades") }, placeholder = { Text("Ejemplo: edición de video") }, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(value = experience, onValueChange = { experience = it.take(1500) }, enabled = !state.loading, label = { Text("Proyectos o experiencia") }, minLines = 3, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(value = availability, onValueChange = { availability = it.take(200) }, enabled = !state.loading, label = { Text("Disponibilidad") }, placeholder = { Text("Ejemplo: fines de semana") }, modifier = Modifier.fillMaxWidth())
+                AppPrimaryButton("Guardar cambios", enabled = hasDraft && !state.loading, onClick = { saving = true; account.saveExperience(skills, experience, availability) })
+                if (state.loading) AppLoadingState("Guardando perfil")
             }
         }
     }
 }
 
 @Composable
-private fun ProfileUnavailable(account: AccountViewModel, loading: Boolean) {
+private fun ProfileUnavailable(account: AccountViewModel, loading: Boolean, onSignOut: () -> Unit) {
     OutlinedButton(enabled = !loading, onClick = account::retryProfile) { Text("Reintentar") }
-    TextButton(enabled = !loading, onClick = account::signOut) { Text("Cerrar sesión") }
+    TextButton(enabled = !loading, onClick = onSignOut) { Text("Cerrar sesión") }
 }
 
 @Composable

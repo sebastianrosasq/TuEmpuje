@@ -1,6 +1,8 @@
 # TuEmpuje: requisitos y criterios de aceptación
 
-**Versión:** 0.1 · **Fecha:** 11 de noviembre de 2026 · **Estado:** propuesto; nada está implementado todavía.
+**Versión:** 0.2 · **Estado:** requisitos del proyecto, con un primer recorrido conectado al entorno de desarrollo
+
+Ya se implementaron cuenta, perfil privado, publicación, postulación y selección con reglas probadas en emulador, los demás requisitos conservan sus prioridades y no se consideran completos solo por figurar en este documento
 
 ## 1. Alcance y actores
 

@@ -1,16 +1,20 @@
 # Empu en Rive
 
-Esta carpeta conserva la escena editable del personaje, creada con Rive CLI
+La escena editable contiene la mascota y la máquina de estados utilizada por Android, el archivo publicado está en `android/app/src/main/res/raw/empu.riv`
 
-La máquina de estados de esta versión contiene una animación de reposo, las demás expresiones se implementan temporalmente en Compose y no forman parte de este archivo
+La propiedad numérica `mood` controla las expresiones: 0 reposo, 1 mirada, 2 contraseña, 3 pensando, 4 carga, 5 alegría, 6 éxito, 7 error y 8 estado vacío
 
-Para comprobar y previsualizar la fuente con Rive CLI desde esta carpeta
+Para verificar la fuente y generar una vista previa con Rive CLI:
 
 ```sh
 rive . --verify
-rive . --screenshot=empu.png --advance=30
+rive . --data=mood=2 --advance=30 --screenshot=empu-password.png
 ```
 
-La vista previa no equivale a un archivo publicado para Android, para obtener un recurso firmado, iniciar sesión con `rive login` y ejecutar `rive . --publish`, después se debe verificar la exportación, añadir el runtime compatible y conectar los estados antes de reemplazar la versión de Compose
+Después de editar la escena, iniciar sesión con `rive login`, ejecutar `rive . --publish` y actualizar el recurso Android con el archivo generado en `build/empu.riv`
 
-Guía de referencia: [Rive para agentes](https://rive.app/agents)
+El proyecto utiliza el plan gratuito de Rive, la publicación incluye su presentación según las condiciones del plan, si el motor no puede renderizar o se reduce el movimiento, Android usa la versión nativa en Compose
+
+El controlador recibe estados de la interfaz y nunca el contenido de la contraseña, el estado de éxito solo debe asociarse a una operación confirmada
+
+Referencias: [Rive CLI](https://rive.app/agents) y [runtime de Android](https://github.com/rive-app/rive-android)

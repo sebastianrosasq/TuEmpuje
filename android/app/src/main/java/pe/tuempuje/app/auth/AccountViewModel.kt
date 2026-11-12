@@ -7,8 +7,11 @@ import androidx.lifecycle.viewModelScope
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseAuthException
 import com.google.firebase.auth.FirebaseUser
+import com.google.firebase.auth.GoogleAuthProvider
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Source
+import com.google.firebase.firestore.SetOptions
+import com.google.firebase.firestore.DocumentSnapshot
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -23,9 +26,13 @@ data class AccountUiState(
     val uid: String? = null,
     val email: String = "",
     val displayName: String = "",
+    val skills: String = "",
+    val experience: String = "",
+    val availability: String = "",
     val needsProfile: Boolean = false,
     val profileLoadFailed: Boolean = false,
     val error: String? = null,
+    val message: String? = null,
 )
 
 class AccountViewModel(
@@ -58,6 +65,52 @@ class AccountViewModel(
                 ?: error("La sesión no se inició")
             loadProfile(user)
         }
+    }
+
+    fun resetPassword(email: String) {
+        val cleanEmail = email.trim()
+        if (cleanEmail.length > 254 || !Patterns.EMAIL_ADDRESS.matcher(cleanEmail).matches()) {
+            mutableState.value = mutableState.value.copy(error = "Ingresa un correo válido para recuperar tu cuenta", message = null)
+            return
+        }
+        runOperation {
+            withTimeout(12_000) { auth.sendPasswordResetEmail(cleanEmail).await() }
+            mutableState.value = AccountUiState(loading = false, message = "Si la cuenta existe, recibirás un correo para recuperar el acceso")
+        }
+    }
+
+    fun signInWithGoogle(idToken: String) {
+        if (idToken.isBlank()) {
+            reportGoogleError("No se pudo obtener la credencial de Google")
+            return
+        }
+        runOperation {
+            val user = withTimeout(12_000) {
+                auth.signInWithCredential(GoogleAuthProvider.getCredential(idToken, null)).await()
+            }.user ?: error("La sesión no se inició")
+            val profile = withTimeout(12_000) { firestore.collection("users").document(user.uid).get(Source.SERVER).await() }
+            if (profile.exists()) {
+                mutableState.value = fromProfile(user, profile)
+            } else {
+                val name = user.displayName?.trim()?.take(80).orEmpty()
+                if (validateName(name) == null && user.email != null) {
+                    try {
+                        writeProfile(user, name)
+                        mutableState.value = signedIn(user, name)
+                    } catch (exception: CancellationException) {
+                        throw exception
+                    } catch (exception: Exception) {
+                        mutableState.value = signedIn(user, name).copy(needsProfile = true, error = unconfirmedProfileMessage)
+                    }
+                } else {
+                    mutableState.value = signedIn(user).copy(needsProfile = true)
+                }
+            }
+        }
+    }
+
+    fun reportGoogleError(message: String) {
+        mutableState.value = mutableState.value.copy(error = message, message = null)
     }
 
     fun register(name: String, email: String, password: String) {
@@ -94,6 +147,35 @@ class AccountViewModel(
         }
     }
 
+    fun saveExperience(skills: String, experience: String, availability: String) {
+        val cleanSkills = skills.trim()
+        val cleanExperience = experience.trim()
+        val cleanAvailability = availability.trim()
+        if (cleanSkills.length > 500 || cleanExperience.length > 1500 || cleanAvailability.length > 200) {
+            mutableState.value = mutableState.value.copy(error = "Revisa la longitud de los datos del perfil")
+            return
+        }
+        val user = auth.currentUser ?: return
+        val previous = mutableState.value
+        runOperation {
+            try {
+                withTimeout(12_000) {
+                    firestore.collection("users").document(user.uid).set(
+                        mapOf("skills" to cleanSkills, "experience" to cleanExperience, "availability" to cleanAvailability),
+                        SetOptions.merge(),
+                    ).await()
+                }
+                mutableState.value = previous.copy(loading = false, skills = cleanSkills, experience = cleanExperience, availability = cleanAvailability, error = null)
+            } catch (exception: TimeoutCancellationException) {
+                mutableState.value = previous.copy(loading = false, error = unconfirmedProfileMessage)
+            } catch (exception: CancellationException) {
+                throw exception
+            } catch (exception: Exception) {
+                mutableState.value = previous.copy(loading = false, error = "No se pudieron guardar los datos del perfil, revisa tu conexión")
+            }
+        }
+    }
+
     fun saveProfile(name: String) {
         val cleanName = name.trim()
         val validation = validateName(cleanName)
@@ -109,7 +191,7 @@ class AccountViewModel(
         runOperation {
             try {
                 writeProfile(user, cleanName)
-                mutableState.value = signedIn(user, cleanName)
+                mutableState.value = previous.copy(loading = false, displayName = cleanName, needsProfile = false, error = null)
             } catch (exception: TimeoutCancellationException) {
                 mutableState.value = previous.copy(loading = false, error = unconfirmedProfileMessage)
             } catch (exception: CancellationException) {
@@ -147,8 +229,7 @@ class AccountViewModel(
                 if (profile.metadata.hasPendingWrites()) {
                     mutableState.value = signedIn(user).copy(profileLoadFailed = true, error = unconfirmedProfileMessage)
                 } else if (profile.exists()) {
-                    val name = profile.getString("displayName").orEmpty()
-                    mutableState.value = signedIn(user, name)
+                    mutableState.value = fromProfile(user, profile)
                 } else {
                     mutableState.value = signedIn(user).copy(needsProfile = true)
                 }
@@ -175,7 +256,7 @@ class AccountViewModel(
         mutableState.value = if (profile.metadata.hasPendingWrites()) {
             signedIn(user).copy(profileLoadFailed = true, error = unconfirmedProfileMessage)
         } else if (profile.exists()) {
-            signedIn(user, profile.getString("displayName").orEmpty())
+            fromProfile(user, profile)
         } else {
             signedIn(user).copy(needsProfile = true)
         }
@@ -185,7 +266,7 @@ class AccountViewModel(
         val email = user.email ?: error("La cuenta no tiene correo")
         withTimeout(12_000) {
             firestore.collection("users").document(user.uid).set(
-                mapOf("uid" to user.uid, "displayName" to name, "email" to email),
+                mapOf("uid" to user.uid, "displayName" to name, "email" to email), SetOptions.merge(),
             ).await()
         }
     }
@@ -197,7 +278,7 @@ class AccountViewModel(
         if (operationActive) return
         operationActive = true
         revision++
-        mutableState.value = mutableState.value.copy(loading = true, error = null)
+        mutableState.value = mutableState.value.copy(loading = true, error = null, message = null)
         viewModelScope.launch {
             try {
                 block()
@@ -230,6 +311,12 @@ class AccountViewModel(
         displayName = name,
     )
 
+    private fun fromProfile(user: FirebaseUser, profile: DocumentSnapshot) = signedIn(user, profile.getString("displayName").orEmpty()).copy(
+        skills = profile.getString("skills").orEmpty(),
+        experience = profile.getString("experience").orEmpty(),
+        availability = profile.getString("availability").orEmpty(),
+    )
+
     private fun validateCredentials(email: String, password: String): String? = when {
         email.length > 254 || !Patterns.EMAIL_ADDRESS.matcher(email).matches() -> "Ingresa un correo válido"
         password.length < 6 -> "La contraseña debe tener al menos 6 caracteres"
@@ -246,6 +333,7 @@ class AccountViewModel(
         "ERROR_INVALID_CREDENTIAL", "ERROR_WRONG_PASSWORD", "ERROR_USER_NOT_FOUND" -> "Correo o contraseña incorrectos"
         "ERROR_NETWORK_REQUEST_FAILED" -> "No se pudo conectar, revisa tu conexión"
         "ERROR_TOO_MANY_REQUESTS" -> "Demasiados intentos, vuelve a intentarlo más tarde"
+        "ERROR_ACCOUNT_EXISTS_WITH_DIFFERENT_CREDENTIAL" -> "Ya existe una cuenta con ese correo, inicia sesión con el método que usaste antes"
         else -> "No se pudo completar la operación, revisa tu conexión y vuelve a intentarlo"
     }
 

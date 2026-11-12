@@ -43,7 +43,7 @@ No es necesario iniciar sesión en Firebase para estas pruebas con el proyecto `
 
 ## Proyecto de desarrollo en la nube
 
-El proyecto [TuEmpuje Desarrollo](https://console.firebase.google.com/project/tuempuje-dev-e1835b/overview) tiene habilitados Authentication con correo y contraseña y una base Firestore con las reglas de este repositorio
+El proyecto [TuEmpuje Desarrollo](https://console.firebase.google.com/project/tuempuje-dev-e1835b/overview) tiene habilitados Authentication con correo y contraseña y Google, además de una base Firestore con las reglas de este repositorio
 
 La base de desarrollo se creó automáticamente en `nam5`, una región multirregional de Estados Unidos, la ubicación de producción se decidirá por separado y no se ha habilitado la facturación durante esta configuración
 
@@ -54,6 +54,8 @@ Después, desde `infra/` ejecutar `npm ci` y `npm run android:config`, el segund
 Desde `android/` compilar con `./gradlew.bat assembleDebug '-PtuempujeBackend=cloud'`, este APK usa internet y puede probarse en un emulador o teléfono físico, la compilación sin esa opción sigue utilizando los emuladores locales
 
 Los dos archivos locales de configuración están excluidos de Git, la configuración de Firebase contiene identificadores de aplicación y no debe confundirse con una clave privada o una contraseña, las cuentas del equipo deben recibir sus propios permisos en el proyecto
+
+El acceso con Google necesita que la huella SHA-1 de la clave que firma el APK esté registrada en Firebase y que `google-services.json` incluya el cliente web OAuth generado por el proveedor, las claves de firma de otras máquinas o de una versión de lanzamiento deben registrarse por separado
 
 Los cambios posteriores a las reglas deben comprobarse en el emulador y desplegarse de forma explícita al proyecto correspondiente, la configuración actual no habilita una versión de producción
 
@@ -71,19 +73,19 @@ Los avisos restantes no tienen una corrección automática compatible en el árb
 
 | Ruta | Datos previstos | Acceso inicial |
 |---|---|---|
-| `users/{uid}` | `uid`, `displayName` y `email` | Solo el titular puede leer y editar su nombre, el correo y el identificador son inmutables |
-| `opportunities/{id}` | Responsable, título, tareas, ubicación, pago, duración, vacantes, estado y fecha | Una cuenta con perfil crea su propia oportunidad publicada, las cuentas autenticadas consultan publicaciones |
-| `opportunities/{id}/applications/{uid}` | Identificador del postulante, estado y fecha | El postulante crea una solicitud propia y puede leerla, el dueño de la oportunidad puede revisar sus postulaciones |
+| `users/{uid}` | Identidad, nombre, correo y datos privados de habilidades, experiencia y disponibilidad | Solo el titular puede leer y actualizar su perfil, el correo y el identificador son inmutables |
+| `opportunities/{id}` | Responsable, nombre, categoría, tareas, requisitos, condiciones, vacantes y estado | Una cuenta con perfil crea su propia oportunidad publicada, las cuentas autenticadas consultan publicaciones |
+| `opportunities/{id}/applications/{uid}` | Identificador y nombre del postulante, estado y fecha | El postulante crea una solicitud propia y puede leerla, el dueño de la oportunidad puede revisar y seleccionar sus postulaciones |
 
 La consulta de oportunidades compartidas debe incluir `where('status', '==', 'published')`, porque las reglas de Firestore no filtran resultados por cuenta propia
 
-Las postulaciones usan el identificador del candidato como identificador del documento para impedir duplicados, no se permite postular a una oportunidad propia
+Las postulaciones usan el identificador del candidato como identificador del documento para impedir duplicados, no se permite postular a una oportunidad propia, la consulta de postulaciones personales utiliza un índice de grupo sobre `applicantId`
 
 La creación de oportunidades y postulaciones en Android se implementará en sus sprints correspondientes, la existencia de estas reglas no significa que esos recorridos ya estén conectados
 
-Los perfiles son privados y no exponen el correo a otras cuentas, antes de mostrar información de candidatos deberá definirse una vista pública separada con datos mínimos y reglas propias
+Los perfiles son privados y no exponen el correo ni los datos de experiencia a otras cuentas, la postulación comparte únicamente el nombre del candidato confirmado contra su perfil
 
-La edición o eliminación de oportunidades y postulaciones, la selección de candidatos y los cambios de vacantes permanecen bloqueados hasta implementar y probar una operación autorizada que resuelva la concurrencia de forma atómica
+La selección se realiza mediante una transacción que actualiza la postulación y el número de vacantes cubiertas de forma conjunta, las reglas y las pruebas impiden superar el límite, la edición y eliminación de oportunidades y postulaciones siguen sin habilitarse
 
 El contenido de pago de una oportunidad es informativo, no existe una integración de cobro ni se procesan datos bancarios
 

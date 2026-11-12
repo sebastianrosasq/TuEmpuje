@@ -2,6 +2,11 @@ package pe.tuempuje.app.ui.components
 
 import android.animation.ValueAnimator
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.aspectRatio
@@ -17,6 +22,8 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.TransformOrigin
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
@@ -25,15 +32,17 @@ import kotlinx.coroutines.delay
 import pe.tuempuje.app.ui.theme.EmpuInk
 import pe.tuempuje.app.ui.theme.EmpuLight
 import pe.tuempuje.app.ui.theme.EmpuTeal
+import pe.tuempuje.app.ui.LocalAppPreferences
 
-enum class EmpuMood {
-    IDLE, LOOKING, PASSWORD, THINKING, LOADING, HAPPY, SUCCESS, SAD, EMPTY,
+enum class EmpuMood(val riveValue: Float) {
+    IDLE(0f), LOOKING(1f), PASSWORD(2f), THINKING(3f), LOADING(4f),
+    HAPPY(5f), SUCCESS(6f), SAD(7f), EMPTY(8f),
 }
 
 /** La expresión depende del estado de la interfaz, nunca del contenido de los campos. */
 @Composable
-fun Empu(mood: EmpuMood, modifier: Modifier = Modifier) {
-    val motionEnabled = ValueAnimator.areAnimatorsEnabled()
+internal fun EmpuFallback(mood: EmpuMood, modifier: Modifier = Modifier) {
+    val motionEnabled = ValueAnimator.areAnimatorsEnabled() && LocalAppPreferences.current?.reduceMotion != true
     val owner = LocalLifecycleOwner.current
     var isVisible by remember(owner) { mutableStateOf(owner.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) }
     DisposableEffect(owner) {
@@ -70,7 +79,31 @@ fun Empu(mood: EmpuMood, modifier: Modifier = Modifier) {
         animationSpec = tween(if (motionEnabled) 180 else 0),
         label = "mirada",
     )
-    Canvas(modifier.aspectRatio(1f)) {
+    val tilt by animateFloatAsState(
+        targetValue = when (mood) {
+            EmpuMood.THINKING -> -3f
+            EmpuMood.SAD -> 2f
+            EmpuMood.SUCCESS -> -2f
+            else -> 0f
+        },
+        animationSpec = tween(if (motionEnabled) 180 else 0),
+        label = "expresión",
+    )
+    val breathing = if (mood == EmpuMood.IDLE && motionEnabled && isVisible) {
+        val transition = rememberInfiniteTransition(label = "respiración")
+        val scale by transition.animateFloat(
+            initialValue = 1f,
+            targetValue = 1.012f,
+            animationSpec = infiniteRepeatable(tween(2200, easing = LinearEasing), RepeatMode.Reverse),
+            label = "respiración",
+        )
+        scale
+    } else 1f
+    Canvas(modifier.aspectRatio(1f).graphicsLayer {
+        scaleY = breathing
+        rotationZ = tilt
+        transformOrigin = TransformOrigin(.5f, .9f)
+    }) {
         val s = size.minDimension
         fun p(x: Float, y: Float) = Offset(x * s, y * s)
         val body = Path().apply {
@@ -93,6 +126,10 @@ fun Empu(mood: EmpuMood, modifier: Modifier = Modifier) {
         }
         drawPath(body, EmpuTeal)
         val eyesY = .65f
+        if (mood != EmpuMood.PASSWORD) {
+            drawLine(EmpuTeal, p(.17f, .73f), p(.09f, .78f), .055f * s, cap = StrokeCap.Round)
+            drawLine(EmpuTeal, p(.84f, .73f), p(.92f, .78f), .055f * s, cap = StrokeCap.Round)
+        }
         if (blink && mood == EmpuMood.IDLE) {
             listOf(.43f, .66f).forEach { x ->
                 drawLine(EmpuLight, p(x - .045f, eyesY), p(x + .045f, eyesY), strokeWidth = .025f * s, cap = StrokeCap.Round)

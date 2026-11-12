@@ -1,11 +1,13 @@
 package pe.tuempuje.app.ui.components
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -31,12 +33,17 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import pe.tuempuje.app.ui.theme.EmpuTeal
+import pe.tuempuje.app.ui.LocalAppPreferences
 
 @Composable
 fun AppNotice(message: String, modifier: Modifier = Modifier, isError: Boolean = false) {
@@ -66,8 +73,10 @@ fun AppLoadingState(message: String) {
     }
 }
 
+enum class EmptyIllustration { General, Search, Posts, Applications }
+
 @Composable
-fun AppEmptyState(title: String, message: String, action: String? = null, onAction: (() -> Unit)? = null) {
+fun AppEmptyState(title: String, message: String, action: String? = null, illustration: EmptyIllustration = EmptyIllustration.General, showMascot: Boolean = true, onAction: (() -> Unit)? = null) {
     Surface(
         shape = MaterialTheme.shapes.large,
         color = MaterialTheme.colorScheme.surface,
@@ -75,7 +84,10 @@ fun AppEmptyState(title: String, message: String, action: String? = null, onActi
         modifier = Modifier.fillMaxWidth(),
     ) {
         Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            Empu(EmpuMood.EMPTY, Modifier.size(64.dp))
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                if (showMascot) Empu(EmpuMood.EMPTY, Modifier.size(64.dp))
+                EmptyOpportunityIllustration(illustration, Modifier.size(70.dp))
+            }
             Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
             Text(message, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             if (action != null && onAction != null) TextButton(onClick = onAction) { Text(action) }
@@ -84,12 +96,46 @@ fun AppEmptyState(title: String, message: String, action: String? = null, onActi
 }
 
 @Composable
+private fun EmptyOpportunityIllustration(kind: EmptyIllustration, modifier: Modifier = Modifier) {
+    val paper = MaterialTheme.colorScheme.primaryContainer
+    val line = MaterialTheme.colorScheme.onPrimaryContainer
+    val accent = MaterialTheme.colorScheme.secondaryContainer
+    Canvas(modifier) {
+        val w = size.width
+        val h = size.height
+        drawRoundRect(accent, topLeft = Offset(.10f * w, .25f * h), size = Size(.72f * w, .58f * h), cornerRadius = CornerRadius(.13f * w))
+        drawRoundRect(paper, topLeft = Offset(.24f * w, .12f * h), size = Size(.63f * w, .65f * h), cornerRadius = CornerRadius(.12f * w))
+        drawLine(line, Offset(.36f * w, .30f * h), Offset(.73f * w, .30f * h), strokeWidth = .035f * w)
+        drawLine(line, Offset(.36f * w, .42f * h), Offset(.66f * w, .42f * h), strokeWidth = .035f * w)
+        drawLine(line, Offset(.36f * w, .54f * h), Offset(.58f * w, .54f * h), strokeWidth = .035f * w)
+        when (kind) {
+            EmptyIllustration.Search -> {
+                drawCircle(line, radius = .12f * w, center = Offset(.72f * w, .69f * h), style = Stroke(.035f * w))
+                drawLine(line, Offset(.81f * w, .78f * h), Offset(.91f * w, .88f * h), strokeWidth = .04f * w)
+            }
+            EmptyIllustration.Posts -> {
+                drawCircle(accent, radius = .16f * w, center = Offset(.76f * w, .73f * h))
+                drawLine(line, Offset(.68f * w, .73f * h), Offset(.84f * w, .73f * h), strokeWidth = .035f * w)
+                drawLine(line, Offset(.76f * w, .65f * h), Offset(.76f * w, .81f * h), strokeWidth = .035f * w)
+            }
+            EmptyIllustration.Applications -> {
+                drawCircle(accent, radius = .16f * w, center = Offset(.76f * w, .73f * h))
+                drawLine(line, Offset(.68f * w, .73f * h), Offset(.74f * w, .79f * h), strokeWidth = .035f * w)
+                drawLine(line, Offset(.74f * w, .79f * h), Offset(.85f * w, .67f * h), strokeWidth = .035f * w)
+            }
+            EmptyIllustration.General -> Unit
+        }
+    }
+}
+
+@Composable
 fun AppPrimaryButton(label: String, onClick: () -> Unit, enabled: Boolean = true) {
     val interaction = remember { MutableInteractionSource() }
     val pressed by interaction.collectIsPressedAsState()
+    val reducedMotion = LocalAppPreferences.current?.reduceMotion == true
     val scale by animateFloatAsState(
         targetValue = if (pressed && enabled) 0.985f else 1f,
-        animationSpec = spring(stiffness = Spring.StiffnessMedium),
+        animationSpec = if (reducedMotion) tween(0) else spring(stiffness = Spring.StiffnessMedium),
         label = "pulsación",
     )
     Button(

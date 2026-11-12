@@ -4,10 +4,11 @@ Este documento define la dirección visual y las reglas de interacción prevista
 
 Los componentes y recorridos descritos se incorporarán por etapas y su presencia en este documento no implica que ya estén implementados
 
-Las capturas corresponden a la aplicación Android en modo oscuro con datos ficticios en memoria
+Las capturas muestran etapas del diseño de Android con datos ficticios de desarrollo
 
 <img src="assets/explorar-rediseño.png" alt="Explorar en el rediseño de TuEmpuje" width="280">
 <img src="assets/publicar-rediseño.png" alt="Formulario de publicación en el rediseño de TuEmpuje" width="280">
+<img src="assets/ajustes-personalizacion.png" alt="Opciones de personalización de TuEmpuje" width="280">
 <img src="assets/perfil-rediseño.png" alt="Pantalla de cuenta en el rediseño de TuEmpuje" width="280">
 
 La [captura anterior de Explorar](assets/explorar-antes.png) permite comparar la jerarquía y los espacios
@@ -18,9 +19,9 @@ La interfaz conserva el símbolo de los escalones y combina superficies azul noc
 
 El verde claro del tema oscuro se reserva para texto y controles que necesitan contraste sobre las superficies oscuras, el coral se utiliza como acento secundario y los colores se definen en el tema compartido
 
-Empu es un personaje vectorial basado en los escalones, aparece en el inicio, los estados vacíos y los formularios de cuenta, su implementación actual utiliza Compose y responde al estado de la interfaz sin acceder a la contraseña
+Empu es un personaje vectorial basado en los escalones, aparece en el inicio, los estados vacíos y los formularios de cuenta, responde al estado de la interfaz sin acceder a la contraseña
 
-La fuente editable de Rive está en `design/empu-rive`, contiene una animación de reposo y todavía no está integrada como recurso Rive en Android, los estados adicionales se representan por ahora con Compose
+La fuente editable de Rive está en `design/empu-rive` y el recurso publicado se integra en Android, cuando no se puede renderizar o el usuario reduce el movimiento se utiliza la versión alternativa en Compose
 
 La interfaz comunica profundidad mediante capas bien separadas, bordes discretos y sombras suaves
 
@@ -61,7 +62,7 @@ La aplicación contempla cuatro destinos principales al mismo nivel, una cantida
 | Explorar | Descubrir oportunidades disponibles | Buscar, filtrar, abrir una oportunidad y revisar sus condiciones |
 | Publicar | Crear una oportunidad para una tarea o ayudantía | Completar el formulario, revisar datos y publicar cuando exista conexión y autorización |
 | Actividad | Seguir la participación del usuario | Consultar postulaciones y publicaciones propias, revisar candidatos y estados |
-| Perfil | Administrar la información de la cuenta | Iniciar o cerrar sesión y editar el nombre, las habilidades están previstas |
+| Perfil | Administrar la información de la cuenta | Iniciar o cerrar sesión, editar el nombre y guardar habilidades privadas |
 
 Una misma cuenta podrá publicar y postular, siempre que cumpla las condiciones de cada acción
 
@@ -71,15 +72,15 @@ El detalle de una oportunidad, el formulario de postulación y la revisión de c
 
 | Etapa | Disponible en la app | Falta para completar el recorrido |
 |---|---|---|
-| Cuenta | Registro, acceso y perfil con Firebase de desarrollo, vista previa de habilidades y disponibilidad | Guardado del perfil ampliado, acceso con Google, recuperación de contraseña y eliminación de cuenta |
-| Explorar | Búsqueda y filtros de categoría sobre datos ficticios | Listado compartido, filtros conectados, paginación y estados de red |
-| Oportunidad | Detalle con tareas, condiciones, requisitos y vacantes | Identidad verificable de quien publica y datos provenientes del servidor |
-| Publicar | Formulario y validaciones en memoria con tipo, tareas, requisitos y condiciones | Guardado en Firestore, edición, cierre y confirmación con datos reales |
-| Postular | Confirmación de simulación local y estado visible en Actividad | Envío autenticado, prevención de duplicados y seguimiento compartido |
-| Candidatos | Vista de diseño con perfiles ficticios claramente identificados | Consulta autorizada, perfil público mínimo y selección segura |
+| Cuenta | Registro y acceso con Firebase de desarrollo, recuperación de contraseña y perfil privado ampliado | Comprobar el acceso con Google en un teléfono, eliminación de cuenta y pruebas adicionales |
+| Explorar | Búsqueda y filtros sobre oportunidades compartidas de desarrollo | Paginación y búsqueda en servidor |
+| Oportunidad | Detalle con tareas, condiciones, requisitos y vacantes | Verificación de identidad y mecanismos de moderación |
+| Publicar | Formulario con validación y guardado en Firestore de desarrollo | Edición, cierre y moderación |
+| Postular | Envío autenticado, prevención de duplicados y seguimiento del estado | Retiro de postulación y avisos |
+| Candidatos | Consulta autorizada de nombres y selección atómica sin superar las vacantes | Vista pública con información adicional y comunicación |
 | Finalizar | No disponible | Acuerdo, finalización, reporte y soporte |
 
-El botón de Google se muestra desactivado hasta implementar su autenticación, los ejemplos de candidatos no representan postulaciones reales
+El acceso con Google usa Credential Manager y la configuración del proyecto de desarrollo, su prueba completa requiere una cuenta de Google en un dispositivo compatible
 
 El tema existente usa Material 3 Expressive, los filtros, superficies y botones mantienen sus estados y colores compartidos, la revisión visual y de accesibilidad continúa abierta antes de considerar completo el sistema de diseño [Material 3 en Compose](https://developer.android.com/develop/ui/compose/designsystems/material3)
 
@@ -91,9 +92,9 @@ El tema existente usa Material 3 Expressive, los filtros, superficies y botones 
 | Estado vacío | Explicar que no hay resultados o actividad y ofrecer una acción para continuar |
 | Estado de carga | Mostrar que se está consultando la cuenta |
 | Botón principal | Mantener una altura mínima de 52 dp y una forma coherente |
-| Confirmación | Comunicar el resultado de publicaciones y postulaciones simuladas |
+| Confirmación | Comunicar el resultado de publicaciones y postulaciones confirmadas por el entorno de desarrollo |
 | Campos y filtros | Etiquetas, errores y estados de selección con componentes Material 3 |
-| Empu | Personaje nativo de Compose que responde al foco de los campos y a estados de cuenta, con vista de expresiones en compilaciones de desarrollo |
+| Empu | Personaje animado con Rive y alternativa en Compose que responde al foco de los campos y a estados de cuenta |
 
 Los componentes compartidos están en `ui/components/AppComponents.kt`, las tarjetas de oportunidades utilizan el mismo diseño en Explorar y Actividad
 
@@ -151,11 +152,13 @@ Con una escala de texto de 1,8 o más, la navegación se distribuye en dos filas
 
 ### Verificación de la interfaz
 
-- En la revisión del rediseño se compilaron los entornos local y de nube, y se ejecutó `lintDebug`, la tarea de pruebas unitarias no encontró archivos de pruebas
-- En Android 36 se revisaron las cuatro secciones en modo claro y oscuro, búsqueda, filtros, validación, conservación del borrador y publicación simulada con su vista de candidatos
+- En la revisión del rediseño se compilaron los entornos local y de nube, se ejecutó `lintDebug` y se añadieron pruebas unitarias para las expresiones de la cuenta
+- En Android 36 se revisaron las cuatro secciones en modo claro y oscuro, búsqueda, filtros, validación y conservación del borrador
 - Se comprobó el control de visibilidad de contraseña, la reacción al foco y la selección de las nueve expresiones en la vista de desarrollo
 - En una pantalla de 360 dp de ancho se comprobó el acceso al formulario con fuente al 200 % y animaciones desactivadas, los destinos y el botón principal superaron el tamaño táctil mínimo
-- La fuente Rive pasó `--verify` y se compararon dos fotogramas de la animación de reposo, todavía falta generar e integrar el recurso publicado
+- La fuente Rive pasó `--verify`, se comprobaron sus nueve estados y el recurso publicado se ejecutó en Android con la GPU del equipo
+- En emuladores locales de Firebase se probaron acceso, publicación, postulación desde otra cuenta, selección, estado recibido por el postulante y guardado del perfil
+- Se comprobaron los guardados, el cambio de tema y las opciones de movimiento y mascota, así como su persistencia al reiniciar
 - En un emulador Android 36 se revisaron Explorar, el detalle, Publicar, Actividad y la vista de candidatos con datos ficticios
 - Se comprobaron búsqueda sin resultados, recuperación de filtros, error del formulario, conservación del borrador y publicación simulada
 - Se verificó el error de conexión de la cuenta y la conservación de los datos escritos al intentar iniciar sesión sin red

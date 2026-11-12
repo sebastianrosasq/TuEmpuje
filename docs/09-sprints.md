@@ -18,11 +18,11 @@ Los sprints restantes describen la evolución del producto, por lo que su inclus
 
 Si el avance es menor al previsto, se priorizarán una app ejecutable, los casos principales y las pruebas de permisos, indicando con claridad los datos simulados y las funciones pendientes
 
-**Estado:** los sprints 01 a 03 cuentan con un prototipo compilado y verificado en emulador, los sprints 04 y 05 cuentan con registro, perfiles y reglas probados localmente y un proyecto de desarrollo en la nube con identidad y perfiles comprobados, las reglas de oportunidades y postulaciones se verificaron en el emulador
+**Estado:** la app ya cuenta con navegación, cuenta, perfil privado, ajustes y guardados, las oportunidades, postulaciones y selección se conectaron a Firebase y el recorrido entre dos cuentas se verificó en emuladores locales, las reglas y el índice se desplegaron al proyecto de desarrollo
 
 La revisión del sistema visual incorporó componentes compartidos, estados de error y vacío, transiciones y adaptación de la navegación con texto ampliado, sigue pendiente la revisión manual con TalkBack y en otros dispositivos, el estado detallado del recorrido se encuentra en [Diseño y navegación](10-diseno-y-navegacion.md)
 
-La revisión más amplia de accesibilidad y dispositivos corresponde al sprint 12 y los demás sprints siguen pendientes
+La revisión más amplia de accesibilidad y dispositivos corresponde al sprint 12, el trabajo en las funciones restantes continúa y no se considera cerrado un sprint hasta verificar todos sus criterios
 
 ## Sprints
 
