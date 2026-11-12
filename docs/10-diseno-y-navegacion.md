@@ -52,11 +52,27 @@ La aplicación contempla cuatro destinos principales al mismo nivel, una cantida
 | Explorar | Descubrir oportunidades disponibles | Buscar, filtrar, abrir una oportunidad y revisar sus condiciones |
 | Publicar | Crear una oportunidad para una tarea o ayudantía | Completar el formulario, revisar datos y publicar cuando exista conexión y autorización |
 | Actividad | Seguir la participación del usuario | Consultar postulaciones y publicaciones propias, revisar candidatos y estados |
-| Perfil | Administrar la información de la cuenta | Consultar o editar datos y habilidades, e iniciar o cerrar sesión cuando esté implementado |
+| Perfil | Administrar la información de la cuenta | Iniciar o cerrar sesión y editar el nombre, las habilidades están previstas |
 
 Una misma cuenta podrá publicar y postular, siempre que cumpla las condiciones de cada acción
 
 El detalle de una oportunidad, el formulario de postulación y la revisión de candidatos serán pantallas secundarias asociadas al recorrido correspondiente
+
+### Revisión del flujo actual
+
+| Etapa | Disponible en la app | Falta para completar el recorrido |
+|---|---|---|
+| Cuenta | Registro, acceso y perfil con Firebase de desarrollo, vista previa de habilidades y disponibilidad | Guardado del perfil ampliado, acceso con Google, recuperación de contraseña y eliminación de cuenta |
+| Explorar | Búsqueda y filtros de categoría sobre datos ficticios | Listado compartido, filtros conectados, paginación y estados de red |
+| Oportunidad | Detalle con tareas, condiciones, requisitos y vacantes | Identidad verificable de quien publica y datos provenientes del servidor |
+| Publicar | Formulario y validaciones en memoria con tipo, tareas, requisitos y condiciones | Guardado en Firestore, edición, cierre y confirmación con datos reales |
+| Postular | Confirmación de simulación local y estado visible en Actividad | Envío autenticado, prevención de duplicados y seguimiento compartido |
+| Candidatos | Vista de diseño con perfiles ficticios claramente identificados | Consulta autorizada, perfil público mínimo y selección segura |
+| Finalizar | No disponible | Acuerdo, finalización, reporte y soporte |
+
+El botón de Google se muestra desactivado hasta implementar su autenticación, los ejemplos de candidatos no representan postulaciones reales
+
+El tema existente usa Material 3 Expressive, los filtros, superficies y botones mantienen sus estados y colores compartidos, la revisión visual y de accesibilidad continúa abierta antes de considerar completo el sistema de diseño [Material 3 en Compose](https://developer.android.com/develop/ui/compose/designsystems/material3)
 
 ### Recorrido principal
 

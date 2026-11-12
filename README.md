@@ -57,6 +57,8 @@ Las cuentas y los perfiles pueden probarse con los emuladores locales o con un p
 
 Las publicaciones y postulaciones son simuladas y se pierden al cerrar el proceso, la web, Gemini y los pagos aún no están implementados
 
+El prototipo incluye filtros, condiciones de publicación y una vista de candidatos con perfiles ficticios, el botón para acceder con Google está visible pero todavía no funciona
+
 La interfaz utiliza Material 3 Expressive con una versión preliminar de la biblioteca, por lo que sus dependencias deberán revisarse antes de una publicación real
 
 ## Ejecutar el prototipo Android

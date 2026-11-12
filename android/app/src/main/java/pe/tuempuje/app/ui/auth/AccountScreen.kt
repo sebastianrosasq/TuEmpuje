@@ -1,5 +1,6 @@
 package pe.tuempuje.app.ui.auth
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -41,6 +42,13 @@ fun AccountScreen(auth: FirebaseAuth, firestore: FirebaseFirestore, isLocal: Boo
     val factory = remember(auth, firestore) { AccountViewModelFactory(auth, firestore) }
     val account: AccountViewModel = viewModel(factory = factory)
     val state by account.state.collectAsState()
+    var showExperience by rememberSaveable(state.uid) { mutableStateOf(false) }
+
+    if (showExperience && state.uid != null) {
+        BackHandler { showExperience = false }
+        ExperiencePreview(onBack = { showExperience = false })
+        return
+    }
 
     Column(
         modifier = Modifier.verticalScroll(rememberScrollState()).padding(22.dp),
@@ -67,7 +75,7 @@ fun AccountScreen(auth: FirebaseAuth, firestore: FirebaseFirestore, isLocal: Boo
         when {
             state.uid == null -> AuthForm(account, state.loading)
             state.profileLoadFailed -> ProfileUnavailable(account, state.loading)
-            else -> ProfileForm(state, account)
+            else -> ProfileForm(state, account, onShowExperience = { showExperience = true })
         }
     }
 }
@@ -123,6 +131,14 @@ private fun AuthForm(account: AccountViewModel, loading: Boolean) {
                 enabled = !loading,
                 modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
             ) { Text(if (register) "Crear cuenta" else "Entrar") }
+            OutlinedButton(
+                onClick = {},
+                enabled = false,
+                modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+            ) { Text("Continuar con Google · próximamente") }
+            if (!register) {
+                TextButton(enabled = false, onClick = {}) { Text("Recuperar contraseña · próximamente") }
+            }
             TextButton(enabled = !loading, onClick = { register = !register; password = "" }) {
                 Text(if (register) "Ya tengo una cuenta" else "Crear una cuenta")
             }
@@ -131,7 +147,7 @@ private fun AuthForm(account: AccountViewModel, loading: Boolean) {
 }
 
 @Composable
-private fun ProfileForm(state: AccountUiState, account: AccountViewModel) {
+private fun ProfileForm(state: AccountUiState, account: AccountViewModel, onShowExperience: () -> Unit) {
     var editing by rememberSaveable(state.uid, state.needsProfile) { mutableStateOf(state.needsProfile) }
     var name by rememberSaveable(state.uid, state.displayName) { mutableStateOf(state.displayName) }
     LaunchedEffect(state.loading) {
@@ -166,8 +182,31 @@ private fun ProfileForm(state: AccountUiState, account: AccountViewModel) {
                 Text(state.displayName, style = MaterialTheme.typography.titleMedium)
                 Text(state.email, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 OutlinedButton(enabled = !state.loading, onClick = { editing = true }) { Text("Editar nombre") }
+                OutlinedButton(enabled = !state.loading, onClick = onShowExperience, modifier = Modifier.fillMaxWidth()) { Text("Habilidades y experiencia") }
             }
             TextButton(enabled = !state.loading, onClick = account::signOut) { Text("Cerrar sesión") }
+        }
+    }
+}
+
+@Composable
+private fun ExperiencePreview(onBack: () -> Unit) {
+    var skills by rememberSaveable { mutableStateOf("") }
+    var experience by rememberSaveable { mutableStateOf("") }
+    var availability by rememberSaveable { mutableStateOf("") }
+    Column(Modifier.verticalScroll(rememberScrollState()).padding(22.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        TextButton(onClick = onBack) { Text("Volver al perfil") }
+        Text("Habilidades y experiencia", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+        Text("Vista de diseño · estos datos todavía no se guardan", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Surface(shape = MaterialTheme.shapes.large, color = MaterialTheme.colorScheme.surface) {
+            Column(Modifier.fillMaxWidth().padding(20.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                Text("Cuéntanos sobre ti", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
+                Text("Tus conocimientos también pueden venir de estudios o proyectos personales", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                OutlinedTextField(value = skills, onValueChange = { skills = it }, label = { Text("Habilidades") }, placeholder = { Text("Ejemplo: edición de video") }, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(value = experience, onValueChange = { experience = it }, label = { Text("Proyectos o experiencia") }, minLines = 3, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(value = availability, onValueChange = { availability = it }, label = { Text("Disponibilidad") }, placeholder = { Text("Ejemplo: fines de semana") }, modifier = Modifier.fillMaxWidth())
+                Button(onClick = {}, enabled = false, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) { Text("Guardar · próximamente") }
+            }
         }
     }
 }

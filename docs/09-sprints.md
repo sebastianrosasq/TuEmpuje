@@ -20,6 +20,8 @@ Si el avance es menor al previsto, se priorizarán una app ejecutable, los casos
 
 **Estado:** los sprints 01 a 03 cuentan con un prototipo compilado y verificado en emulador, los sprints 04 y 05 cuentan con registro, perfiles y reglas probados localmente y un proyecto de desarrollo en la nube con identidad y perfiles comprobados, las reglas de oportunidades y postulaciones se verificaron en el emulador
 
+La revisión del sistema visual continúa abierta, se añadieron filtros, campos del formulario y una vista de candidatos con datos ficticios, el estado detallado del recorrido se encuentra en [Diseño y navegación](10-diseno-y-navegacion.md)
+
 La revisión más amplia de accesibilidad y dispositivos corresponde al sprint 12 y los demás sprints siguen pendientes
 
 ## Sprints
