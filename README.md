@@ -59,6 +59,8 @@ Las publicaciones y postulaciones son simuladas y se pierden al cerrar el proces
 
 El prototipo incluye filtros, condiciones de publicación y una vista de candidatos con perfiles ficticios, el botón para acceder con Google está visible pero todavía no funciona
 
+El sistema visual comparte avisos, botones y estados vacíos, con transiciones y una navegación que se adapta al texto ampliado, las pruebas y limitaciones están registradas en [Diseño y navegación](docs/10-diseno-y-navegacion.md)
+
 La interfaz utiliza Material 3 Expressive con una versión preliminar de la biblioteca, por lo que sus dependencias deberán revisarse antes de una publicación real
 
 ## Ejecutar el prototipo Android

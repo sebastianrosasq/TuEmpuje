@@ -10,7 +10,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
-import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -36,6 +36,9 @@ import com.google.firebase.firestore.FirebaseFirestore
 import pe.tuempuje.app.auth.AccountUiState
 import pe.tuempuje.app.auth.AccountViewModel
 import pe.tuempuje.app.auth.AccountViewModelFactory
+import pe.tuempuje.app.ui.components.AppNotice
+import pe.tuempuje.app.ui.components.AppPrimaryButton
+import pe.tuempuje.app.ui.components.AppLoadingState
 
 @Composable
 fun AccountScreen(auth: FirebaseAuth, firestore: FirebaseFirestore, isLocal: Boolean) {
@@ -43,15 +46,19 @@ fun AccountScreen(auth: FirebaseAuth, firestore: FirebaseFirestore, isLocal: Boo
     val account: AccountViewModel = viewModel(factory = factory)
     val state by account.state.collectAsState()
     var showExperience by rememberSaveable(state.uid) { mutableStateOf(false) }
+    val scrollState = rememberScrollState()
+
+    LaunchedEffect(state.error) {
+        if (state.error != null) scrollState.animateScrollTo(0)
+    }
 
     if (showExperience && state.uid != null) {
-        BackHandler { showExperience = false }
         ExperiencePreview(onBack = { showExperience = false })
         return
     }
 
     Column(
-        modifier = Modifier.verticalScroll(rememberScrollState()).padding(22.dp),
+        modifier = Modifier.verticalScroll(scrollState).padding(22.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         Text("Perfil", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
@@ -60,16 +67,13 @@ fun AccountScreen(auth: FirebaseAuth, firestore: FirebaseFirestore, isLocal: Boo
             style = MaterialTheme.typography.bodyLarge,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
-        Text(
+        AppNotice(
             if (isLocal) "Entorno de prueba local · usa únicamente datos ficticios"
             else "Entorno de desarrollo en la nube · usa únicamente datos ficticios",
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
 
         if (state.loading) {
-            CircularProgressIndicator()
-            Text("Cargando cuenta", style = MaterialTheme.typography.bodyMedium)
+            AppLoadingState("Cargando cuenta")
         }
         state.error?.let { AccountError(it) }
         when {
@@ -123,14 +127,14 @@ private fun AuthForm(account: AccountViewModel, loading: Boolean) {
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
                 modifier = Modifier.fillMaxWidth(),
             )
-            Button(
+            AppPrimaryButton(
+                label = if (register) "Crear cuenta" else "Entrar",
                 onClick = {
                     if (register) account.register(name, email, password)
                     else account.signIn(email, password)
                 },
                 enabled = !loading,
-                modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
-            ) { Text(if (register) "Crear cuenta" else "Entrar") }
+            )
             OutlinedButton(
                 onClick = {},
                 enabled = false,
@@ -194,10 +198,23 @@ private fun ExperiencePreview(onBack: () -> Unit) {
     var skills by rememberSaveable { mutableStateOf("") }
     var experience by rememberSaveable { mutableStateOf("") }
     var availability by rememberSaveable { mutableStateOf("") }
+    var confirmDiscard by rememberSaveable { mutableStateOf(false) }
+    val hasDraft = listOf(skills, experience, availability).any { it.isNotBlank() }
+    val leave = { if (hasDraft) confirmDiscard = true else onBack() }
+    BackHandler { leave() }
+    if (confirmDiscard) {
+        AlertDialog(
+            onDismissRequest = { confirmDiscard = false },
+            title = { Text("¿Salir de la vista previa?") },
+            text = { Text("Los datos escritos todavía no se guardan y se perderán al salir") },
+            confirmButton = { TextButton(onClick = { confirmDiscard = false; onBack() }) { Text("Salir") } },
+            dismissButton = { TextButton(onClick = { confirmDiscard = false }) { Text("Seguir revisando") } },
+        )
+    }
     Column(Modifier.verticalScroll(rememberScrollState()).padding(22.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        TextButton(onClick = onBack) { Text("Volver al perfil") }
+        TextButton(onClick = leave) { Text("Volver al perfil") }
         Text("Habilidades y experiencia", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
-        Text("Vista de diseño · estos datos todavía no se guardan", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        AppNotice("Vista de diseño · estos datos todavía no se guardan")
         Surface(shape = MaterialTheme.shapes.large, color = MaterialTheme.colorScheme.surface) {
             Column(Modifier.fillMaxWidth().padding(20.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
                 Text("Cuéntanos sobre ti", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
@@ -219,12 +236,5 @@ private fun ProfileUnavailable(account: AccountViewModel, loading: Boolean) {
 
 @Composable
 private fun AccountError(message: String) {
-    Surface(color = MaterialTheme.colorScheme.errorContainer, shape = MaterialTheme.shapes.medium) {
-        Text(
-            message,
-            modifier = Modifier.fillMaxWidth().padding(14.dp),
-            color = MaterialTheme.colorScheme.onErrorContainer,
-            style = MaterialTheme.typography.bodyMedium,
-        )
-    }
+    AppNotice(message, isError = true)
 }

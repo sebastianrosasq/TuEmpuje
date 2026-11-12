@@ -1,6 +1,10 @@
 package pe.tuempuje.app.ui
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
@@ -31,9 +35,12 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -47,7 +54,11 @@ import pe.tuempuje.app.data.Opportunity
 import pe.tuempuje.app.data.OpportunityViewModel
 import pe.tuempuje.app.data.FirebaseServices
 import pe.tuempuje.app.ui.auth.AccountScreen
+import pe.tuempuje.app.ui.components.AppEmptyState
+import pe.tuempuje.app.ui.components.AppNotice
+import pe.tuempuje.app.ui.components.AppPrimaryButton
 import pe.tuempuje.app.ui.theme.Ink
+import kotlinx.coroutines.launch
 
 private data class Destination(val route: String, val label: String, val icon: ImageVector)
 
@@ -62,41 +73,51 @@ private val destinations = listOf(
 fun TuEmpujeApp(services: FirebaseServices?, model: OpportunityViewModel = viewModel()) {
     val nav = rememberNavController()
     var activityRevision by rememberSaveable { mutableIntStateOf(0) }
+    val snackbar = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
+    val navigationGroups = if (LocalConfiguration.current.fontScale >= 1.8f) destinations.chunked(2) else listOf(destinations)
+    val openDestination: (String) -> Unit = { route ->
+        nav.navigate(route) {
+            popUpTo(nav.graph.findStartDestination().id) { saveState = true }
+            launchSingleTop = true
+            restoreState = true
+        }
+    }
     val backStackEntry by nav.currentBackStackEntryAsState()
     val currentRoute = backStackEntry?.destination?.route
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
+        snackbarHost = { SnackbarHost(snackbar) },
         bottomBar = {
             if (currentRoute in destinations.map { it.route }) {
-                Box(Modifier.fillMaxWidth().navigationBarsPadding().padding(start = 16.dp, end = 16.dp, bottom = 10.dp)) {
+                Box(Modifier.fillMaxWidth().navigationBarsPadding().padding(start = 16.dp, end = 16.dp, bottom = 10.dp), contentAlignment = Alignment.Center) {
                     Surface(
+                        modifier = Modifier.widthIn(max = 600.dp),
                         shape = MaterialTheme.shapes.extraLarge,
                         color = MaterialTheme.colorScheme.surface.copy(alpha = 0.97f),
                         border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
                         tonalElevation = 3.dp,
                         shadowElevation = 8.dp,
                     ) {
-                        NavigationBar(containerColor = Color.Transparent, windowInsets = WindowInsets(0, 0, 0, 0)) {
-                            destinations.forEach { item ->
-                                NavigationBarItem(
-                                    selected = currentRoute == item.route,
-                                    onClick = {
-                                        nav.navigate(item.route) {
-                                            popUpTo(nav.graph.findStartDestination().id) { saveState = true }
-                                            launchSingleTop = true
-                                            restoreState = true
-                                        }
-                                    },
-                                    icon = { Icon(item.icon, contentDescription = null) },
-                                    label = { Text(item.label, maxLines = 1) },
-                                    colors = NavigationBarItemDefaults.colors(
-                                        indicatorColor = MaterialTheme.colorScheme.secondaryContainer,
-                                        selectedIconColor = MaterialTheme.colorScheme.onSecondaryContainer,
-                                        selectedTextColor = MaterialTheme.colorScheme.onSurface,
-                                        unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    ),
-                                )
+                        Column {
+                            navigationGroups.forEach { group ->
+                                NavigationBar(containerColor = Color.Transparent, windowInsets = WindowInsets(0, 0, 0, 0)) {
+                                    group.forEach { item ->
+                                        NavigationBarItem(
+                                            selected = currentRoute == item.route,
+                                            onClick = { openDestination(item.route) },
+                                            icon = { Icon(item.icon, contentDescription = null) },
+                                            label = { Text(item.label, style = MaterialTheme.typography.labelSmall, maxLines = 2, textAlign = TextAlign.Center) },
+                                            colors = NavigationBarItemDefaults.colors(
+                                                indicatorColor = MaterialTheme.colorScheme.secondaryContainer,
+                                                selectedIconColor = MaterialTheme.colorScheme.onSecondaryContainer,
+                                                selectedTextColor = MaterialTheme.colorScheme.onSurface,
+                                                unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            ),
+                                        )
+                                    }
+                                }
                             }
                         }
                     }
@@ -104,38 +125,48 @@ fun TuEmpujeApp(services: FirebaseServices?, model: OpportunityViewModel = viewM
             }
         },
     ) { padding ->
-        NavHost(navController = nav, startDestination = "explorar", modifier = Modifier.padding(padding)) {
-            composable("explorar") { ExploreScreen(model) { nav.navigate("detalle/$it") { launchSingleTop = true } } }
-            composable("publicar") {
-                PublishScreen(model, onBack = { nav.popBackStack() }) {
-                    activityRevision++
-                    nav.navigate("actividad") {
-                        popUpTo(nav.graph.findStartDestination().id) { saveState = true }
-                        launchSingleTop = true
-                        restoreState = true
+        Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.TopCenter) {
+            NavHost(
+                navController = nav,
+                startDestination = "explorar",
+                modifier = Modifier.widthIn(max = 600.dp).fillMaxWidth(),
+                enterTransition = { fadeIn(tween(180)) },
+                exitTransition = { fadeOut(tween(120)) },
+                popEnterTransition = { fadeIn(tween(180)) },
+                popExitTransition = { fadeOut(tween(120)) },
+            ) {
+                composable("explorar") { ExploreScreen(model) { nav.navigate("detalle/$it") { launchSingleTop = true } } }
+                composable("publicar") {
+                    PublishScreen(model, onBack = { nav.popBackStack() }) {
+                        activityRevision++
+                        openDestination("actividad")
+                        scope.launch { snackbar.showSnackbar("Publicación de prueba guardada en esta sesión") }
                     }
                 }
-            }
-            composable("actividad") { ActivityScreen(model, activityRevision) { nav.navigate("detalle/$it") { launchSingleTop = true } } }
-            composable("perfil") {
-                if (services != null) {
-                    AccountScreen(services.auth, services.firestore, services.isLocal)
-                } else {
-                    ProfileScreen()
+                composable("actividad") {
+                    ActivityScreen(model, activityRevision, openDestination) { nav.navigate("detalle/$it") { launchSingleTop = true } }
                 }
-            }
-            composable("detalle/{id}") { entry ->
-                val opportunity = model.find(entry.arguments?.getString("id").orEmpty())
-                DetailScreen(opportunity, model, onBack = { nav.popBackStack() }, onCandidates = { nav.navigate("candidatos/$it") })
-            }
-            composable("candidatos/{id}") { entry ->
-                val opportunity = model.find(entry.arguments?.getString("id").orEmpty())
-                CandidatesScreen(opportunity, onBack = { nav.popBackStack() })
+                composable("perfil") {
+                    if (services != null) {
+                        AccountScreen(services.auth, services.firestore, services.isLocal)
+                    } else {
+                        ProfileScreen()
+                    }
+                }
+                composable("detalle/{id}") { entry ->
+                    val opportunity = model.find(entry.arguments?.getString("id").orEmpty())
+                    DetailScreen(opportunity, model, onBack = { nav.popBackStack() }, onCandidates = { nav.navigate("candidatos/$it") }, onApplied = {
+                        scope.launch { snackbar.showSnackbar("Postulación simulada en esta sesión") }
+                    })
+                }
+                composable("candidatos/{id}") { entry ->
+                    val opportunity = model.find(entry.arguments?.getString("id").orEmpty())
+                    CandidatesScreen(opportunity, onBack = { nav.popBackStack() })
+                }
             }
         }
     }
 }
-
 @Composable
 private fun ExploreScreen(model: OpportunityViewModel, open: (String) -> Unit) {
     var query by rememberSaveable { mutableStateOf("") }
@@ -182,7 +213,12 @@ private fun ExploreScreen(model: OpportunityViewModel, open: (String) -> Unit) {
             }
         }
         if (opportunities.isEmpty()) {
-            item { EmptyMessage("No encontramos coincidencias", "Prueba con otra palabra o categoría") }
+            item {
+                AppEmptyState("No encontramos coincidencias", "Prueba con otra palabra o categoría", "Limpiar filtros") {
+                    query = ""
+                    selectedCategory = "Todas"
+                }
+            }
         }
         items(opportunities, key = { it.id }) { opportunity ->
             OpportunityCard(opportunity) { open(opportunity.id) }
@@ -207,12 +243,7 @@ private fun BrandHeader() {
 
 @Composable
 private fun DemoNotice() {
-    Text(
-        "Vista de demostración · datos ficticios guardados solo durante esta sesión",
-        style = MaterialTheme.typography.labelMedium,
-        color = MaterialTheme.colorScheme.onSurface,
-        modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(MaterialTheme.colorScheme.surfaceVariant).padding(12.dp),
-    )
+    AppNotice("Vista de demostración · datos ficticios guardados solo durante esta sesión")
 }
 
 @Composable
@@ -235,7 +266,7 @@ private fun Hero() {
 @Composable
 private fun OpportunityCard(opportunity: Opportunity, status: String? = null, onClick: () -> Unit) {
     Surface(
-        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick),
+        modifier = Modifier.fillMaxWidth().clickable(role = Role.Button, onClick = onClick),
         shape = MaterialTheme.shapes.large,
         color = MaterialTheme.colorScheme.surface,
         border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
@@ -268,14 +299,14 @@ private fun OpportunityCard(opportunity: Opportunity, status: String? = null, on
 }
 
 @Composable
-private fun DetailScreen(opportunity: Opportunity?, model: OpportunityViewModel, onBack: () -> Unit, onCandidates: (String) -> Unit) {
+private fun DetailScreen(opportunity: Opportunity?, model: OpportunityViewModel, onBack: () -> Unit, onCandidates: (String) -> Unit, onApplied: () -> Unit) {
     var confirmApplication by rememberSaveable(opportunity?.id) { mutableStateOf(false) }
     if (confirmApplication && opportunity != null && !opportunity.own) {
         AlertDialog(
             onDismissRequest = { confirmApplication = false },
             title = { Text("Simular postulación") },
             text = { Text("Marcaremos tu interés en ${opportunity.title} solo en esta sesión, no se enviará una solicitud real") },
-            confirmButton = { TextButton(onClick = { model.apply(opportunity.id); confirmApplication = false }) { Text("Confirmar simulación") } },
+            confirmButton = { TextButton(onClick = { model.apply(opportunity.id); confirmApplication = false; onApplied() }) { Text("Confirmar simulación") } },
             dismissButton = { TextButton(onClick = { confirmApplication = false }) { Text("Cancelar") } },
         )
     }
@@ -287,7 +318,7 @@ private fun DetailScreen(opportunity: Opportunity?, model: OpportunityViewModel,
         }
         DemoNotice()
         if (opportunity == null) {
-            EmptyMessage("Oportunidad no disponible", "Vuelve al listado para elegir otra")
+            AppEmptyState("Oportunidad no disponible", "Vuelve al listado para elegir otra")
         } else {
             Text(opportunity.category.uppercase(), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Text(opportunity.title, style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
@@ -306,9 +337,7 @@ private fun DetailScreen(opportunity: Opportunity?, model: OpportunityViewModel,
             Text(opportunity.requirements, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
             if (!opportunity.own) {
                 val applied = opportunity.id in model.applications
-                Button(onClick = { confirmApplication = true }, enabled = !applied, modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp), shape = RoundedCornerShape(16.dp)) {
-                    Text(if (applied) "Postulación simulada" else "Simular postulación")
-                }
+                AppPrimaryButton(if (applied) "Postulación simulada" else "Simular postulación", onClick = { confirmApplication = true }, enabled = !applied)
                 Text("Esta acción solo cambia la demostración local, no envía una postulación real", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             } else {
                 Text("Esta es tu publicación de prueba", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -329,11 +358,11 @@ private fun CandidatesScreen(opportunity: Opportunity?, onBack: () -> Unit) {
             Text("Volver")
         }
         if (opportunity == null || !opportunity.own) {
-            EmptyMessage("Publicación no disponible", "Regresa a tu actividad para revisar tus publicaciones")
+            AppEmptyState("Publicación no disponible", "Regresa a tu actividad para revisar tus publicaciones")
         } else {
             Text("Candidatos", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
             Text(opportunity.title, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Text("Vista de diseño · estos perfiles son ejemplos y no son postulaciones reales", style = MaterialTheme.typography.bodyMedium, modifier = Modifier.fillMaxWidth().clip(MaterialTheme.shapes.medium).background(MaterialTheme.colorScheme.secondaryContainer).padding(14.dp), color = MaterialTheme.colorScheme.onSecondaryContainer)
+            AppNotice("Vista de diseño · estos perfiles son ejemplos y no son postulaciones reales")
             CandidatePreview("Lucía M.", "Estudiante · disponibilidad por las tardes", "Organización y comunicación")
             CandidatePreview("Diego R.", "Estudiante · disponibilidad de fin de semana", "Apoyo en eventos y atención")
             Text("La revisión de perfiles y la selección se conectarán en una próxima etapa", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -380,6 +409,10 @@ private fun PublishScreen(model: OpportunityViewModel, onBack: () -> Unit, onPub
     var category by rememberSaveable { mutableStateOf("Ayudantía") }
     var showError by rememberSaveable { mutableStateOf(false) }
     var confirmDiscard by rememberSaveable { mutableStateOf(false) }
+    val scrollState = rememberScrollState()
+    val scope = rememberCoroutineScope()
+    val invalidVacancies = vacancies.toIntOrNull() !in 1..99
+    val invalidCount = listOf(title, description, location, pay, duration, requirements).count { it.isBlank() } + if (invalidVacancies) 1 else 0
     val hasDraft = listOf(title, description, location, pay, duration, requirements).any { it.isNotBlank() } || vacancies != "1" || category != "Ayudantía"
 
     BackHandler(enabled = hasDraft) { confirmDiscard = true }
@@ -396,11 +429,14 @@ private fun PublishScreen(model: OpportunityViewModel, onBack: () -> Unit, onPub
             },
         )
     }
-    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(22.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+    Column(Modifier.fillMaxSize().verticalScroll(scrollState).padding(22.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
         Text("Publicar", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
         Text("Cuéntanos qué apoyo necesitas", style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
         DemoNotice()
         Text("Los datos se mostrarán solo en esta demostración", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        AnimatedVisibility(visible = showError && invalidCount > 0) {
+            AppNotice("Revisa los campos marcados, faltan o necesitan corrección: $invalidCount", isError = true)
+        }
         FormSectionHeading("01", "La oportunidad", "Describe el apoyo que necesitas")
         Text("Tipo de trabajo", style = MaterialTheme.typography.labelLarge)
         LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -415,7 +451,6 @@ private fun PublishScreen(model: OpportunityViewModel, onBack: () -> Unit, onPub
         DraftField(location, { location = it }, "Ubicación o remoto", "Indica la ubicación", showError)
         DraftField(pay, { pay = it }, "Pago y unidad, por ejemplo S/ 60 por día", "Indica el pago y su unidad", showError)
         DraftField(duration, { duration = it }, "Duración o fecha", "Indica la duración o fecha", showError)
-        val invalidVacancies = vacancies.toIntOrNull() !in 1..99
         OutlinedTextField(
             value = vacancies,
             onValueChange = { vacancies = it.filter(Char::isDigit).take(2) },
@@ -427,15 +462,15 @@ private fun PublishScreen(model: OpportunityViewModel, onBack: () -> Unit, onPub
             modifier = Modifier.fillMaxWidth(),
             shape = MaterialTheme.shapes.medium,
         )
-        if (showError) Text("Completa todos los campos para continuar", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodyMedium)
-        Button(onClick = {
+        AppPrimaryButton("Guardar publicación de prueba", onClick = {
             if (model.publish(title, description, location, pay, duration, requirements, vacancies.toIntOrNull() ?: 0, category)) {
                 title = ""; description = ""; location = ""; pay = ""; duration = ""; requirements = ""; vacancies = "1"; category = "Ayudantía"; showError = false
                 onPublished()
-            } else showError = true
-        }, modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp), shape = RoundedCornerShape(16.dp)) {
-            Text("Guardar publicación de prueba")
-        }
+            } else {
+                showError = true
+                scope.launch { scrollState.animateScrollTo(0) }
+            }
+        })
     }
 }
 
@@ -476,7 +511,7 @@ private fun DraftField(
 }
 
 @Composable
-private fun ActivityScreen(model: OpportunityViewModel, activityRevision: Int, open: (String) -> Unit) {
+private fun ActivityScreen(model: OpportunityViewModel, activityRevision: Int, openDestination: (String) -> Unit, open: (String) -> Unit) {
     val myPosts = model.opportunities.filter { it.own }
     val myApplications = model.opportunities.filter { it.id in model.applications }
     var section by rememberSaveable(activityRevision) { mutableStateOf("Publicaciones") }
@@ -491,10 +526,10 @@ private fun ActivityScreen(model: OpportunityViewModel, activityRevision: Int, o
             }
         }
         if (section == "Publicaciones") {
-            if (myPosts.isEmpty()) item { EmptyMessage("Aún no tienes publicaciones", "Puedes crear una desde Publicar") }
+            if (myPosts.isEmpty()) item { AppEmptyState("Aún no tienes publicaciones", "Crea una oportunidad de prueba para revisar el recorrido", "Crear publicación") { openDestination("publicar") } }
             items(myPosts, key = { "post-${it.id}" }) { item -> OpportunityCard(item, "Publicación de prueba") { open(item.id) } }
         } else {
-            if (myApplications.isEmpty()) item { EmptyMessage("Aún no tienes postulaciones", "Explora una oportunidad para simular una postulación") }
+            if (myApplications.isEmpty()) item { AppEmptyState("Aún no tienes postulaciones", "Explora una oportunidad para simular una postulación", "Explorar oportunidades") { openDestination("explorar") } }
             items(myApplications, key = { "application-${it.id}" }) { item -> OpportunityCard(item, "Postulación simulada") { open(item.id) } }
         }
     }
@@ -513,19 +548,9 @@ private fun ProfileScreen() {
                 Spacer(Modifier.height(12.dp))
                 Text("Perfil de demostración", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
                 Spacer(Modifier.height(6.dp))
-                Text("El registro y la edición de perfiles se incorporarán en una etapa posterior", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text("El acceso no está configurado en esta compilación", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
         Text("TuEmpuje conecta oportunidades, habilidades y personas", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-    }
-}
-
-@Composable
-private fun EmptyMessage(title: String, message: String) {
-    Surface(shape = RoundedCornerShape(18.dp), color = MaterialTheme.colorScheme.surface, modifier = Modifier.fillMaxWidth()) {
-        Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            Text(title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
-            Text(message, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        }
     }
 }

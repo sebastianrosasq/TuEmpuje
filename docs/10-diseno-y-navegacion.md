@@ -74,6 +74,19 @@ El botón de Google se muestra desactivado hasta implementar su autenticación, 
 
 El tema existente usa Material 3 Expressive, los filtros, superficies y botones mantienen sus estados y colores compartidos, la revisión visual y de accesibilidad continúa abierta antes de considerar completo el sistema de diseño [Material 3 en Compose](https://developer.android.com/develop/ui/compose/designsystems/material3)
 
+### Componentes compartidos
+
+| Componente | Uso |
+|---|---|
+| Aviso | Identificar datos ficticios, entorno de prueba y errores con texto e icono |
+| Estado vacío | Explicar que no hay resultados o actividad y ofrecer una acción para continuar |
+| Estado de carga | Mostrar que se está consultando la cuenta |
+| Botón principal | Mantener una altura mínima de 52 dp y una forma coherente |
+| Confirmación | Comunicar el resultado de publicaciones y postulaciones simuladas |
+| Campos y filtros | Etiquetas, errores y estados de selección con componentes Material 3 |
+
+Los componentes compartidos están en `ui/components/AppComponents.kt`, las tarjetas de oportunidades utilizan el mismo diseño en Explorar y Actividad
+
 ### Recorrido principal
 
 ```text
@@ -92,10 +105,10 @@ Los formularios conservarán la información introducida cuando se muestre un er
 
 | Situación | Comportamiento previsto |
 |---|---|
-| La lista aún está cargando | Mostrar una señal de carga sin presentar datos inexistentes |
-| No hay oportunidades | Explicar que no se encontraron resultados y permitir cambiar la búsqueda o los filtros |
-| Fallan los datos o la conexión | Explicar el problema y ofrecer reintentar cuando corresponda |
-| El formulario tiene campos inválidos | Indicar qué campo necesita corrección y conservar lo ingresado |
+| La cuenta está cargando | Mostrar una señal de carga y desactivar el formulario mientras termina la operación |
+| No hay oportunidades | Explicar que no se encontraron resultados y permitir limpiar la búsqueda y los filtros |
+| Falla la cuenta o la conexión | Mostrar el error y permitir reintentar cuando corresponda, conservando el formulario |
+| El formulario tiene campos inválidos | Mostrar un resumen, señalar los campos y volver al inicio sin borrar lo ingresado |
 | Una acción requiere iniciar sesión | Explicar la necesidad de acceso antes de intentar publicar o postular |
 | Se envía una postulación o selección | Mostrar confirmación solo cuando el servicio haya aceptado la operación |
 | Se usan datos de ejemplo | Identificar la demostración y evitar presentarla como una operación real |
@@ -120,7 +133,22 @@ Las vistas previas de Compose, el emulador y las pruebas en dispositivos permiti
 
 En el emulador se comprobaron ambas apariencias, texto ampliado en el inicio, navegación entre secciones, conservación del borrador y retorno desde el detalle con la búsqueda activa
 
-No se ha definido una biblioteca externa de desenfoque ni un sistema de animaciones adicional para la primera entrega
+La navegación utiliza transiciones breves de opacidad y el aviso de validación aparece con `AnimatedVisibility`, las animaciones de Compose siguen la escala de duración del sistema [Animaciones en Compose](https://developer.android.com/develop/ui/compose/animation/quick-guide)
+
+No se utiliza una biblioteca externa de desenfoque, el contenido y la navegación se limitan a 600 dp de ancho para mantener la legibilidad en pantallas amplias
+
+Con una escala de texto de 1,8 o más, la navegación se distribuye en dos filas para que las etiquetas puedan leerse en una pantalla estrecha
+
+### Verificación de la interfaz
+
+- En un emulador Android 36 se revisaron Explorar, el detalle, Publicar, Actividad y la vista de candidatos con datos ficticios
+- Se comprobaron búsqueda sin resultados, recuperación de filtros, error del formulario, conservación del borrador y publicación simulada
+- Se verificó el error de conexión de la cuenta y la conservación de los datos escritos al intentar iniciar sesión sin red
+- Se revisó el inicio en oscuro con texto al 150 % y al 200 %, se abrió el perfil al 200 % y se comprobó que el formulario puede desplazarse hasta el botón al 200 %
+- Se verificaron las áreas táctiles de la navegación y el botón de publicación en la pantalla estrecha con texto al 200 %, y se revisó el inicio en una pantalla amplia
+- Se comprobó la navegación con la duración de animación del sistema en cero y las combinaciones principales de texto y fondo de los temas claro y oscuro
+
+Estas comprobaciones no sustituyen una revisión manual con TalkBack ni pruebas en teléfonos físicos y versiones adicionales de Android, la revisión de los demás recorridos con texto ampliado sigue pendiente
 
 ## Prioridad de construcción
 
