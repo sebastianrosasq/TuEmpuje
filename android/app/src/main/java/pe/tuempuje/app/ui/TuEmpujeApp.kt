@@ -26,13 +26,15 @@ import androidx.compose.material.icons.rounded.Explore
 import androidx.compose.material.icons.rounded.PersonOutline
 import androidx.compose.material.icons.rounded.Place
 import androidx.compose.material.icons.rounded.Search
+import androidx.compose.material.icons.rounded.WorkOutline
+import androidx.compose.material.icons.rounded.Palette
+import androidx.compose.material.icons.rounded.Groups
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalConfiguration
@@ -50,6 +52,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import pe.tuempuje.app.R
+import pe.tuempuje.app.BuildConfig
 import pe.tuempuje.app.data.Opportunity
 import pe.tuempuje.app.data.OpportunityViewModel
 import pe.tuempuje.app.data.FirebaseServices
@@ -57,6 +60,8 @@ import pe.tuempuje.app.ui.auth.AccountScreen
 import pe.tuempuje.app.ui.components.AppEmptyState
 import pe.tuempuje.app.ui.components.AppNotice
 import pe.tuempuje.app.ui.components.AppPrimaryButton
+import pe.tuempuje.app.ui.components.Empu
+import pe.tuempuje.app.ui.components.EmpuMood
 import pe.tuempuje.app.ui.theme.Ink
 import kotlinx.coroutines.launch
 
@@ -109,8 +114,8 @@ fun TuEmpujeApp(services: FirebaseServices?, model: OpportunityViewModel = viewM
                                             icon = { Icon(item.icon, contentDescription = null) },
                                             label = { Text(item.label, style = MaterialTheme.typography.labelSmall, maxLines = 2, textAlign = TextAlign.Center) },
                                             colors = NavigationBarItemDefaults.colors(
-                                                indicatorColor = MaterialTheme.colorScheme.secondaryContainer,
-                                                selectedIconColor = MaterialTheme.colorScheme.onSecondaryContainer,
+                                                indicatorColor = MaterialTheme.colorScheme.primaryContainer,
+                                                selectedIconColor = MaterialTheme.colorScheme.onPrimaryContainer,
                                                 selectedTextColor = MaterialTheme.colorScheme.onSurface,
                                                 unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
                                                 unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -148,10 +153,13 @@ fun TuEmpujeApp(services: FirebaseServices?, model: OpportunityViewModel = viewM
                 }
                 composable("perfil") {
                     if (services != null) {
-                        AccountScreen(services.auth, services.firestore, services.isLocal)
+                        AccountScreen(services.auth, services.firestore, services.isLocal) { nav.navigate("debug/empu") }
                     } else {
                         ProfileScreen()
                     }
+                }
+                if (BuildConfig.DEBUG) {
+                    composable("debug/empu") { EmpuPreview { nav.popBackStack() } }
                 }
                 composable("detalle/{id}") { entry ->
                     val opportunity = model.find(entry.arguments?.getString("id").orEmpty())
@@ -243,22 +251,45 @@ private fun BrandHeader() {
 
 @Composable
 private fun DemoNotice() {
-    AppNotice("Vista de demostración · datos ficticios guardados solo durante esta sesión")
+    AppNotice("Demostración · datos ficticios de esta sesión")
 }
 
 @Composable
 private fun Hero() {
-    Box(
-        Modifier.fillMaxWidth().clip(RoundedCornerShape(26.dp))
-            .background(Brush.linearGradient(listOf(Ink, Color(0xFF3A5269))))
-            .padding(20.dp),
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = MaterialTheme.shapes.large,
+        color = MaterialTheme.colorScheme.primaryContainer,
+        contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
     ) {
-        Column {
-            Text("TU PRÓXIMO PASO", style = MaterialTheme.typography.labelSmall, color = Color(0xFFDEE8F2), letterSpacing = 1.4.sp)
-            Spacer(Modifier.height(8.dp))
-            Text("Tu próximo paso empieza aquí", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, color = Color.White)
-            Spacer(Modifier.height(6.dp))
-            Text("Conecta tus habilidades con proyectos y personas", style = MaterialTheme.typography.bodyMedium, color = Color(0xFFE0E8EE))
+        Row(Modifier.padding(18.dp), verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text("TU PRÓXIMO PASO", style = MaterialTheme.typography.labelSmall, letterSpacing = 1.2.sp)
+                Text("Crece con cada oportunidad", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                Text("Conecta tus habilidades con personas y proyectos", style = MaterialTheme.typography.bodyMedium)
+            }
+            if (LocalConfiguration.current.fontScale < 1.3f) {
+                Spacer(Modifier.width(10.dp))
+                Empu(EmpuMood.IDLE, Modifier.size(76.dp))
+            }
+        }
+    }
+}
+
+@Composable
+private fun EmpuPreview(onBack: () -> Unit) {
+    var selected by remember { mutableStateOf(EmpuMood.IDLE) }
+    LazyColumn(
+        contentPadding = PaddingValues(22.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp),
+    ) {
+        item { TextButton(onClick = onBack) { Text("Volver al perfil") } }
+        item { Text("Expresiones de Empu", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold) }
+        item { Text("Vista de desarrollo para revisar las expresiones", style = MaterialTheme.typography.bodyMedium) }
+        item { Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) { Empu(selected, Modifier.size(180.dp)) } }
+        item { Text(selected.name, style = MaterialTheme.typography.titleMedium) }
+        items(EmpuMood.entries) { mood ->
+            FilterChip(selected = selected == mood, onClick = { selected = mood }, label = { Text(mood.name) })
         }
     }
 }
@@ -273,8 +304,21 @@ private fun OpportunityCard(opportunity: Opportunity, status: String? = null, on
     ) {
         Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Surface(shape = RoundedCornerShape(10.dp), color = MaterialTheme.colorScheme.surfaceVariant) {
-                    Text(opportunity.category.uppercase(), modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurface)
+                Surface(shape = MaterialTheme.shapes.small, color = MaterialTheme.colorScheme.secondaryContainer) {
+                    Icon(
+                        when (opportunity.category.lowercase()) {
+                            "creativo" -> Icons.Rounded.Palette
+                            "eventos" -> Icons.Rounded.Groups
+                            else -> Icons.Rounded.WorkOutline
+                        },
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSecondaryContainer,
+                        modifier = Modifier.padding(8.dp).size(20.dp),
+                    )
+                }
+                Spacer(Modifier.width(8.dp))
+                Surface(shape = RoundedCornerShape(10.dp), color = MaterialTheme.colorScheme.primaryContainer) {
+                    Text(opportunity.category.uppercase(), modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onPrimaryContainer, maxLines = 1)
                 }
                 Spacer(Modifier.weight(1f))
                 Icon(Icons.AutoMirrored.Rounded.ArrowForward, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(18.dp))
@@ -430,8 +474,13 @@ private fun PublishScreen(model: OpportunityViewModel, onBack: () -> Unit, onPub
         )
     }
     Column(Modifier.fillMaxSize().verticalScroll(scrollState).padding(22.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-        Text("Publicar", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
-        Text("Cuéntanos qué apoyo necesitas", style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Text("Publicar", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+                Text("Cuéntanos qué apoyo necesitas", style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            if (LocalConfiguration.current.fontScale < 1.3f) Empu(EmpuMood.THINKING, Modifier.size(58.dp))
+        }
         DemoNotice()
         Text("Los datos se mostrarán solo en esta demostración", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         AnimatedVisibility(visible = showError && invalidCount > 0) {

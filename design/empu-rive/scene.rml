@@ -1,0 +1,15 @@
+<Rive version="1" kind="fragment">
+  <Artboard defaultStateMachineId="0:7" width="240" height="240" styleId="0:5" name="Empu" id="0:2">
+    <LayoutComponentStyle name="Artboard Style" id="0:5"/>
+    <Node name="Empu" id="0:20">
+      <Shape x="94" y="109" name="Pupila izquierda" id="0:25"><Ellipse width="8" height="10" originX="0.5" originY="0.5"/><Fill><SolidColor colorValue="FF101A23"/></Fill></Shape>
+      <Shape x="147" y="109" name="Pupila derecha" id="0:26"><Ellipse width="8" height="10" originX="0.5" originY="0.5"/><Fill><SolidColor colorValue="FF101A23"/></Fill></Shape>
+      <Shape x="92" y="108" name="Ojo izquierdo" id="0:21"><Ellipse width="20" height="28" originX="0.5" originY="0.5"/><Fill><SolidColor colorValue="FFE9F1F4"/></Fill></Shape>
+      <Shape x="145" y="108" name="Ojo derecho" id="0:22"><Ellipse width="20" height="28" originX="0.5" originY="0.5"/><Fill><SolidColor colorValue="FFE9F1F4"/></Fill></Shape>
+      <Shape x="120" y="142" name="Sonrisa" id="0:23"><PointsPath isClosed="false"><CubicMirroredVertex x="-13" y="0" rotation="0.55" distance="5"/><CubicMirroredVertex x="13" y="0" rotation="-0.55" distance="5"/></PointsPath><Stroke thickness="4" cap="round"><SolidColor colorValue="FFE9F1F4"/></Stroke></Shape>
+      <Shape x="20" y="35" name="Cuerpo escalonado" id="0:24"><PointsPath isClosed="true"><StraightVertex x="18" y="150" radius="14"/><StraightVertex x="18" y="85" radius="14"/><StraightVertex x="62" y="85" radius="12"/><StraightVertex x="62" y="56" radius="12"/><StraightVertex x="111" y="56" radius="12"/><StraightVertex x="111" y="25" radius="12"/><StraightVertex x="182" y="25" radius="14"/><StraightVertex x="182" y="150" radius="14"/></PointsPath><Fill><SolidColor colorValue="FF187F76"/></Fill></Shape>
+    </Node>
+    <StateMachine name="Empu" id="0:7"><StateMachineLayer name="Reposo" id="0:8"><AnyState x="200" y="-120"/><ExitState x="400" y="-120"/><EntryState><StateTransition stateToId="0:12"/></EntryState><AnimationState x="200" animationId="0:6" id="0:12"/></StateMachineLayer></StateMachine>
+    <LinearAnimation fps="60" duration="90" loopValue="pingPong" name="Respirar" id="0:6"><KeyedObject objectId="0:20"><KeyedProperty propertyKey="14"><KeyFrameDouble value="0" frame="0" interpolationType="linear"/><KeyFrameDouble value="-3" frame="90" interpolationType="linear"/></KeyedProperty></KeyedObject></LinearAnimation>
+  </Artboard>
+</Rive>

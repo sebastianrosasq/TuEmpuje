@@ -3,9 +3,11 @@ package pe.tuempuje.app.ui.auth
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
@@ -17,6 +19,11 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Visibility
+import androidx.compose.material.icons.rounded.VisibilityOff
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -26,9 +33,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.google.firebase.auth.FirebaseAuth
@@ -39,9 +49,12 @@ import pe.tuempuje.app.auth.AccountViewModelFactory
 import pe.tuempuje.app.ui.components.AppNotice
 import pe.tuempuje.app.ui.components.AppPrimaryButton
 import pe.tuempuje.app.ui.components.AppLoadingState
+import pe.tuempuje.app.ui.components.Empu
+import pe.tuempuje.app.ui.components.EmpuMood
+import pe.tuempuje.app.BuildConfig
 
 @Composable
-fun AccountScreen(auth: FirebaseAuth, firestore: FirebaseFirestore, isLocal: Boolean) {
+fun AccountScreen(auth: FirebaseAuth, firestore: FirebaseFirestore, isLocal: Boolean, onMascotDemo: () -> Unit) {
     val factory = remember(auth, firestore) { AccountViewModelFactory(auth, firestore) }
     val account: AccountViewModel = viewModel(factory = factory)
     val state by account.state.collectAsState()
@@ -77,22 +90,36 @@ fun AccountScreen(auth: FirebaseAuth, firestore: FirebaseFirestore, isLocal: Boo
         }
         state.error?.let { AccountError(it) }
         when {
-            state.uid == null -> AuthForm(account, state.loading)
+            state.uid == null -> AuthForm(account, state.loading, state.error != null)
             state.profileLoadFailed -> ProfileUnavailable(account, state.loading)
             else -> ProfileForm(state, account, onShowExperience = { showExperience = true })
+        }
+        if (BuildConfig.DEBUG) {
+            TextButton(onClick = onMascotDemo) { Text("Probar expresiones de Empu") }
         }
     }
 }
 
 @Composable
-private fun AuthForm(account: AccountViewModel, loading: Boolean) {
+private fun AuthForm(account: AccountViewModel, loading: Boolean, hasError: Boolean) {
     var register by rememberSaveable { mutableStateOf(false) }
     var name by rememberSaveable { mutableStateOf("") }
     var email by rememberSaveable { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
+    var passwordVisible by rememberSaveable { mutableStateOf(false) }
+    var emailFocused by remember { mutableStateOf(false) }
+    var passwordFocused by remember { mutableStateOf(false) }
+    val mood = when {
+        passwordFocused && !passwordVisible -> EmpuMood.PASSWORD
+        loading -> EmpuMood.LOADING
+        hasError -> EmpuMood.SAD
+        emailFocused -> EmpuMood.LOOKING
+        else -> EmpuMood.IDLE
+    }
 
     Surface(color = MaterialTheme.colorScheme.surface, shape = MaterialTheme.shapes.large) {
         Column(Modifier.fillMaxWidth().padding(20.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+            Empu(mood, Modifier.align(Alignment.CenterHorizontally).size(96.dp))
             Text(
                 if (register) "Crear cuenta" else "Iniciar sesión",
                 style = MaterialTheme.typography.titleLarge,
@@ -115,7 +142,7 @@ private fun AuthForm(account: AccountViewModel, loading: Boolean) {
                 enabled = !loading,
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().onFocusChanged { emailFocused = it.isFocused },
             )
             OutlinedTextField(
                 value = password,
@@ -123,9 +150,17 @@ private fun AuthForm(account: AccountViewModel, loading: Boolean) {
                 label = { Text("Contraseña") },
                 enabled = !loading,
                 singleLine = true,
-                visualTransformation = PasswordVisualTransformation(),
+                visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                trailingIcon = {
+                    IconButton(onClick = { passwordVisible = !passwordVisible }) {
+                        Icon(
+                            if (passwordVisible) Icons.Rounded.VisibilityOff else Icons.Rounded.Visibility,
+                            contentDescription = if (passwordVisible) "Ocultar contraseña" else "Mostrar contraseña",
+                        )
+                    }
+                },
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().onFocusChanged { passwordFocused = it.isFocused },
             )
             AppPrimaryButton(
                 label = if (register) "Crear cuenta" else "Entrar",
@@ -160,11 +195,15 @@ private fun ProfileForm(state: AccountUiState, account: AccountViewModel, onShow
 
     Surface(color = MaterialTheme.colorScheme.surface, shape = MaterialTheme.shapes.large) {
         Column(Modifier.fillMaxWidth().padding(20.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-            Text(
-                if (state.needsProfile) "Completa tu perfil" else "Tu cuenta",
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.SemiBold,
-            )
+            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                Text(
+                    if (state.needsProfile) "Completa tu perfil" else "Tu cuenta",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.weight(1f),
+                )
+                Empu(EmpuMood.HAPPY, Modifier.size(54.dp))
+            }
             if (editing) {
                 OutlinedTextField(
                     value = name,

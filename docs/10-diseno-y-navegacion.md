@@ -4,16 +4,25 @@ Este documento define la dirección visual y las reglas de interacción prevista
 
 Los componentes y recorridos descritos se incorporarán por etapas y su presencia en este documento no implica que ya estén implementados
 
-Las capturas corresponden al prototipo Android en modo claro y oscuro, con datos ficticios en memoria
+Las capturas corresponden a la aplicación Android en modo oscuro con datos ficticios en memoria
 
-<img src="assets/prototipo-inicio.png" alt="Pantalla de inicio del prototipo de TuEmpuje en Android" width="320">
-<img src="assets/prototipo-oscuro.png" alt="Pantalla de inicio del prototipo de TuEmpuje en modo oscuro" width="320">
+<img src="assets/explorar-rediseño.png" alt="Explorar en el rediseño de TuEmpuje" width="280">
+<img src="assets/publicar-rediseño.png" alt="Formulario de publicación en el rediseño de TuEmpuje" width="280">
+<img src="assets/perfil-rediseño.png" alt="Pantalla de cuenta en el rediseño de TuEmpuje" width="280">
+
+La [captura anterior de Explorar](assets/explorar-antes.png) permite comparar la jerarquía y los espacios
 
 ## Dirección visual
 
-TuEmpuje usa como base el azul noche `#202B3D` y el gris azulado `#506174`, elegidos junto con el símbolo de los escalones
+La interfaz conserva el símbolo de los escalones y combina superficies azul noche con verde petróleo, en modo oscuro el fondo es `#101A23`, las tarjetas usan `#1D2B3A` y las acciones principales emplean `#187F76` con texto blanco
 
-La interfaz buscará comunicar profundidad mediante capas bien separadas, superficies translúcidas, bordes discretos y sombras suaves
+El verde claro del tema oscuro se reserva para texto y controles que necesitan contraste sobre las superficies oscuras, el coral se utiliza como acento secundario y los colores se definen en el tema compartido
+
+Empu es un personaje vectorial basado en los escalones, aparece en el inicio, los estados vacíos y los formularios de cuenta, su implementación actual utiliza Compose y responde al estado de la interfaz sin acceder a la contraseña
+
+La fuente editable de Rive está en `design/empu-rive`, contiene una animación de reposo y todavía no está integrada como recurso Rive en Android, los estados adicionales se representan por ahora con Compose
+
+La interfaz comunica profundidad mediante capas bien separadas, bordes discretos y sombras suaves
 
 El contenido de cada oportunidad conservará una superficie legible y estable para que el título, las condiciones y el pago se puedan consultar con facilidad
 
@@ -84,6 +93,7 @@ El tema existente usa Material 3 Expressive, los filtros, superficies y botones 
 | Botón principal | Mantener una altura mínima de 52 dp y una forma coherente |
 | Confirmación | Comunicar el resultado de publicaciones y postulaciones simuladas |
 | Campos y filtros | Etiquetas, errores y estados de selección con componentes Material 3 |
+| Empu | Personaje nativo de Compose que responde al foco de los campos y a estados de cuenta, con vista de expresiones en compilaciones de desarrollo |
 
 Los componentes compartidos están en `ui/components/AppComponents.kt`, las tarjetas de oportunidades utilizan el mismo diseño en Explorar y Actividad
 
@@ -141,6 +151,11 @@ Con una escala de texto de 1,8 o más, la navegación se distribuye en dos filas
 
 ### Verificación de la interfaz
 
+- En la revisión del rediseño se compilaron los entornos local y de nube, y se ejecutó `lintDebug`, la tarea de pruebas unitarias no encontró archivos de pruebas
+- En Android 36 se revisaron las cuatro secciones en modo claro y oscuro, búsqueda, filtros, validación, conservación del borrador y publicación simulada con su vista de candidatos
+- Se comprobó el control de visibilidad de contraseña, la reacción al foco y la selección de las nueve expresiones en la vista de desarrollo
+- En una pantalla de 360 dp de ancho se comprobó el acceso al formulario con fuente al 200 % y animaciones desactivadas, los destinos y el botón principal superaron el tamaño táctil mínimo
+- La fuente Rive pasó `--verify` y se compararon dos fotogramas de la animación de reposo, todavía falta generar e integrar el recurso publicado
 - En un emulador Android 36 se revisaron Explorar, el detalle, Publicar, Actividad y la vista de candidatos con datos ficticios
 - Se comprobaron búsqueda sin resultados, recuperación de filtros, error del formulario, conservación del borrador y publicación simulada
 - Se verificó el error de conexión de la cuenta y la conservación de los datos escritos al intentar iniciar sesión sin red
