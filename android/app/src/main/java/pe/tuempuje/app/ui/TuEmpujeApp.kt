@@ -156,7 +156,7 @@ private fun TuEmpujeContent(services: FirebaseServices?, model: OpportunityViewM
     LaunchedEffect(resetCode) { if (resetCode != null) openDestination("perfil") }
     val backStackEntry by nav.currentBackStackEntryAsState()
     val currentRoute = backStackEntry?.destination?.route
-    BackHandler(enabled = currentRoute in destinations.map { it.route } && tabHistory.isNotEmpty()) {
+    val backToPreviousTab: () -> Unit = {
         val previous = tabHistory.last()
         tabHistory = tabHistory.dropLast(1)
         nav.navigate(previous) {
@@ -229,9 +229,11 @@ private fun TuEmpujeContent(services: FirebaseServices?, model: OpportunityViewM
                 },
             ) {
                 composable("explorar") {
+                    BackHandler(enabled = currentRoute == "explorar" && tabHistory.isNotEmpty(), onBack = backToPreviousTab)
                     ExploreScreen(model, onSaved = { nav.navigate("guardados") }, onSettings = { nav.navigate("ajustes") }, onAccount = { openDestination("perfil") }, onPublish = { openDestination("publicar") }) { nav.navigate("detalle/$it") { launchSingleTop = true } }
                 }
                 composable("publicar") {
+                    BackHandler(enabled = currentRoute == "publicar" && tabHistory.isNotEmpty(), onBack = backToPreviousTab)
                     PublishScreen(model, onBack = { nav.popBackStack() }, onAccount = { openDestination("perfil") }) {
                         activityRevision++
                         openDestination("actividad")
@@ -239,9 +241,11 @@ private fun TuEmpujeContent(services: FirebaseServices?, model: OpportunityViewM
                     }
                 }
                 composable("actividad") {
+                    BackHandler(enabled = currentRoute == "actividad" && tabHistory.isNotEmpty(), onBack = backToPreviousTab)
                     ActivityScreen(model, activityRevision, openDestination) { nav.navigate("detalle/$it") { launchSingleTop = true } }
                 }
                 composable("perfil") {
+                    BackHandler(enabled = currentRoute == "perfil" && tabHistory.isNotEmpty(), onBack = backToPreviousTab)
                     if (services != null) {
                         AccountScreen(services.auth, services.firestore, onSettings = { nav.navigate("ajustes") }, onSaved = { nav.navigate("guardados") }, onChoosePurpose = onChoosePurpose, resetCode = resetCode, onResetConsumed = onResetConsumed) { nav.navigate("debug/empu") }
                     } else {
