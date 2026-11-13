@@ -78,14 +78,14 @@ fun EmpuProvider(content: @Composable () -> Unit) {
 }
 
 @Composable
-fun Empu(mood: EmpuMood, modifier: Modifier = Modifier, greeting: Boolean = false) {
+fun Empu(mood: EmpuMood, modifier: Modifier = Modifier) {
     val preferences = LocalAppPreferences.current
     if (preferences?.showMascot == false) {
         Spacer(modifier.aspectRatio(1f))
         return
     }
     BoxWithConstraints(modifier.aspectRatio(1f).clearAndSetSemantics { }) {
-        EmpuArtwork(mood, Modifier.matchParentSize(), greeting)
+        EmpuArtwork(mood, Modifier.matchParentSize())
         when (mood) {
             EmpuMood.THINKING -> Text(
                 "?", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold,
@@ -102,11 +102,11 @@ fun Empu(mood: EmpuMood, modifier: Modifier = Modifier, greeting: Boolean = fals
 }
 
 @Composable
-private fun EmpuArtwork(mood: EmpuMood, modifier: Modifier = Modifier, greeting: Boolean = false) {
+private fun EmpuArtwork(mood: EmpuMood, modifier: Modifier = Modifier) {
     val file = LocalEmpuFile.current
     val preferences = LocalAppPreferences.current
     if (!ValueAnimator.areAnimatorsEnabled() || preferences?.reduceMotion == true || file !is RiveResult.Success) {
-        EmpuFallback(mood, modifier, greeting)
+        EmpuFallback(mood, modifier)
         return
     }
     val instance = rememberViewModelInstanceResult(file.value, ViewModelSource.Named("EmpuData").defaultInstance())
@@ -119,7 +119,7 @@ private fun EmpuArtwork(mood: EmpuMood, modifier: Modifier = Modifier, greeting:
             LaunchedEffect(instance.value, mood) { instance.value.setNumber("mood", mood.riveValue) }
             var frameReady by remember(file.value, instance.value) { mutableStateOf(false) }
             Box(modifier.aspectRatio(1f)) {
-                if (!frameReady) EmpuFallback(mood, Modifier.fillMaxSize(), greeting)
+                if (!frameReady) EmpuFallback(mood, Modifier.fillMaxSize())
                 Rive(
                     file = file.value,
                     viewModelInstance = instance.value,
@@ -129,6 +129,6 @@ private fun EmpuArtwork(mood: EmpuMood, modifier: Modifier = Modifier, greeting:
                 )
             }
         }
-        else -> EmpuFallback(mood, modifier, greeting)
+        else -> EmpuFallback(mood, modifier)
     }
 }

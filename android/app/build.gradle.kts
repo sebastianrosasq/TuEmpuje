@@ -44,6 +44,7 @@ android {
 
     defaultConfig {
         applicationId = "pe.tuempuje.app"
+        manifestPlaceholders["authHost"] = (if (backend == "local") "demo-tuempuje" else firebaseValue("projectId")) + ".firebaseapp.com"
         minSdk = 26
         targetSdk = 36
         versionCode = 1
@@ -93,6 +94,7 @@ dependencies {
     implementation(platform("com.google.firebase:firebase-bom:34.10.0"))
     implementation("com.google.firebase:firebase-auth")
     implementation("com.google.firebase:firebase-firestore")
+    implementation("com.google.firebase:firebase-functions")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.10.2")
     testImplementation("junit:junit:4.13.2")
     debugImplementation("androidx.compose.ui:ui-tooling")

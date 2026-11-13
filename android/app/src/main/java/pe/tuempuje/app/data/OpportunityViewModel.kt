@@ -236,6 +236,36 @@ class OpportunityViewModel(private val services: FirebaseServices?) : ViewModel(
         }
     }
 
+    fun completeCandidate(opportunityId: String, candidateId: String) {
+        val db = services?.firestore ?: return
+        if (find(opportunityId)?.own != true) return
+        operation("No se confirmó la finalización, revisa la lista antes de intentarlo otra vez") {
+            val application = db.collection("opportunities").document(opportunityId).collection("applications").document(candidateId)
+            db.runTransaction { transaction ->
+                val current = transaction.get(application)
+                check(current.getString("status") == "selected")
+                transaction.update(application, mapOf("status" to "completed", "completedAt" to FieldValue.serverTimestamp()))
+            }.await()
+        }
+    }
+
+    fun reportOpportunity(opportunityId: String, reason: String, details: String, onSuccess: () -> Unit) {
+        val db = services?.firestore ?: return
+        val uid = userId ?: return
+        val cleanDetails = details.trim()
+        if (reason !in listOf("Información engañosa", "Pago o condiciones", "Seguridad", "Otro") || cleanDetails.length !in 10..500) {
+            error = "Describe el motivo con entre 10 y 500 caracteres"
+            return
+        }
+        operation("No se confirmó el reporte, comprueba tu conexión antes de reintentar") {
+            db.collection("reports").document("${uid}_${opportunityId}").set(mapOf(
+                "reporterId" to uid, "opportunityId" to opportunityId, "reason" to reason,
+                "details" to cleanDetails, "status" to "open", "createdAt" to FieldValue.serverTimestamp(),
+            )).await()
+            onSuccess()
+        }
+    }
+
     private fun operation(timeoutMessage: String, block: suspend () -> Unit) {
         if (busy) return
         busy = true

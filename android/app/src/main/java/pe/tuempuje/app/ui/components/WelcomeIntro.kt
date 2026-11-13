@@ -6,7 +6,6 @@ import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -26,9 +25,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
@@ -37,7 +33,6 @@ import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.delay
 import pe.tuempuje.app.R
 import pe.tuempuje.app.ui.LocalAppPreferences
-import pe.tuempuje.app.ui.theme.EmpuTeal
 
 @Composable
 fun WelcomeIntro(onFinished: () -> Unit) {
@@ -86,18 +81,7 @@ fun WelcomeIntro(onFinished: () -> Unit) {
                 Image(painterResource(R.drawable.tuempuje_symbol), contentDescription = null, modifier = Modifier.size(142.dp))
                 Text("TuEmpuje", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
             } else {
-                Box(Modifier.size(160.dp)) {
-                    Empu(EmpuMood.HAPPY, Modifier.matchParentSize().graphicsLayer { rotationZ = wave.value }, greeting = true)
-                    Canvas(Modifier.matchParentSize().graphicsLayer {
-                        transformOrigin = TransformOrigin(.80f, .61f)
-                        rotationZ = wave.value * 2f
-                    }) {
-                        val start = Offset(size.width * .79f, size.height * .61f)
-                        val hand = Offset(size.width * .93f, size.height * .43f)
-                        drawLine(EmpuTeal, start, hand, strokeWidth = size.width * .055f, cap = StrokeCap.Round)
-                        drawCircle(EmpuTeal, radius = size.width * .04f, center = hand)
-                    }
-                }
+                Empu(EmpuMood.HAPPY, Modifier.size(160.dp).graphicsLayer { rotationZ = wave.value })
                 Text("¡Hola!", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
             }
         }

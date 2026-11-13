@@ -1,6 +1,6 @@
 # Identidad y reglas de datos
 
-Esta carpeta contiene la configuración de Firebase Authentication y Firestore para TuEmpuje, junto con las reglas y sus pruebas
+Esta carpeta contiene la configuración de Firebase Authentication y Firestore para TuEmpuje, sus reglas, una función protegida y las pruebas locales
 
 La aplicación puede usar el proyecto ficticio `demo-tuempuje` mediante emuladores o el proyecto de desarrollo `tuempuje-dev-e1835b` en la nube, ambos entornos son para datos ficticios
 
@@ -8,21 +8,22 @@ La aplicación puede usar el proyecto ficticio `demo-tuempuje` mediante emulador
 
 - Node.js 24.12 o superior y npm
 - Java 21 o superior para los emuladores actuales de Firebase
-- Los puertos locales 9099 y 8080 disponibles
+- Los puertos locales 9099, 8080 y 5001 disponibles
 
 Instalar dependencias desde esta carpeta:
 
 ```powershell
 npm ci
+npm ci --prefix functions
 ```
 
-Iniciar los emuladores de Authentication y Firestore:
+Iniciar los emuladores de Authentication, Firestore y Functions:
 
 ```powershell
 npm run emulators
 ```
 
-El emulador Android puede acceder al equipo anfitrión mediante `10.0.2.2`, con Authentication en el puerto `9099` y Firestore en el `8080`
+El emulador Android puede acceder al equipo anfitrión mediante `10.0.2.2`, con Authentication en el puerto `9099`, Firestore en el `8080` y Functions en el `5001`
 
 Ejecutar las pruebas de reglas, con el puerto 8080 libre:
 
@@ -73,7 +74,7 @@ Los avisos restantes no tienen una corrección automática compatible en el árb
 
 | Ruta | Datos previstos | Acceso inicial |
 |---|---|---|
-| `users/{uid}` | Identidad, nombre, correo y datos privados de habilidades, experiencia y disponibilidad | Solo el titular puede leer y actualizar su perfil, el correo y el identificador son inmutables |
+| `users/{uid}` | Nombre, correo, DNI, celular y datos privados de habilidades, experiencia y disponibilidad | Solo el titular puede leer y actualizar su perfil, el correo y el identificador son inmutables |
 | `opportunities/{id}` | Responsable, nombre, categoría, tareas, requisitos, condiciones, vacantes y estado | Una cuenta con perfil crea su propia oportunidad publicada, las cuentas autenticadas consultan publicaciones |
 | `opportunities/{id}/applications/{uid}` | Identificador y nombre del postulante, estado y fecha | El postulante crea una solicitud propia y puede leerla, el dueño de la oportunidad puede revisar y seleccionar sus postulaciones |
 
@@ -81,13 +82,38 @@ La consulta de oportunidades compartidas debe incluir `where('status', '==', 'pu
 
 Las postulaciones usan el identificador del candidato como identificador del documento para impedir duplicados, no se permite postular a una oportunidad propia, la consulta de postulaciones personales utiliza un índice de grupo sobre `applicantId`
 
-La creación de oportunidades y postulaciones en Android se implementará en sus sprints correspondientes, la existencia de estas reglas no significa que esos recorridos ya estén conectados
+Las oportunidades y postulaciones están conectadas a Firestore en Android, los cambios de reglas deben desplegarse antes de probar funciones nuevas en la nube
 
 Los perfiles son privados y no exponen el correo ni los datos de experiencia a otras cuentas, la postulación comparte únicamente el nombre del candidato confirmado contra su perfil
+
+El DNI y el celular se guardan en el perfil privado, el formato se valida sin comprobar identidad ante RENIEC
 
 La selección se realiza mediante una transacción que actualiza la postulación y el número de vacantes cubiertas de forma conjunta, las reglas y las pruebas impiden superar el límite, la edición y eliminación de oportunidades y postulaciones siguen sin habilitarse
 
 El contenido de pago de una oportunidad es informativo, no existe una integración de cobro ni se procesan datos bancarios
+
+## Recuperación de contraseña
+
+El enlace de Firebase se valida con `verifyPasswordResetCode` antes de permitir el cambio, Android reconoce únicamente el dominio y la ruta de acciones configurados
+
+La asociación de Android App Links publicada en Hosting corresponde al certificado de depuración local, para preparar otra firma generar el archivo con `node hosting/assetlinks.mjs HUELLA_SHA256` y registrar la huella en Firebase
+
+Hosting reemplaza el contenido del sitio en cada despliegue, por eso hay que conservar cualquier contenido existente antes de publicar la asociación, el archivo generado no se incluye en Git y una versión de lanzamiento necesitará su propia firma y verificación
+
+## Eliminación de cuentas
+
+`functions/deleteAccount` exige una sesión reciente y elimina el perfil, las oportunidades propias con sus postulaciones, las postulaciones a otras oportunidades y los reportes relacionados, también ajusta las vacantes cuando corresponde
+
+Durante el proceso se crea un bloqueo privado para impedir nuevas escrituras y permitir reintentos, una vez eliminada la cuenta queda un identificador temporal con `expireAt` para bloquear credenciales ya emitidas
+
+Antes del despliegue debe configurarse y verificarse una política TTL de Firestore para el campo `deletionJobs.expireAt`, los bloqueos de operaciones incompletas no tienen expiración y requieren seguimiento operativo, TTL no elimina documentos de forma inmediata
+
+La función solo se ha probado con emuladores y no está desplegada, su despliegue requiere el plan Blaze de Firebase y revisar sus costos, no activar el botón de eliminación como funcional en la nube hasta completar esa configuración y verificar el recorrido completo
+
+```powershell
+npm ci --prefix functions
+npm run test:deletion
+```
 
 ## Referencias
 

@@ -2,6 +2,14 @@
   <Artboard viewModelId="0:40" viewModelInstanceId="0:41" defaultStateMachineId="0:7" width="240" height="240" styleId="0:5" name="Empu" id="0:2">
     <LayoutComponentStyle name="Artboard Style" id="0:5" />
     <Node name="Empu" id="0:20">
+      <Shape x="38" y="143" name="Mano izquierda visible" id="0:66"><PointsPath isClosed="false"><StraightVertex x="0" y="0"/><StraightVertex x="-13" y="6"/></PointsPath><Stroke thickness="9" cap="round"><SolidColor colorValue="FF187F76"/></Stroke></Shape>
+      <Shape x="202" y="143" name="Mano derecha visible" id="0:67"><PointsPath isClosed="false"><StraightVertex x="0" y="0"/><StraightVertex x="13" y="6"/></PointsPath><Stroke thickness="9" cap="round"><SolidColor colorValue="FF187F76"/></Stroke></Shape>
+      <Shape opacity="0" name="Ceja izquierda" id="0:60"><PointsPath isClosed="false"><StraightVertex x="79" y="87"/><StraightVertex x="98" y="91"/></PointsPath><Stroke thickness="4" cap="round"><SolidColor colorValue="FFE9F1F4"/></Stroke></Shape>
+      <Shape opacity="0" name="Ceja derecha" id="0:61"><PointsPath isClosed="false"><StraightVertex x="138" y="91"/><StraightVertex x="155" y="84"/></PointsPath><Stroke thickness="4" cap="round"><SolidColor colorValue="FFE9F1F4"/></Stroke></Shape>
+      <Shape x="69" y="130" opacity="0" name="Mejilla izquierda" id="0:62"><Ellipse width="7" height="7" originX="0.5" originY="0.5"/><Fill><SolidColor colorValue="FFE9F1F4"/></Fill></Shape>
+      <Shape x="168" y="130" opacity="0" name="Mejilla derecha" id="0:63"><Ellipse width="7" height="7" originX="0.5" originY="0.5"/><Fill><SolidColor colorValue="FFE9F1F4"/></Fill></Shape>
+      <Shape opacity="0" name="Brillo de logro" id="0:64"><PointsPath isClosed="false"><StraightVertex x="210" y="70"/><StraightVertex x="210" y="84"/></PointsPath><Stroke thickness="4" cap="round"><SolidColor colorValue="FF187F76"/></Stroke></Shape>
+      <Shape opacity="0" name="Guiño" id="0:65"><PointsPath isClosed="false"><StraightVertex x="135" y="109"/><StraightVertex x="145" y="104"/><StraightVertex x="155" y="109"/></PointsPath><Stroke thickness="4" cap="round"><SolidColor colorValue="FFE9F1F4"/></Stroke></Shape>
       <Shape x="92" y="108" opacity="0" name="Mano izquierda" id="0:27">
         <Ellipse width="28" height="32" originX="0.5" originY="0.5" />
         <Fill>
@@ -278,7 +286,16 @@
           <KeyFrameDouble value="1" frame="0" interpolationType="linear" />
         </KeyedProperty>
       </KeyedObject>
-    </LinearAnimation>
+          <KeyedObject objectId="0:60"><KeyedProperty propertyKey="18"><KeyFrameDouble value="0" frame="0" interpolationType="linear" /></KeyedProperty></KeyedObject>
+      <KeyedObject objectId="0:61"><KeyedProperty propertyKey="18"><KeyFrameDouble value="0" frame="0" interpolationType="linear" /></KeyedProperty></KeyedObject>
+      <KeyedObject objectId="0:62"><KeyedProperty propertyKey="18"><KeyFrameDouble value="0" frame="0" interpolationType="linear" /></KeyedProperty></KeyedObject>
+      <KeyedObject objectId="0:63"><KeyedProperty propertyKey="18"><KeyFrameDouble value="0" frame="0" interpolationType="linear" /></KeyedProperty></KeyedObject>
+      <KeyedObject objectId="0:64"><KeyedProperty propertyKey="18"><KeyFrameDouble value="0" frame="0" interpolationType="linear" /></KeyedProperty></KeyedObject>
+      <KeyedObject objectId="0:65"><KeyedProperty propertyKey="18"><KeyFrameDouble value="0" frame="0" interpolationType="linear" /></KeyedProperty></KeyedObject>
+      <KeyedObject objectId="0:66"><KeyedProperty propertyKey="18"><KeyFrameDouble value="1" frame="0" interpolationType="linear" /></KeyedProperty></KeyedObject>
+      <KeyedObject objectId="0:67"><KeyedProperty propertyKey="18"><KeyFrameDouble value="1" frame="0" interpolationType="linear" /></KeyedProperty></KeyedObject>
+      <KeyedObject objectId="0:67"><KeyedProperty propertyKey="15"><KeyFrameDouble value="0" frame="0" interpolationType="linear" /></KeyedProperty></KeyedObject>
+</LinearAnimation>
     <LinearAnimation fps="60" duration="60" loopValue="pingPong" name="LOOKING" id="0:201">
       <KeyedObject objectId="0:20">
         <KeyedProperty propertyKey="14">
@@ -350,7 +367,16 @@
           <KeyFrameDouble value="1" frame="0" interpolationType="linear" />
         </KeyedProperty>
       </KeyedObject>
-    </LinearAnimation>
+          <KeyedObject objectId="0:60"><KeyedProperty propertyKey="18"><KeyFrameDouble value="0" frame="0" interpolationType="linear" /></KeyedProperty></KeyedObject>
+      <KeyedObject objectId="0:61"><KeyedProperty propertyKey="18"><KeyFrameDouble value="0" frame="0" interpolationType="linear" /></KeyedProperty></KeyedObject>
+      <KeyedObject objectId="0:62"><KeyedProperty propertyKey="18"><KeyFrameDouble value="0" frame="0" interpolationType="linear" /></KeyedProperty></KeyedObject>
+      <KeyedObject objectId="0:63"><KeyedProperty propertyKey="18"><KeyFrameDouble value="0" frame="0" interpolationType="linear" /></KeyedProperty></KeyedObject>
+      <KeyedObject objectId="0:64"><KeyedProperty propertyKey="18"><KeyFrameDouble value="0" frame="0" interpolationType="linear" /></KeyedProperty></KeyedObject>
+      <KeyedObject objectId="0:65"><KeyedProperty propertyKey="18"><KeyFrameDouble value="0" frame="0" interpolationType="linear" /></KeyedProperty></KeyedObject>
+      <KeyedObject objectId="0:66"><KeyedProperty propertyKey="18"><KeyFrameDouble value="1" frame="0" interpolationType="linear" /></KeyedProperty></KeyedObject>
+      <KeyedObject objectId="0:67"><KeyedProperty propertyKey="18"><KeyFrameDouble value="1" frame="0" interpolationType="linear" /></KeyedProperty></KeyedObject>
+      <KeyedObject objectId="0:67"><KeyedProperty propertyKey="15"><KeyFrameDouble value="0" frame="0" interpolationType="linear" /></KeyedProperty></KeyedObject>
+</LinearAnimation>
     <LinearAnimation fps="60" duration="60" loopValue="pingPong" name="PASSWORD" id="0:202">
       <KeyedObject objectId="0:20">
         <KeyedProperty propertyKey="14">
@@ -422,7 +448,16 @@
           <KeyFrameDouble value="1" frame="0" interpolationType="linear" />
         </KeyedProperty>
       </KeyedObject>
-    </LinearAnimation>
+          <KeyedObject objectId="0:60"><KeyedProperty propertyKey="18"><KeyFrameDouble value="0" frame="0" interpolationType="linear" /></KeyedProperty></KeyedObject>
+      <KeyedObject objectId="0:61"><KeyedProperty propertyKey="18"><KeyFrameDouble value="0" frame="0" interpolationType="linear" /></KeyedProperty></KeyedObject>
+      <KeyedObject objectId="0:62"><KeyedProperty propertyKey="18"><KeyFrameDouble value="0" frame="0" interpolationType="linear" /></KeyedProperty></KeyedObject>
+      <KeyedObject objectId="0:63"><KeyedProperty propertyKey="18"><KeyFrameDouble value="0" frame="0" interpolationType="linear" /></KeyedProperty></KeyedObject>
+      <KeyedObject objectId="0:64"><KeyedProperty propertyKey="18"><KeyFrameDouble value="0" frame="0" interpolationType="linear" /></KeyedProperty></KeyedObject>
+      <KeyedObject objectId="0:65"><KeyedProperty propertyKey="18"><KeyFrameDouble value="0" frame="0" interpolationType="linear" /></KeyedProperty></KeyedObject>
+      <KeyedObject objectId="0:66"><KeyedProperty propertyKey="18"><KeyFrameDouble value="0" frame="0" interpolationType="linear" /></KeyedProperty></KeyedObject>
+      <KeyedObject objectId="0:67"><KeyedProperty propertyKey="18"><KeyFrameDouble value="0" frame="0" interpolationType="linear" /></KeyedProperty></KeyedObject>
+      <KeyedObject objectId="0:67"><KeyedProperty propertyKey="15"><KeyFrameDouble value="0" frame="0" interpolationType="linear" /></KeyedProperty></KeyedObject>
+</LinearAnimation>
     <LinearAnimation fps="60" duration="60" loopValue="pingPong" name="THINKING" id="0:203">
       <KeyedObject objectId="0:20">
         <KeyedProperty propertyKey="14">
@@ -436,12 +471,12 @@
       </KeyedObject>
       <KeyedObject objectId="0:25">
         <KeyedProperty propertyKey="13">
-          <KeyFrameDouble value="94" frame="0" interpolationType="linear" />
+          <KeyFrameDouble value="99" frame="0" interpolationType="linear" />
         </KeyedProperty>
       </KeyedObject>
       <KeyedObject objectId="0:26">
         <KeyedProperty propertyKey="13">
-          <KeyFrameDouble value="147" frame="0" interpolationType="linear" />
+          <KeyFrameDouble value="152" frame="0" interpolationType="linear" />
         </KeyedProperty>
       </KeyedObject>
       <KeyedObject objectId="0:27">
@@ -486,15 +521,24 @@
       </KeyedObject>
       <KeyedObject objectId="0:23">
         <KeyedProperty propertyKey="17">
-          <KeyFrameDouble value="1" frame="0" interpolationType="linear" />
+          <KeyFrameDouble value="0.12" frame="0" interpolationType="linear" />
         </KeyedProperty>
       </KeyedObject>
       <KeyedObject objectId="0:23">
         <KeyedProperty propertyKey="16">
-          <KeyFrameDouble value="1" frame="0" interpolationType="linear" />
+          <KeyFrameDouble value="0.8" frame="0" interpolationType="linear" />
         </KeyedProperty>
       </KeyedObject>
-    </LinearAnimation>
+          <KeyedObject objectId="0:60"><KeyedProperty propertyKey="18"><KeyFrameDouble value="1" frame="0" interpolationType="linear" /></KeyedProperty></KeyedObject>
+      <KeyedObject objectId="0:61"><KeyedProperty propertyKey="18"><KeyFrameDouble value="1" frame="0" interpolationType="linear" /></KeyedProperty></KeyedObject>
+      <KeyedObject objectId="0:62"><KeyedProperty propertyKey="18"><KeyFrameDouble value="0" frame="0" interpolationType="linear" /></KeyedProperty></KeyedObject>
+      <KeyedObject objectId="0:63"><KeyedProperty propertyKey="18"><KeyFrameDouble value="0" frame="0" interpolationType="linear" /></KeyedProperty></KeyedObject>
+      <KeyedObject objectId="0:64"><KeyedProperty propertyKey="18"><KeyFrameDouble value="0" frame="0" interpolationType="linear" /></KeyedProperty></KeyedObject>
+      <KeyedObject objectId="0:65"><KeyedProperty propertyKey="18"><KeyFrameDouble value="0" frame="0" interpolationType="linear" /></KeyedProperty></KeyedObject>
+      <KeyedObject objectId="0:66"><KeyedProperty propertyKey="18"><KeyFrameDouble value="1" frame="0" interpolationType="linear" /></KeyedProperty></KeyedObject>
+      <KeyedObject objectId="0:67"><KeyedProperty propertyKey="18"><KeyFrameDouble value="1" frame="0" interpolationType="linear" /></KeyedProperty></KeyedObject>
+      <KeyedObject objectId="0:67"><KeyedProperty propertyKey="15"><KeyFrameDouble value="-0.35" frame="0" interpolationType="linear" /></KeyedProperty></KeyedObject>
+</LinearAnimation>
     <LinearAnimation fps="60" duration="60" loopValue="pingPong" name="LOADING" id="0:204">
       <KeyedObject objectId="0:20">
         <KeyedProperty propertyKey="14">
@@ -560,7 +604,7 @@
       </KeyedObject>
       <KeyedObject objectId="0:23">
         <KeyedProperty propertyKey="17">
-          <KeyFrameDouble value="1" frame="0" interpolationType="linear" />
+          <KeyFrameDouble value="0.22" frame="0" interpolationType="linear" />
         </KeyedProperty>
       </KeyedObject>
       <KeyedObject objectId="0:23">
@@ -568,7 +612,16 @@
           <KeyFrameDouble value="1" frame="0" interpolationType="linear" />
         </KeyedProperty>
       </KeyedObject>
-    </LinearAnimation>
+          <KeyedObject objectId="0:60"><KeyedProperty propertyKey="18"><KeyFrameDouble value="0" frame="0" interpolationType="linear" /></KeyedProperty></KeyedObject>
+      <KeyedObject objectId="0:61"><KeyedProperty propertyKey="18"><KeyFrameDouble value="0" frame="0" interpolationType="linear" /></KeyedProperty></KeyedObject>
+      <KeyedObject objectId="0:62"><KeyedProperty propertyKey="18"><KeyFrameDouble value="0" frame="0" interpolationType="linear" /></KeyedProperty></KeyedObject>
+      <KeyedObject objectId="0:63"><KeyedProperty propertyKey="18"><KeyFrameDouble value="0" frame="0" interpolationType="linear" /></KeyedProperty></KeyedObject>
+      <KeyedObject objectId="0:64"><KeyedProperty propertyKey="18"><KeyFrameDouble value="0" frame="0" interpolationType="linear" /></KeyedProperty></KeyedObject>
+      <KeyedObject objectId="0:65"><KeyedProperty propertyKey="18"><KeyFrameDouble value="0" frame="0" interpolationType="linear" /></KeyedProperty></KeyedObject>
+      <KeyedObject objectId="0:66"><KeyedProperty propertyKey="18"><KeyFrameDouble value="1" frame="0" interpolationType="linear" /></KeyedProperty></KeyedObject>
+      <KeyedObject objectId="0:67"><KeyedProperty propertyKey="18"><KeyFrameDouble value="1" frame="0" interpolationType="linear" /></KeyedProperty></KeyedObject>
+      <KeyedObject objectId="0:67"><KeyedProperty propertyKey="15"><KeyFrameDouble value="0" frame="0" interpolationType="linear" /></KeyedProperty></KeyedObject>
+</LinearAnimation>
     <LinearAnimation fps="60" duration="60" loopValue="pingPong" name="HAPPY" id="0:205">
       <KeyedObject objectId="0:20">
         <KeyedProperty propertyKey="14">
@@ -632,7 +685,7 @@
       </KeyedObject>
       <KeyedObject objectId="0:23">
         <KeyedProperty propertyKey="17">
-          <KeyFrameDouble value="1" frame="0" interpolationType="linear" />
+          <KeyFrameDouble value="1.8" frame="0" interpolationType="linear" />
         </KeyedProperty>
       </KeyedObject>
       <KeyedObject objectId="0:23">
@@ -640,7 +693,16 @@
           <KeyFrameDouble value="1.2" frame="0" interpolationType="linear" />
         </KeyedProperty>
       </KeyedObject>
-    </LinearAnimation>
+          <KeyedObject objectId="0:60"><KeyedProperty propertyKey="18"><KeyFrameDouble value="0" frame="0" interpolationType="linear" /></KeyedProperty></KeyedObject>
+      <KeyedObject objectId="0:61"><KeyedProperty propertyKey="18"><KeyFrameDouble value="0" frame="0" interpolationType="linear" /></KeyedProperty></KeyedObject>
+      <KeyedObject objectId="0:62"><KeyedProperty propertyKey="18"><KeyFrameDouble value="1" frame="0" interpolationType="linear" /></KeyedProperty></KeyedObject>
+      <KeyedObject objectId="0:63"><KeyedProperty propertyKey="18"><KeyFrameDouble value="1" frame="0" interpolationType="linear" /></KeyedProperty></KeyedObject>
+      <KeyedObject objectId="0:64"><KeyedProperty propertyKey="18"><KeyFrameDouble value="0" frame="0" interpolationType="linear" /></KeyedProperty></KeyedObject>
+      <KeyedObject objectId="0:65"><KeyedProperty propertyKey="18"><KeyFrameDouble value="0" frame="0" interpolationType="linear" /></KeyedProperty></KeyedObject>
+      <KeyedObject objectId="0:66"><KeyedProperty propertyKey="18"><KeyFrameDouble value="1" frame="0" interpolationType="linear" /></KeyedProperty></KeyedObject>
+      <KeyedObject objectId="0:67"><KeyedProperty propertyKey="18"><KeyFrameDouble value="1" frame="0" interpolationType="linear" /></KeyedProperty></KeyedObject>
+      <KeyedObject objectId="0:67"><KeyedProperty propertyKey="15"><KeyFrameDouble value="-0.7" frame="0" interpolationType="linear" /></KeyedProperty></KeyedObject>
+</LinearAnimation>
     <LinearAnimation fps="60" duration="60" loopValue="pingPong" name="SUCCESS" id="0:206">
       <KeyedObject objectId="0:20">
         <KeyedProperty propertyKey="14">
@@ -691,7 +753,7 @@
       </KeyedObject>
       <KeyedObject objectId="0:26">
         <KeyedProperty propertyKey="18">
-          <KeyFrameDouble value="1" frame="0" interpolationType="linear" />
+          <KeyFrameDouble value="0" frame="0" interpolationType="linear" />
         </KeyedProperty>
       </KeyedObject>
       <KeyedObject objectId="0:21">
@@ -701,20 +763,29 @@
       </KeyedObject>
       <KeyedObject objectId="0:22">
         <KeyedProperty propertyKey="17">
-          <KeyFrameDouble value="1" frame="0" interpolationType="linear" />
+          <KeyFrameDouble value="0.10" frame="0" interpolationType="linear" />
         </KeyedProperty>
       </KeyedObject>
       <KeyedObject objectId="0:23">
         <KeyedProperty propertyKey="17">
-          <KeyFrameDouble value="1" frame="0" interpolationType="linear" />
+          <KeyFrameDouble value="1.8" frame="0" interpolationType="linear" />
         </KeyedProperty>
       </KeyedObject>
       <KeyedObject objectId="0:23">
         <KeyedProperty propertyKey="16">
-          <KeyFrameDouble value="1.2" frame="0" interpolationType="linear" />
+          <KeyFrameDouble value="1.3" frame="0" interpolationType="linear" />
         </KeyedProperty>
       </KeyedObject>
-    </LinearAnimation>
+          <KeyedObject objectId="0:60"><KeyedProperty propertyKey="18"><KeyFrameDouble value="0" frame="0" interpolationType="linear" /></KeyedProperty></KeyedObject>
+      <KeyedObject objectId="0:61"><KeyedProperty propertyKey="18"><KeyFrameDouble value="0" frame="0" interpolationType="linear" /></KeyedProperty></KeyedObject>
+      <KeyedObject objectId="0:62"><KeyedProperty propertyKey="18"><KeyFrameDouble value="0" frame="0" interpolationType="linear" /></KeyedProperty></KeyedObject>
+      <KeyedObject objectId="0:63"><KeyedProperty propertyKey="18"><KeyFrameDouble value="0" frame="0" interpolationType="linear" /></KeyedProperty></KeyedObject>
+      <KeyedObject objectId="0:64"><KeyedProperty propertyKey="18"><KeyFrameDouble value="1" frame="0" interpolationType="linear" /></KeyedProperty></KeyedObject>
+      <KeyedObject objectId="0:65"><KeyedProperty propertyKey="18"><KeyFrameDouble value="1" frame="0" interpolationType="linear" /></KeyedProperty></KeyedObject>
+      <KeyedObject objectId="0:66"><KeyedProperty propertyKey="18"><KeyFrameDouble value="1" frame="0" interpolationType="linear" /></KeyedProperty></KeyedObject>
+      <KeyedObject objectId="0:67"><KeyedProperty propertyKey="18"><KeyFrameDouble value="1" frame="0" interpolationType="linear" /></KeyedProperty></KeyedObject>
+      <KeyedObject objectId="0:67"><KeyedProperty propertyKey="15"><KeyFrameDouble value="-1.05" frame="0" interpolationType="linear" /></KeyedProperty></KeyedObject>
+</LinearAnimation>
     <LinearAnimation fps="60" duration="60" loopValue="pingPong" name="SAD" id="0:207">
       <KeyedObject objectId="0:20">
         <KeyedProperty propertyKey="14">
@@ -778,7 +849,7 @@
       </KeyedObject>
       <KeyedObject objectId="0:23">
         <KeyedProperty propertyKey="17">
-          <KeyFrameDouble value="-1" frame="0" interpolationType="linear" />
+          <KeyFrameDouble value="-1.4" frame="0" interpolationType="linear" />
         </KeyedProperty>
       </KeyedObject>
       <KeyedObject objectId="0:23">
@@ -786,7 +857,16 @@
           <KeyFrameDouble value="1" frame="0" interpolationType="linear" />
         </KeyedProperty>
       </KeyedObject>
-    </LinearAnimation>
+          <KeyedObject objectId="0:60"><KeyedProperty propertyKey="18"><KeyFrameDouble value="0" frame="0" interpolationType="linear" /></KeyedProperty></KeyedObject>
+      <KeyedObject objectId="0:61"><KeyedProperty propertyKey="18"><KeyFrameDouble value="0" frame="0" interpolationType="linear" /></KeyedProperty></KeyedObject>
+      <KeyedObject objectId="0:62"><KeyedProperty propertyKey="18"><KeyFrameDouble value="0" frame="0" interpolationType="linear" /></KeyedProperty></KeyedObject>
+      <KeyedObject objectId="0:63"><KeyedProperty propertyKey="18"><KeyFrameDouble value="0" frame="0" interpolationType="linear" /></KeyedProperty></KeyedObject>
+      <KeyedObject objectId="0:64"><KeyedProperty propertyKey="18"><KeyFrameDouble value="0" frame="0" interpolationType="linear" /></KeyedProperty></KeyedObject>
+      <KeyedObject objectId="0:65"><KeyedProperty propertyKey="18"><KeyFrameDouble value="0" frame="0" interpolationType="linear" /></KeyedProperty></KeyedObject>
+      <KeyedObject objectId="0:66"><KeyedProperty propertyKey="18"><KeyFrameDouble value="1" frame="0" interpolationType="linear" /></KeyedProperty></KeyedObject>
+      <KeyedObject objectId="0:67"><KeyedProperty propertyKey="18"><KeyFrameDouble value="1" frame="0" interpolationType="linear" /></KeyedProperty></KeyedObject>
+      <KeyedObject objectId="0:67"><KeyedProperty propertyKey="15"><KeyFrameDouble value="0.35" frame="0" interpolationType="linear" /></KeyedProperty></KeyedObject>
+</LinearAnimation>
     <LinearAnimation fps="60" duration="60" loopValue="pingPong" name="EMPTY" id="0:208">
       <KeyedObject objectId="0:20">
         <KeyedProperty propertyKey="14">
@@ -850,15 +930,24 @@
       </KeyedObject>
       <KeyedObject objectId="0:23">
         <KeyedProperty propertyKey="17">
-          <KeyFrameDouble value="0.3" frame="0" interpolationType="linear" />
+          <KeyFrameDouble value="0.16" frame="0" interpolationType="linear" />
         </KeyedProperty>
       </KeyedObject>
       <KeyedObject objectId="0:23">
         <KeyedProperty propertyKey="16">
-          <KeyFrameDouble value="0.6" frame="0" interpolationType="linear" />
+          <KeyFrameDouble value="0.5" frame="0" interpolationType="linear" />
         </KeyedProperty>
       </KeyedObject>
-    </LinearAnimation>
+          <KeyedObject objectId="0:60"><KeyedProperty propertyKey="18"><KeyFrameDouble value="0" frame="0" interpolationType="linear" /></KeyedProperty></KeyedObject>
+      <KeyedObject objectId="0:61"><KeyedProperty propertyKey="18"><KeyFrameDouble value="0" frame="0" interpolationType="linear" /></KeyedProperty></KeyedObject>
+      <KeyedObject objectId="0:62"><KeyedProperty propertyKey="18"><KeyFrameDouble value="0" frame="0" interpolationType="linear" /></KeyedProperty></KeyedObject>
+      <KeyedObject objectId="0:63"><KeyedProperty propertyKey="18"><KeyFrameDouble value="0" frame="0" interpolationType="linear" /></KeyedProperty></KeyedObject>
+      <KeyedObject objectId="0:64"><KeyedProperty propertyKey="18"><KeyFrameDouble value="0" frame="0" interpolationType="linear" /></KeyedProperty></KeyedObject>
+      <KeyedObject objectId="0:65"><KeyedProperty propertyKey="18"><KeyFrameDouble value="0" frame="0" interpolationType="linear" /></KeyedProperty></KeyedObject>
+      <KeyedObject objectId="0:66"><KeyedProperty propertyKey="18"><KeyFrameDouble value="1" frame="0" interpolationType="linear" /></KeyedProperty></KeyedObject>
+      <KeyedObject objectId="0:67"><KeyedProperty propertyKey="18"><KeyFrameDouble value="1" frame="0" interpolationType="linear" /></KeyedProperty></KeyedObject>
+      <KeyedObject objectId="0:67"><KeyedProperty propertyKey="15"><KeyFrameDouble value="0" frame="0" interpolationType="linear" /></KeyedProperty></KeyedObject>
+</LinearAnimation>
   </Artboard>
   <ViewModel defaultInstanceId="0:41" name="EmpuData" id="0:40">
     <ViewModelPropertyNumber name="mood" id="0:45" />

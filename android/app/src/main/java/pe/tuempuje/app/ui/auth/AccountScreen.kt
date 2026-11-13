@@ -56,6 +56,9 @@ import androidx.credentials.exceptions.NoCredentialException
 import com.google.android.libraries.identity.googleid.GetSignInWithGoogleOption
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.auth.EmailAuthProvider
+import com.google.firebase.auth.GoogleAuthProvider
+import pe.tuempuje.app.data.SavedDatabase
 import com.google.firebase.firestore.FirebaseFirestore
 import pe.tuempuje.app.auth.AccountUiState
 import pe.tuempuje.app.auth.AccountViewModel
@@ -70,16 +73,28 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.CancellationException
 
 @Composable
-fun AccountScreen(auth: FirebaseAuth, firestore: FirebaseFirestore, isLocal: Boolean, onSettings: () -> Unit, onSaved: () -> Unit, onMascotDemo: () -> Unit) {
+fun AccountScreen(auth: FirebaseAuth, firestore: FirebaseFirestore, onSettings: () -> Unit, onSaved: () -> Unit, resetCode: String? = null, onResetConsumed: () -> Unit = {}, onMascotDemo: () -> Unit) {
     val factory = remember(auth, firestore) { AccountViewModelFactory(auth, firestore) }
     val account: AccountViewModel = viewModel(factory = factory)
     val state by account.state.collectAsState()
     var showExperience by rememberSaveable(state.uid) { mutableStateOf(false) }
+    var showRecovery by rememberSaveable { mutableStateOf(false) }
     val scrollState = rememberScrollState()
     val context = LocalContext.current
     val credentialManager = remember(context) { CredentialManager.create(context) }
     val scope = rememberCoroutineScope()
     var confirmSignOut by rememberSaveable(state.uid) { mutableStateOf(false) }
+    var confirmDelete by rememberSaveable(state.uid) { mutableStateOf(false) }
+    var deletePassword by remember { mutableStateOf("") }
+    var deleteGoogleBusy by remember { mutableStateOf(false) }
+    val hasPassword = auth.currentUser?.providerData?.any { it.providerId == "password" } == true
+    val hasGoogle = auth.currentUser?.providerData?.any { it.providerId == "google.com" } == true
+    val deleted: (String) -> Unit = { uid ->
+        scope.launch {
+            SavedDatabase.get(context).saved().clearAccount(uid)
+            runCatching { credentialManager.clearCredentialState(ClearCredentialStateRequest()) }
+        }
+    }
     var showCvInfo by rememberSaveable { mutableStateOf(false) }
     val signOut = {
         account.signOut()
@@ -97,6 +112,49 @@ fun AccountScreen(auth: FirebaseAuth, firestore: FirebaseFirestore, isLocal: Boo
             dismissButton = { TextButton(onClick = { confirmSignOut = false }) { Text("Quedarme") } },
         )
     }
+    if (confirmDelete && state.uid != null) {
+        AlertDialog(
+            onDismissRequest = { if (!state.loading) { confirmDelete = false; deletePassword = "" } },
+            icon = { Empu(EmpuMood.SAD, Modifier.size(112.dp)) },
+            title = { Text("Eliminar cuenta") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text("Se eliminarán tu perfil, tus publicaciones y postulaciones, esta acción no se puede deshacer")
+                    if (BuildConfig.FIREBASE_LOCAL) Text("Confirma tu identidad para continuar") else Text("El servicio de eliminación aún no está disponible en este entorno")
+                    if (BuildConfig.FIREBASE_LOCAL && hasPassword) OutlinedTextField(value = deletePassword, onValueChange = { deletePassword = it },
+                        label = { Text("Contraseña") }, singleLine = true, visualTransformation = PasswordVisualTransformation(),
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password))
+                }
+            },
+            confirmButton = {
+                Column {
+                    if (BuildConfig.FIREBASE_LOCAL && hasPassword) TextButton(enabled = !state.loading && deletePassword.isNotEmpty(), onClick = {
+                        val credential = EmailAuthProvider.getCredential(state.email, deletePassword)
+                        deletePassword = ""; confirmDelete = false; account.deleteAccount(credential, deleted)
+                    }) { Text("Eliminar con contraseña") }
+                    if (BuildConfig.FIREBASE_LOCAL && hasGoogle) TextButton(enabled = !state.loading && !deleteGoogleBusy, onClick = {
+                        deleteGoogleBusy = true
+                        scope.launch {
+                            try {
+                                val option = GetSignInWithGoogleOption.Builder(BuildConfig.FIREBASE_WEB_CLIENT_ID).build()
+                                val request = GetCredentialRequest.Builder().addCredentialOption(option).build()
+                                val credential = credentialManager.getCredential(context, request).credential
+                                if (credential is CustomCredential && credential.type == GoogleIdTokenCredential.TYPE_GOOGLE_ID_TOKEN_CREDENTIAL) {
+                                    val token = GoogleIdTokenCredential.createFrom(credential.data).idToken
+                                    confirmDelete = false
+                                    account.deleteAccount(GoogleAuthProvider.getCredential(token, null), deleted)
+                                } else account.reportGoogleError("No se pudo confirmar la cuenta de Google")
+                            } catch (_: GetCredentialCancellationException) {
+                            } catch (exception: CancellationException) { throw exception
+                            } catch (_: Exception) { account.reportGoogleError("No se pudo confirmar la cuenta de Google")
+                            } finally { deleteGoogleBusy = false }
+                        }
+                    }) { Text("Eliminar con Google") }
+                }
+            },
+            dismissButton = { TextButton(enabled = !state.loading, onClick = { confirmDelete = false; deletePassword = "" }) { Text("Cancelar") } },
+        )
+    }
     if (showCvInfo) {
         AlertDialog(
             onDismissRequest = { showCvInfo = false },
@@ -111,6 +169,17 @@ fun AccountScreen(auth: FirebaseAuth, firestore: FirebaseFirestore, isLocal: Boo
         if (state.error != null) scrollState.animateScrollTo(0)
     }
 
+    LaunchedEffect(resetCode) {
+        if (resetCode != null) {
+            showRecovery = true
+            account.verifyResetCode(resetCode)
+            onResetConsumed()
+        }
+    }
+    if (showRecovery) {
+        RecoveryScreen(state, account, onBack = { showRecovery = false; account.clearRecovery() })
+        return
+    }
     if (showExperience && state.uid != null) {
         ExperienceEditor(state, account, onBack = { showExperience = false })
         return
@@ -129,22 +198,18 @@ fun AccountScreen(auth: FirebaseAuth, firestore: FirebaseFirestore, isLocal: Boo
             style = MaterialTheme.typography.bodyLarge,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
-        AppNotice(
-            if (isLocal) "Entorno de prueba local · usa únicamente datos ficticios"
-            else "Entorno de desarrollo en la nube · usa únicamente datos ficticios",
-        )
-
         if (state.loading) {
             AppLoadingState("Cargando cuenta")
         }
         state.error?.let { AccountError(it) }
         state.message?.let { AppNotice(it) }
         when {
-            state.uid == null -> AuthForm(account, state.loading, state.error != null)
+            state.uid == null -> AuthForm(account, state.loading, state.error != null, onRecover = { account.clearFeedback(); showRecovery = true })
             state.profileLoadFailed -> ProfileUnavailable(account, state.loading) { confirmSignOut = true }
             else -> ProfileForm(state, account, onShowExperience = { showExperience = true }, onSignOut = { confirmSignOut = true })
         }
         if (state.uid != null) {
+            TextButton(enabled = !state.loading, onClick = { confirmDelete = true }) { Text("Eliminar cuenta", color = MaterialTheme.colorScheme.error) }
             Text("Tu desarrollo", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
             OutlinedButton(onClick = { showCvInfo = true }, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) { Text("Asistente para mi CV · Próximamente") }
         }
@@ -157,9 +222,11 @@ fun AccountScreen(auth: FirebaseAuth, firestore: FirebaseFirestore, isLocal: Boo
 }
 
 @Composable
-private fun AuthForm(account: AccountViewModel, loading: Boolean, hasError: Boolean) {
+private fun AuthForm(account: AccountViewModel, loading: Boolean, hasError: Boolean, onRecover: () -> Unit) {
     var register by rememberSaveable { mutableStateOf(false) }
     var name by rememberSaveable { mutableStateOf("") }
+    var dni by rememberSaveable { mutableStateOf("") }
+    var phone by rememberSaveable { mutableStateOf("") }
     var email by rememberSaveable { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var passwordVisible by rememberSaveable { mutableStateOf(false) }
@@ -188,6 +255,17 @@ private fun AuthForm(account: AccountViewModel, loading: Boolean, hasError: Bool
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                 )
+                OutlinedTextField(
+                    value = dni, onValueChange = { dni = it.filter(Char::isDigit).take(8) },
+                    label = { Text("DNI") }, enabled = !loading, singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), modifier = Modifier.fillMaxWidth(),
+                )
+                OutlinedTextField(
+                    value = phone, onValueChange = { phone = it.filter(Char::isDigit).take(9) },
+                    label = { Text("Celular") }, enabled = !loading, singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone), modifier = Modifier.fillMaxWidth(),
+                )
+                Text("Tu DNI y celular se guardan en tu perfil privado, su formato no verifica tu identidad", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             OutlinedTextField(
                 value = email,
@@ -219,7 +297,7 @@ private fun AuthForm(account: AccountViewModel, loading: Boolean, hasError: Bool
             AppPrimaryButton(
                 label = if (register) "Crear cuenta" else "Entrar",
                 onClick = {
-                    if (register) account.register(name, email, password)
+                    if (register) account.register(name, email, password, dni, phone)
                     else account.signIn(email, password)
                 },
                 enabled = !loading,
@@ -253,7 +331,7 @@ private fun AuthForm(account: AccountViewModel, loading: Boolean, hasError: Bool
                 modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
             ) { Text(if (BuildConfig.FIREBASE_WEB_CLIENT_ID.isBlank()) "Google no está configurado en este entorno" else "Continuar con Google") }
             if (!register) {
-                TextButton(enabled = !loading, onClick = { account.resetPassword(email) }) { Text("Recuperar contraseña") }
+                TextButton(enabled = !loading, onClick = onRecover) { Text("Recuperar contraseña") }
             }
             TextButton(enabled = !loading, onClick = { register = !register; password = "" }) {
                 Text(if (register) "Ya tengo una cuenta" else "Crear una cuenta")
@@ -263,9 +341,47 @@ private fun AuthForm(account: AccountViewModel, loading: Boolean, hasError: Bool
 }
 
 @Composable
+private fun RecoveryScreen(state: AccountUiState, account: AccountViewModel, onBack: () -> Unit) {
+    var email by rememberSaveable { mutableStateOf("") }
+    var password by remember { mutableStateOf("") }
+    var confirm by remember { mutableStateOf("") }
+    var mismatch by remember { mutableStateOf(false) }
+    BackHandler(enabled = !state.loading) { onBack() }
+    Column(Modifier.verticalScroll(rememberScrollState()).padding(22.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        TextButton(onClick = onBack, enabled = !state.loading) { Text("Volver a iniciar sesión") }
+        Empu(if (state.message != null) EmpuMood.SUCCESS else EmpuMood.THINKING, Modifier.align(Alignment.CenterHorizontally).size(112.dp))
+        Text("Recuperar contraseña", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+        state.error?.let { AccountError(it) }
+        state.message?.let { AppNotice(it) }
+        when {
+            state.recoveryComplete -> {
+                AppNotice("Contraseña actualizada, ya puedes iniciar sesión")
+                AppPrimaryButton("Volver", onClick = onBack)
+            }
+            state.recoveryEmail != null -> {
+                Text("Elige una contraseña nueva para ${state.recoveryEmail}")
+                OutlinedTextField(value = password, onValueChange = { password = it; mismatch = false }, label = { Text("Contraseña nueva") }, visualTransformation = PasswordVisualTransformation(), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password), enabled = !state.loading, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(value = confirm, onValueChange = { confirm = it; mismatch = false }, label = { Text("Repite la contraseña") }, visualTransformation = PasswordVisualTransformation(), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password), enabled = !state.loading, modifier = Modifier.fillMaxWidth())
+                if (mismatch) AccountError("Las contraseñas no coinciden")
+                AppPrimaryButton("Guardar contraseña", onClick = { if (password == confirm) account.confirmResetPassword(password) else mismatch = true }, enabled = !state.loading)
+            }
+            else -> {
+                Text("Escribe el correo de tu cuenta, te enviaremos un enlace para elegir una contraseña nueva")
+                OutlinedTextField(value = email, onValueChange = { email = it.take(254) }, label = { Text("Correo electrónico") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email), enabled = !state.loading, singleLine = true, modifier = Modifier.fillMaxWidth())
+                AppPrimaryButton("Enviar enlace", onClick = { account.resetPassword(email) }, enabled = !state.loading)
+                if (state.message != null) Text("Abre el enlace del correo para cambiar la contraseña", style = MaterialTheme.typography.bodyMedium)
+            }
+        }
+        if (state.loading) AppLoadingState("Verificando información")
+    }
+}
+
+@Composable
 private fun ProfileForm(state: AccountUiState, account: AccountViewModel, onShowExperience: () -> Unit, onSignOut: () -> Unit) {
     var editing by rememberSaveable(state.uid, state.needsProfile) { mutableStateOf(state.needsProfile) }
     var name by rememberSaveable(state.uid, state.displayName) { mutableStateOf(state.displayName) }
+    var dni by rememberSaveable(state.uid, state.dni) { mutableStateOf(state.dni) }
+    var phone by rememberSaveable(state.uid, state.phone) { mutableStateOf(state.phone) }
     LaunchedEffect(state.loading) {
         if (!state.loading && state.error == null && !state.needsProfile) editing = false
     }
@@ -290,13 +406,24 @@ private fun ProfileForm(state: AccountUiState, account: AccountViewModel, onShow
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                 )
+                OutlinedTextField(
+                    value = dni, onValueChange = { dni = it.filter(Char::isDigit).take(8) },
+                    label = { Text("DNI") }, enabled = !state.loading, singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), modifier = Modifier.fillMaxWidth(),
+                )
+                OutlinedTextField(
+                    value = phone, onValueChange = { phone = it.filter(Char::isDigit).take(9) },
+                    label = { Text("Celular") }, enabled = !state.loading, singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone), modifier = Modifier.fillMaxWidth(),
+                )
+                Text("Tu DNI y celular se guardan en tu perfil privado, su formato no verifica tu identidad", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Button(
-                    onClick = { account.saveProfile(name) },
+                    onClick = { account.saveProfile(name, dni, phone) },
                     enabled = !state.loading,
                     modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
                 ) { Text("Guardar perfil") }
                 if (!state.needsProfile) {
-                    TextButton(enabled = !state.loading, onClick = { name = state.displayName; editing = false }) { Text("Cancelar") }
+                    TextButton(enabled = !state.loading, onClick = { name = state.displayName; dni = state.dni; phone = state.phone; editing = false }) { Text("Cancelar") }
                 }
             } else {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -309,9 +436,10 @@ private fun ProfileForm(state: AccountUiState, account: AccountViewModel, onShow
                     Column(Modifier.weight(1f)) {
                         Text(state.displayName, style = MaterialTheme.typography.titleMedium)
                         Text(state.email, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text("DNI ••••${state.dni.takeLast(4)} · ${state.phone}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
-                OutlinedButton(enabled = !state.loading, onClick = { editing = true }) { Text("Editar nombre") }
+                OutlinedButton(enabled = !state.loading, onClick = { editing = true }) { Text("Editar perfil") }
                 OutlinedButton(enabled = !state.loading, onClick = onShowExperience, modifier = Modifier.fillMaxWidth()) { Text("Habilidades y experiencia") }
             }
             TextButton(enabled = !state.loading, onClick = onSignOut) { Text("Cerrar sesión") }

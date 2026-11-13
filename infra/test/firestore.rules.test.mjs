@@ -9,7 +9,7 @@ const projectId = 'demo-tuempuje';
 let env;
 
 const user = (uid) => env.authenticatedContext(uid, { email: `${uid}@example.invalid` }).firestore();
-const profile = (uid) => ({ uid, displayName: `Perfil ${uid}`, email: `${uid}@example.invalid` });
+const profile = (uid) => ({ uid, displayName: `Perfil ${uid}`, email: `${uid}@example.invalid`, dni: '12345678', phone: '987654321' });
 const opportunity = (uid) => ({
   ownerId: uid,
   ownerName: `Perfil ${uid}`,
@@ -70,6 +70,10 @@ test('impide suplantación de correo, identidad y privilegios en perfiles', asyn
   await assertFails(setDoc(doc(db, 'users', 'nueva'), { ...profile('nueva'), role: 'admin' }));
   await assertFails(setDoc(doc(db, 'users', 'nueva'), { ...profile('nueva'), displayName: 'A' }));
   await assertFails(setDoc(doc(db, 'users', 'nueva'), { ...profile('nueva'), displayName: '   ' }));
+  await assertFails(setDoc(doc(db, 'users', 'nueva'), { ...profile('nueva'), dni: '123' }));
+  await assertFails(setDoc(doc(db, 'users', 'nueva'), { ...profile('nueva'), phone: '123456789' }));
+  const { dni, ...missingDni } = profile('nueva');
+  await assertFails(setDoc(doc(db, 'users', 'nueva'), missingDni));
   await assertFails(updateDoc(doc(user('cliente'), 'users', 'cliente'), { email: 'otro@example.invalid' }));
   await assertFails(updateDoc(doc(user('cliente'), 'users', 'cliente'), { role: 'admin' }));
 });
@@ -180,4 +184,44 @@ test('solo el dueño selecciona de forma atómica y no supera las vacantes', asy
   second.update(job, { selectedCount: 2, lastSelectedApplicantId: 'otro' });
   second.update(doc(db, 'opportunities', 'oferta', 'applications', 'otro'), { status: 'selected', selectedAt: serverTimestamp() });
   await assertFails(second.commit());
+});
+
+test('solo quien publica puede finalizar un trabajo seleccionado', async () => {
+  await assertSucceeds(setDoc(doc(user('candidato'), 'opportunities', 'oferta', 'applications', 'candidato'), application('candidato')));
+  const db = user('cliente');
+  const job = doc(db, 'opportunities', 'oferta');
+  const app = doc(db, 'opportunities', 'oferta', 'applications', 'candidato');
+  const batch = writeBatch(db);
+  batch.update(job, { selectedCount: 1, lastSelectedApplicantId: 'candidato' });
+  batch.update(app, { status: 'selected', selectedAt: serverTimestamp() });
+  await assertSucceeds(batch.commit());
+  await assertFails(updateDoc(doc(user('candidato'), 'opportunities', 'oferta', 'applications', 'candidato'), { status: 'completed', completedAt: serverTimestamp() }));
+  await assertFails(updateDoc(doc(user('otro'), 'opportunities', 'oferta', 'applications', 'candidato'), { status: 'completed', completedAt: serverTimestamp() }));
+  await assertFails(updateDoc(app, { status: 'completed', completedAt: serverTimestamp(), paid: true }));
+  await assertSucceeds(updateDoc(app, { status: 'completed', completedAt: serverTimestamp() }));
+  await assertFails(updateDoc(app, { status: 'completed', completedAt: serverTimestamp() }));
+});
+
+test('los reportes son privados, válidos y no se duplican', async () => {
+  const db = user('candidato');
+  const ref = doc(db, 'reports', 'candidato_oferta');
+  const report = { reporterId: 'candidato', opportunityId: 'oferta', reason: 'Seguridad', details: 'Solicitan datos sin explicar su uso', status: 'open', createdAt: serverTimestamp() };
+  await assertFails(setDoc(doc(db, 'reports', 'candidato_otra'), { ...report, opportunityId: 'otra' }));
+  await assertFails(setDoc(doc(db, 'reports', 'otro_oferta'), report));
+  await assertFails(setDoc(ref, { ...report, details: 'corto' }));
+  await assertSucceeds(setDoc(ref, report));
+  await assertFails(setDoc(ref, report));
+  await assertFails(getDoc(ref));
+  await assertFails(getDocs(collection(user('otro'), 'reports')));
+});
+
+
+test('el bloqueo de eliminación impide nuevas escrituras y postulaciones a la oferta', async () => {
+  await env.withSecurityRulesDisabled(async context => {
+    await setDoc(doc(context.firestore(), 'deletionJobs', 'cliente'), { startedAt: serverTimestamp() });
+  });
+  await assertFails(updateDoc(doc(user('cliente'), 'users', 'cliente'), { displayName: 'Otro nombre' }));
+  await assertFails(setDoc(doc(user('cliente'), 'opportunities', 'nueva'), opportunity('cliente')));
+  await assertFails(setDoc(doc(user('candidato'), 'opportunities', 'oferta', 'applications', 'candidato'), application('candidato')));
+  await assertFails(setDoc(doc(user('cliente'), 'deletionJobs', 'cliente'), { startedAt: serverTimestamp() }));
 });

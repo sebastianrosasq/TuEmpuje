@@ -10,6 +10,12 @@ Arequipa, Perú · Proyecto de programación móvil
 
 ---
 
+<p align="center">
+  <img src="docs/assets/empu.png" alt="Empu, mascota de TuEmpuje" width="150">
+</p>
+
+Empu acompaña algunos momentos de la aplicación y expresa sus estados con gestos y movimientos
+
 ## El proyecto
 
 TuEmpuje conecta a personas que buscan oportunidades de trabajo con profesionales y negocios que necesitan apoyo para tareas, campañas o proyectos
@@ -29,7 +35,7 @@ Publicar una oportunidad  →  Encontrar y postular  →  Revisar y seleccionar
 
 Cada publicación debe indicar las tareas, los conocimientos requeridos, el lugar, la duración y el pago ofrecido
 
-La primera versión reunirá en Android la publicación, consulta, postulación y selección de candidatos
+La aplicación reúne en Android la publicación, consulta, postulación y selección de candidatos
 
 Una página web de presentación podrá explicar el proyecto y dirigir a las personas a la aplicación cuando exista un enlace de instalación
 
@@ -49,7 +55,7 @@ Las tecnologías pueden ajustarse según los requisitos del curso y las necesida
 
 ## Estado
 
-El proyecto se encuentra en **desarrollo inicial**
+El proyecto se encuentra en **desarrollo**
 
 El repositorio incluye una aplicación Android en desarrollo con navegación, cuenta, perfil, ajustes y guardados locales con Room
 
@@ -59,7 +65,13 @@ Las oportunidades, postulaciones y selección de candidatos están conectadas a 
 
 El acceso con Google está integrado y configurado en el proyecto de desarrollo, queda por probar el inicio de sesión completo con una cuenta de Google en un teléfono compatible
 
-La web, Gemini, los pagos, la mensajería y el seguimiento completo de una contratación todavía no están implementados, el proyecto de desarrollo y sus cuentas se usan únicamente con datos ficticios
+La finalización de trabajos y el registro de reportes están incorporados y sus reglas se desplegaron al proyecto de desarrollo, todavía falta una herramienta de moderación
+
+La recuperación de contraseña envía un enlace al correo, la app puede validar el enlace y solicitar la nueva contraseña, la asociación publicada corresponde al certificado de depuración de este entorno y falta comprobar el recorrido en un dispositivo físico
+
+La eliminación completa de cuentas se preparó para el emulador mediante una función protegida, su despliegue y la configuración de expiración de bloqueos están pendientes, por lo que todavía no está disponible en la nube
+
+La web, Gemini, los pagos, la mensajería y la moderación todavía no están implementados, el proyecto de desarrollo se usa únicamente con datos de prueba
 
 El sistema visual comparte avisos, botones y estados vacíos, con transiciones y una navegación que se adapta al texto ampliado, las pruebas y limitaciones están registradas en [Diseño y navegación](docs/10-diseno-y-navegacion.md)
 
@@ -106,9 +118,11 @@ Ambas compilaciones usan la misma ruta de salida del APK, por lo que la última 
 ```text
 TuEmpuje/
 ├── android/                Proyecto Android en Kotlin y Compose
-├── infra/                  Emuladores y reglas de Firebase
+├── infra/                  Emuladores, reglas y funciones de Firebase
+├── design/empu-rive/       Recurso editable de Empu
 ├── docs/
 │   ├── assets/
+│   │   ├── empu.png
 │   │   ├── prototipo-inicio.png
 │   │   ├── prototipo-oscuro.png
 │   │   ├── tuempuje-icono.svg

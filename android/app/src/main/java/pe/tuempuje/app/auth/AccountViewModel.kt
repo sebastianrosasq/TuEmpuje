@@ -5,6 +5,9 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.auth.AuthCredential
+import com.google.firebase.functions.FirebaseFunctions
+import pe.tuempuje.app.BuildConfig
 import com.google.firebase.auth.FirebaseAuthException
 import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.auth.GoogleAuthProvider
@@ -26,6 +29,8 @@ data class AccountUiState(
     val uid: String? = null,
     val email: String = "",
     val displayName: String = "",
+    val dni: String = "",
+    val phone: String = "",
     val skills: String = "",
     val experience: String = "",
     val availability: String = "",
@@ -33,6 +38,8 @@ data class AccountUiState(
     val profileLoadFailed: Boolean = false,
     val error: String? = null,
     val message: String? = null,
+    val recoveryEmail: String? = null,
+    val recoveryComplete: Boolean = false,
 )
 
 class AccountViewModel(
@@ -41,9 +48,11 @@ class AccountViewModel(
 ) : ViewModel() {
     private val mutableState = MutableStateFlow(AccountUiState())
     val state: StateFlow<AccountUiState> = mutableState.asStateFlow()
+    private var verifiedResetCode: String? = null
+    private var recoveryRevision = 0
     private var operationActive = false
     private var revision = 0
-    private val unconfirmedProfileMessage = "No se confirmó el guardado del perfil, el servicio de prueba podría no estar disponible y la operación podría completarse al reconectar, puedes reintentar"
+    private val unconfirmedProfileMessage = "No se confirmó el guardado del perfil, la operación podría completarse al reconectar, revisa tu perfil antes de reintentar"
 
     private val authListener = FirebaseAuth.AuthStateListener { source ->
         if (!operationActive) refresh(source.currentUser)
@@ -67,6 +76,8 @@ class AccountViewModel(
         }
     }
 
+    fun clearFeedback() { mutableState.value = mutableState.value.copy(error = null, message = null) }
+
     fun resetPassword(email: String) {
         val cleanEmail = email.trim()
         if (cleanEmail.length > 254 || !Patterns.EMAIL_ADDRESS.matcher(cleanEmail).matches()) {
@@ -77,6 +88,54 @@ class AccountViewModel(
             withTimeout(12_000) { auth.sendPasswordResetEmail(cleanEmail).await() }
             mutableState.value = AccountUiState(loading = false, message = "Si la cuenta existe, recibirás un correo para recuperar el acceso")
         }
+    }
+
+    fun verifyResetCode(code: String) {
+        val request = ++recoveryRevision
+        verifiedResetCode = null
+        mutableState.value = mutableState.value.copy(loading = true, error = null, message = null, recoveryEmail = null, recoveryComplete = false)
+        viewModelScope.launch {
+            try {
+                val email = withTimeout(12_000) { auth.verifyPasswordResetCode(code).await() }
+                if (request != recoveryRevision) return@launch
+                verifiedResetCode = code
+                mutableState.value = mutableState.value.copy(loading = false, recoveryEmail = email)
+            } catch (exception: CancellationException) {
+                if (exception !is TimeoutCancellationException) throw exception
+                if (request == recoveryRevision) mutableState.value = mutableState.value.copy(loading = false, error = "No se pudo verificar el enlace, revisa tu conexión")
+            } catch (_: Exception) {
+                if (request == recoveryRevision) mutableState.value = mutableState.value.copy(loading = false, error = "El enlace no es válido o ya venció, solicita uno nuevo")
+            }
+        }
+    }
+
+    fun confirmResetPassword(password: String) {
+        val code = verifiedResetCode ?: return
+        if (password.length < 6) {
+            mutableState.value = mutableState.value.copy(error = "La contraseña debe tener al menos 6 caracteres")
+            return
+        }
+        val request = recoveryRevision
+        mutableState.value = mutableState.value.copy(loading = true, error = null)
+        viewModelScope.launch {
+            try {
+                withTimeout(12_000) { auth.confirmPasswordReset(code, password).await() }
+                if (request != recoveryRevision) return@launch
+                verifiedResetCode = null
+                mutableState.value = mutableState.value.copy(loading = false, recoveryEmail = null, recoveryComplete = true)
+            } catch (exception: CancellationException) {
+                if (exception !is TimeoutCancellationException) throw exception
+                if (request == recoveryRevision) mutableState.value = mutableState.value.copy(loading = false, error = "No se confirmó el cambio, intenta iniciar sesión antes de volver a solicitar un enlace")
+            } catch (_: Exception) {
+                if (request == recoveryRevision) mutableState.value = mutableState.value.copy(loading = false, error = "No se pudo cambiar la contraseña, solicita un nuevo enlace")
+            }
+        }
+    }
+
+    fun clearRecovery() {
+        recoveryRevision++
+        verifiedResetCode = null
+        mutableState.value = mutableState.value.copy(loading = false, recoveryEmail = null, recoveryComplete = false, error = null, message = null)
     }
 
     fun signInWithGoogle(idToken: String) {
@@ -93,18 +152,7 @@ class AccountViewModel(
                 mutableState.value = fromProfile(user, profile)
             } else {
                 val name = user.displayName?.trim()?.take(80).orEmpty()
-                if (validateName(name) == null && user.email != null) {
-                    try {
-                        writeProfile(user, name)
-                        mutableState.value = signedIn(user, name)
-                    } catch (exception: CancellationException) {
-                        throw exception
-                    } catch (exception: Exception) {
-                        mutableState.value = signedIn(user, name).copy(needsProfile = true, error = unconfirmedProfileMessage)
-                    }
-                } else {
-                    mutableState.value = signedIn(user).copy(needsProfile = true)
-                }
+                mutableState.value = signedIn(user, name).copy(needsProfile = true)
             }
         }
     }
@@ -113,25 +161,29 @@ class AccountViewModel(
         mutableState.value = mutableState.value.copy(error = message, message = null)
     }
 
-    fun register(name: String, email: String, password: String) {
+    fun register(name: String, email: String, password: String, dni: String, phone: String) {
         val cleanName = name.trim()
         val emailValue = email.trim()
-        val validation = validateName(cleanName) ?: validateCredentials(emailValue, password)
+        val cleanDni = dni.trim()
+        val cleanPhone = phone.trim()
+        val validation = validateName(cleanName) ?: validateCredentials(emailValue, password) ?: identityError(cleanDni, cleanPhone)
         if (validation != null) {
             mutableState.value = mutableState.value.copy(error = validation)
             return
         }
         runOperation(
-            timeoutMessage = "No se confirmó la creación de la cuenta, comprueba el servicio de prueba e intenta iniciar sesión antes de registrarte otra vez",
+            timeoutMessage = "No se confirmó la creación de la cuenta, intenta iniciar sesión antes de registrarte otra vez",
         ) {
             val user = withTimeout(12_000) { auth.createUserWithEmailAndPassword(emailValue, password).await() }.user
                 ?: error("No se creó la cuenta")
             try {
-                writeProfile(user, cleanName)
-                mutableState.value = signedIn(user, cleanName)
+                writeProfile(user, cleanName, cleanDni, cleanPhone)
+                mutableState.value = signedIn(user, cleanName).copy(dni = cleanDni, phone = cleanPhone)
             } catch (exception: TimeoutCancellationException) {
                 mutableState.value = signedIn(user).copy(
                     displayName = cleanName,
+                    dni = cleanDni,
+                    phone = cleanPhone,
                     needsProfile = true,
                     error = unconfirmedProfileMessage,
                 )
@@ -140,6 +192,8 @@ class AccountViewModel(
             } catch (exception: Exception) {
                 mutableState.value = signedIn(user).copy(
                     displayName = cleanName,
+                    dni = cleanDni,
+                    phone = cleanPhone,
                     needsProfile = true,
                     error = unconfirmedProfileMessage,
                 )
@@ -176,9 +230,11 @@ class AccountViewModel(
         }
     }
 
-    fun saveProfile(name: String) {
+    fun saveProfile(name: String, dni: String, phone: String) {
         val cleanName = name.trim()
-        val validation = validateName(cleanName)
+        val cleanDni = dni.trim()
+        val cleanPhone = phone.trim()
+        val validation = validateName(cleanName) ?: identityError(cleanDni, cleanPhone)
         if (validation != null) {
             mutableState.value = mutableState.value.copy(error = validation)
             return
@@ -190,14 +246,41 @@ class AccountViewModel(
         val previous = mutableState.value
         runOperation {
             try {
-                writeProfile(user, cleanName)
-                mutableState.value = previous.copy(loading = false, displayName = cleanName, needsProfile = false, error = null)
+                writeProfile(user, cleanName, cleanDni, cleanPhone)
+                mutableState.value = previous.copy(loading = false, displayName = cleanName, dni = cleanDni, phone = cleanPhone, needsProfile = false, error = null)
             } catch (exception: TimeoutCancellationException) {
                 mutableState.value = previous.copy(loading = false, error = unconfirmedProfileMessage)
             } catch (exception: CancellationException) {
                 throw exception
             } catch (exception: Exception) {
                 mutableState.value = previous.copy(loading = false, error = unconfirmedProfileMessage)
+            }
+        }
+    }
+
+    fun deleteAccount(credential: AuthCredential, onDeleted: (String) -> Unit) {
+        val user = auth.currentUser ?: return
+        if (operationActive) return
+        operationActive = true
+        revision++
+        val previous = mutableState.value
+        mutableState.value = previous.copy(loading = true, error = null)
+        viewModelScope.launch {
+            try {
+                withTimeout(30_000) { user.reauthenticate(credential).await() }
+                val functions = FirebaseFunctions.getInstance(auth.app, "us-central1")
+                if (BuildConfig.FIREBASE_LOCAL) functions.useEmulator("10.0.2.2", 5001)
+                withTimeout(120_000) { functions.getHttpsCallable("deleteAccount").call().await() }
+                auth.signOut()
+                mutableState.value = AccountUiState(loading = false, message = "Tu cuenta fue eliminada")
+                onDeleted(user.uid)
+            } catch (exception: CancellationException) {
+                if (exception !is TimeoutCancellationException) throw exception
+                mutableState.value = previous.copy(loading = false, error = "No se confirmó la eliminación, vuelve a iniciar sesión para comprobar el estado")
+            } catch (exception: Exception) {
+                mutableState.value = previous.copy(loading = false, error = "No se pudo eliminar la cuenta, verifica tus credenciales y vuelve a intentarlo")
+            } finally {
+                operationActive = false
             }
         }
     }
@@ -237,7 +320,7 @@ class AccountViewModel(
                 if (request != revision || auth.currentUser?.uid != user.uid) return@launch
                 mutableState.value = signedIn(user).copy(
                     profileLoadFailed = true,
-                    error = "No se pudo consultar el perfil, comprueba la conexión y el servicio de prueba y reintenta",
+                    error = "No se pudo consultar el perfil, comprueba tu conexión y reintenta",
                 )
             } catch (exception: CancellationException) {
                 throw exception
@@ -245,7 +328,7 @@ class AccountViewModel(
                 if (request != revision || auth.currentUser?.uid != user.uid) return@launch
                 mutableState.value = signedIn(user).copy(
                     profileLoadFailed = true,
-                    error = "No se pudo consultar el perfil, comprueba la conexión y el servicio de prueba y reintenta",
+                    error = "No se pudo consultar el perfil, comprueba tu conexión y reintenta",
                 )
             }
         }
@@ -262,17 +345,17 @@ class AccountViewModel(
         }
     }
 
-    private suspend fun writeProfile(user: FirebaseUser, name: String) {
+    private suspend fun writeProfile(user: FirebaseUser, name: String, dni: String, phone: String) {
         val email = user.email ?: error("La cuenta no tiene correo")
         withTimeout(12_000) {
             firestore.collection("users").document(user.uid).set(
-                mapOf("uid" to user.uid, "displayName" to name, "email" to email), SetOptions.merge(),
+                mapOf("uid" to user.uid, "displayName" to name, "email" to email, "dni" to dni, "phone" to phone), SetOptions.merge(),
             ).await()
         }
     }
 
     private fun runOperation(
-        timeoutMessage: String = "No se pudo confirmar la operación, comprueba la conexión y el servicio de prueba y reintenta",
+        timeoutMessage: String = "No se pudo confirmar la operación, comprueba tu conexión y reintenta",
         block: suspend () -> Unit,
     ) {
         if (operationActive) return
@@ -312,6 +395,9 @@ class AccountViewModel(
     )
 
     private fun fromProfile(user: FirebaseUser, profile: DocumentSnapshot) = signedIn(user, profile.getString("displayName").orEmpty()).copy(
+        dni = profile.getString("dni").orEmpty(),
+        phone = profile.getString("phone").orEmpty(),
+        needsProfile = identityError(profile.getString("dni").orEmpty(), profile.getString("phone").orEmpty()) != null,
         skills = profile.getString("skills").orEmpty(),
         experience = profile.getString("experience").orEmpty(),
         availability = profile.getString("availability").orEmpty(),

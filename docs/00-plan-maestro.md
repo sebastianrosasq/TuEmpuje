@@ -180,7 +180,7 @@ Entidades iniciales; los campos definitivos se ajustan al proveedor y diseño:
 | Lógica privilegiada | Cloud Functions o backend equivalente. | Centraliza selección, validaciones sensibles y futuras integraciones. | Requiere verificar límites, plan y costos; desarrollo local con emuladores cuando sea posible. |
 | Reglas y almacenamiento | Reglas de seguridad de Firebase y almacenamiento de archivos según necesidad. | Control por usuario y recurso. | Las reglas no protegen automáticamente operaciones hechas con SDK de administración; esas rutas necesitan autorización explícita. |
 | Notificaciones | Firebase Cloud Messaging, etapa posterior al recorrido básico. | Notificaciones móviles. | Requiere permisos y configuración de proyecto. |
-| Control de versiones | Git y repositorio remoto. | Historial y revisión de cambios. | El repositorio contiene documentación; la implementación está pendiente. |
+| Control de versiones | Git y repositorio remoto. | Historial y revisión de cambios. | El repositorio reúne el código Android, la infraestructura y la documentación del proyecto. |
 | Pagos | Proveedor por seleccionar; Mercado Pago es candidato para evaluar en Perú. | Ofrece documentación de marketplace y entorno de prueba. | Integración al final; disponibilidad, medios, comisiones y elegibilidad deben confirmarse para el caso concreto. |
 
 La arquitectura se organiza en componentes según las necesidades del proyecto. Android Developers recomienda capas de interfaz y datos, repositorios y flujo de datos unidireccional; esas recomendaciones se adaptan al proyecto. [Documentación de arquitectura Android](https://developer.android.com/topic/architecture/recommendations).
@@ -217,7 +217,7 @@ TuEmpuje/
 └── tests/                   # pruebas integradas y escenarios compartidos
 ```
 
-Es una estructura objetivo. Existe una base Android de demostración con cuentas y perfiles en un entorno local o en Firebase de desarrollo, junto con pruebas de reglas. Las publicaciones y postulaciones siguen simuladas. La organización se ajustará a las necesidades reales, sin crear módulos vacíos.
+Es una estructura objetivo. Existe una base Android de demostración con cuentas y perfiles en un entorno local o en Firebase de desarrollo, junto con pruebas de reglas. Las publicaciones, postulaciones y selección se conectan a Firestore en el entorno de desarrollo. La organización se ajustará a las necesidades reales, sin crear módulos vacíos.
 
 ## 10. Pagos: diseño a investigar al final
 

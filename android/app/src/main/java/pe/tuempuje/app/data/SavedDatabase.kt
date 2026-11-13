@@ -56,6 +56,9 @@ interface SavedOpportunityDao {
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun migrate(items: List<SavedOpportunity>)
 
+    @Query("DELETE FROM saved_opportunities WHERE account = :account")
+    suspend fun clearAccount(account: String)
+
     @Query("DELETE FROM saved_opportunities WHERE account = :account AND id = :id")
     suspend fun remove(account: String, id: String)
 }

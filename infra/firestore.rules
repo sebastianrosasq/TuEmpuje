@@ -6,17 +6,23 @@ service cloud.firestore {
       return request.auth != null;
     }
 
+    function active(uid) {
+      return !exists(/databases/$(database)/documents/deletionJobs/$(uid));
+    }
+
     function textWithin(value, min, max) {
       return value is string && value.size() >= min && value.size() <= max;
     }
 
     function validProfile(data, uid) {
       return data.keys().hasAll(['uid', 'displayName', 'email'])
-        && data.keys().hasOnly(['uid', 'displayName', 'email', 'skills', 'experience', 'availability'])
+        && data.keys().hasOnly(['uid', 'displayName', 'email', 'dni', 'phone', 'skills', 'experience', 'availability'])
         && data.uid == uid
         && textWithin(data.displayName, 2, 80)
         && data.displayName.matches('(?s).*\\S.*')
         && textWithin(data.email, 3, 254)
+        && (!('dni' in data) || (data.dni is string && data.dni.matches('[0-9]{8}')))
+        && (!('phone' in data) || (data.phone is string && data.phone.matches('9[0-9]{8}')))
         && (!('skills' in data) || textWithin(data.skills, 0, 500))
         && (!('experience' in data) || textWithin(data.experience, 0, 1500))
         && (!('availability' in data) || textWithin(data.availability, 0, 200));
@@ -25,14 +31,15 @@ service cloud.firestore {
     match /users/{uid} {
       allow get: if signedIn() && request.auth.uid == uid;
       allow list: if false;
-      allow create: if signedIn()
+      allow create: if signedIn() && active(request.auth.uid)
         && request.auth.uid == uid
+        && request.resource.data.keys().hasAll(['dni', 'phone'])
         && validProfile(request.resource.data, uid)
         && request.resource.data.email == request.auth.token.email;
-      allow update: if signedIn()
+      allow update: if signedIn() && active(request.auth.uid)
         && request.auth.uid == uid
         && validProfile(request.resource.data, uid)
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['displayName', 'skills', 'experience', 'availability']);
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['displayName', 'dni', 'phone', 'skills', 'experience', 'availability']);
       allow delete: if false;
     }
 
@@ -67,11 +74,12 @@ service cloud.firestore {
 
     match /opportunities/{opportunityId} {
       allow read: if signedIn() && resource.data.status == 'published';
-      allow create: if signedIn()
+      allow create: if signedIn() && active(request.auth.uid)
         && exists(/databases/$(database)/documents/users/$(request.auth.uid))
         && validOpportunity(request.resource.data);
-      allow update: if signedIn()
+      allow update: if signedIn() && active(request.auth.uid)
         && resource.data.ownerId == request.auth.uid
+        && active(request.resource.data.lastSelectedApplicantId)
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['selectedCount', 'lastSelectedApplicantId'])
         && request.resource.data.selectedCount == resource.data.selectedCount + 1
         && request.resource.data.selectedCount <= resource.data.vacancies
@@ -90,10 +98,11 @@ service cloud.firestore {
           && (request.auth.uid == applicantId
             || (exists(opportunityPath(opportunityId))
               && opportunity().data.ownerId == request.auth.uid));
-        allow create: if signedIn()
+        allow create: if signedIn() && active(request.auth.uid)
           && request.auth.uid == applicantId
           && exists(/databases/$(database)/documents/users/$(request.auth.uid))
           && exists(opportunityPath(opportunityId))
+          && active(opportunity().data.ownerId)
           && opportunity().data.status == 'published'
           && opportunity().data.selectedCount < opportunity().data.vacancies
           && opportunity().data.ownerId != request.auth.uid
@@ -104,20 +113,43 @@ service cloud.firestore {
           && textWithin(request.resource.data.applicantName, 2, 80)
           && request.resource.data.status == 'pending'
           && request.resource.data.createdAt == request.time;
-        allow update: if signedIn()
+        allow update: if signedIn() && active(request.auth.uid)
           && opportunity().data.ownerId == request.auth.uid
-          && resource.data.status == 'pending'
-          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'selectedAt'])
-          && request.resource.data.status == 'selected'
-          && request.resource.data.selectedAt == request.time
-          && getAfter(opportunityPath(opportunityId)).data.selectedCount == opportunity().data.selectedCount + 1
-          && getAfter(opportunityPath(opportunityId)).data.lastSelectedApplicantId == applicantId;
+          && active(applicantId)
+          && (
+            (resource.data.status == 'pending'
+              && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'selectedAt'])
+              && request.resource.data.status == 'selected'
+              && request.resource.data.selectedAt == request.time
+              && getAfter(opportunityPath(opportunityId)).data.selectedCount == opportunity().data.selectedCount + 1
+              && getAfter(opportunityPath(opportunityId)).data.lastSelectedApplicantId == applicantId)
+            || (resource.data.status == 'selected'
+              && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'completedAt'])
+              && request.resource.data.status == 'completed'
+              && request.resource.data.completedAt == request.time)
+          );
         allow delete: if false;
       }
     }
 
     match /{path=**}/applications/{applicantId} {
       allow list: if signedIn() && resource.data.applicantId == request.auth.uid;
+    }
+
+    match /reports/{reportId} {
+      allow create: if signedIn() && active(request.auth.uid)
+        && request.resource.data.keys().hasOnly(['reporterId', 'opportunityId', 'reason', 'details', 'status', 'createdAt'])
+        && request.resource.data.keys().hasAll(['reporterId', 'opportunityId', 'reason', 'details', 'status', 'createdAt'])
+        && request.resource.data.reporterId == request.auth.uid
+        && request.resource.data.opportunityId is string
+        && reportId == request.auth.uid + '_' + request.resource.data.opportunityId
+        && exists(opportunityPath(request.resource.data.opportunityId))
+        && active(get(opportunityPath(request.resource.data.opportunityId)).data.ownerId)
+        && request.resource.data.reason in ['Información engañosa', 'Pago o condiciones', 'Seguridad', 'Otro']
+        && textWithin(request.resource.data.details, 10, 500)
+        && request.resource.data.status == 'open'
+        && request.resource.data.createdAt == request.time;
+      allow read, update, delete: if false;
     }
   }
 }

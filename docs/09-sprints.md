@@ -24,7 +24,13 @@ Los guardados se verificaron al reiniciar, al cambiar de cuenta, sin conexión y
 
 La revisión del sistema visual incorporó componentes compartidos, estados de error y vacío, transiciones y adaptación de la navegación con texto ampliado, sigue pendiente la revisión manual con TalkBack y en otros dispositivos, el estado detallado del recorrido se encuentra en [Diseño y navegación](10-diseno-y-navegacion.md)
 
-La revisión más amplia de accesibilidad y dispositivos corresponde al sprint 12, el trabajo en las funciones restantes continúa y no se considera cerrado un sprint hasta verificar todos sus criterios
+El estado de finalización y el registro de reportes cuentan con reglas probadas y desplegadas en el entorno de desarrollo, todavía faltan la herramienta de moderación y las pruebas completas de extremo a extremo
+
+La recuperación de cuenta incluye una pantalla propia y el manejo del enlace de Firebase, queda pendiente comprobar el recorrido con un correo real en un teléfono físico
+
+La eliminación de cuentas está preparada y probada en emuladores, no se ha habilitado en la nube porque requiere un servicio protegido y el proyecto mantiene el plan sin facturación
+
+Los sprints 12, 13 y 14 siguen abiertos hasta completar sus verificaciones y entregables, especialmente accesibilidad, pruebas en dispositivos, documentación de entrega y moderación
 
 ## Sprints
 

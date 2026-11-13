@@ -25,3 +25,9 @@ coverage/
 .DS_Store
 Thumbs.db
 *.log
+
+# Asociación local del certificado Android
+infra/hosting/public/
+
+# Caché local de Firebase
+infra/.firebase/

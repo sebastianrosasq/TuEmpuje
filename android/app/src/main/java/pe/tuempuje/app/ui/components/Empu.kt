@@ -1,18 +1,18 @@
 package pe.tuempuje.app.ui.components
 
 import android.animation.ValueAnimator
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -22,26 +22,26 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.graphics.TransformOrigin
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import kotlinx.coroutines.delay
+import pe.tuempuje.app.ui.LocalAppPreferences
 import pe.tuempuje.app.ui.theme.EmpuInk
 import pe.tuempuje.app.ui.theme.EmpuLight
 import pe.tuempuje.app.ui.theme.EmpuTeal
-import pe.tuempuje.app.ui.LocalAppPreferences
+import kotlin.math.cos
+import kotlin.math.sin
 
 enum class EmpuMood(val riveValue: Float) {
     IDLE(0f), LOOKING(1f), PASSWORD(2f), THINKING(3f), LOADING(4f),
     HAPPY(5f), SUCCESS(6f), SAD(7f), EMPTY(8f),
 }
 
-/** La expresión depende del estado de la interfaz, nunca del contenido de los campos. */
 @Composable
-internal fun EmpuFallback(mood: EmpuMood, modifier: Modifier = Modifier, greeting: Boolean = false) {
+internal fun EmpuFallback(mood: EmpuMood, modifier: Modifier = Modifier) {
     val motionEnabled = ValueAnimator.areAnimatorsEnabled() && LocalAppPreferences.current?.reduceMotion != true
     val owner = LocalLifecycleOwner.current
     var isVisible by remember(owner) { mutableStateOf(owner.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) }
@@ -53,7 +53,6 @@ internal fun EmpuFallback(mood: EmpuMood, modifier: Modifier = Modifier, greetin
         onDispose { owner.lifecycle.removeObserver(observer) }
     }
     var blink by remember { mutableStateOf(false) }
-    var loadingBeat by remember { mutableStateOf(false) }
     LaunchedEffect(mood, motionEnabled, isVisible) {
         blink = false
         if (mood == EmpuMood.IDLE && motionEnabled && isVisible) {
@@ -65,113 +64,81 @@ internal fun EmpuFallback(mood: EmpuMood, modifier: Modifier = Modifier, greetin
             }
         }
     }
-    LaunchedEffect(mood, motionEnabled, isVisible) {
-        loadingBeat = false
-        if (mood == EmpuMood.LOADING && motionEnabled && isVisible) {
-            while (true) {
-                delay(650)
-                loadingBeat = !loadingBeat
-            }
-        }
-    }
     val look by animateFloatAsState(
-        targetValue = if (mood == EmpuMood.LOOKING) 1f else 0f,
-        animationSpec = tween(if (motionEnabled) 180 else 0),
-        label = "mirada",
+        targetValue = if (mood == EmpuMood.LOOKING || mood == EmpuMood.THINKING) 6f else 0f,
+        animationSpec = tween(if (motionEnabled) 180 else 0), label = "mirada",
     )
-    val tilt by animateFloatAsState(
-        targetValue = when (mood) {
-            EmpuMood.THINKING -> -3f
-            EmpuMood.SAD -> 2f
-            EmpuMood.SUCCESS -> -2f
-            else -> 0f
-        },
-        animationSpec = tween(if (motionEnabled) 180 else 0),
-        label = "expresión",
-    )
-    val breathing = if (mood == EmpuMood.IDLE && motionEnabled && isVisible) {
-        val transition = rememberInfiniteTransition(label = "respiración")
-        val scale by transition.animateFloat(
-            initialValue = 1f,
-            targetValue = 1.012f,
-            animationSpec = infiniteRepeatable(tween(2200, easing = LinearEasing), RepeatMode.Reverse),
-            label = "respiración",
+    val drift = if (mood == EmpuMood.IDLE && motionEnabled && isVisible) {
+        val transition = rememberInfiniteTransition(label = "reposo")
+        val value by transition.animateFloat(
+            initialValue = 0f, targetValue = -3f / 240f,
+            animationSpec = infiniteRepeatable(tween(2000, easing = LinearEasing), RepeatMode.Reverse),
+            label = "movimiento",
         )
-        scale
-    } else 1f
-    Canvas(modifier.aspectRatio(1f).graphicsLayer {
-        scaleY = breathing
-        rotationZ = tilt
-        transformOrigin = TransformOrigin(.5f, .9f)
-    }) {
-        val s = size.minDimension
-        fun p(x: Float, y: Float) = Offset(x * s, y * s)
+        value
+    } else 0f
+    Canvas(modifier.aspectRatio(1f).graphicsLayer { translationY = drift * size.height }) {
+        val u = size.minDimension / 240f
+        fun p(x: Float, y: Float) = Offset(x * u, y * u)
+        fun line(x1: Float, y1: Float, x2: Float, y2: Float, color: androidx.compose.ui.graphics.Color, width: Float) =
+            drawLine(color, p(x1, y1), p(x2, y2), width * u, cap = StrokeCap.Round)
         val body = Path().apply {
-            moveTo(.15f * s, .83f * s)
-            lineTo(.15f * s, .61f * s)
-            quadraticTo(.15f * s, .54f * s, .22f * s, .54f * s)
-            lineTo(.36f * s, .54f * s)
-            lineTo(.36f * s, .39f * s)
-            quadraticTo(.36f * s, .32f * s, .43f * s, .32f * s)
-            lineTo(.56f * s, .32f * s)
-            lineTo(.56f * s, .17f * s)
-            quadraticTo(.56f * s, .10f * s, .63f * s, .10f * s)
-            lineTo(.79f * s, .10f * s)
-            quadraticTo(.86f * s, .10f * s, .86f * s, .17f * s)
-            lineTo(.86f * s, .83f * s)
-            quadraticTo(.86f * s, .91f * s, .78f * s, .91f * s)
-            lineTo(.23f * s, .91f * s)
-            quadraticTo(.15f * s, .91f * s, .15f * s, .83f * s)
-            close()
+            moveTo(52 * u, 185 * u); lineTo(188 * u, 185 * u)
+            quadraticTo(202 * u, 185 * u, 202 * u, 171 * u)
+            lineTo(202 * u, 74 * u); quadraticTo(202 * u, 60 * u, 188 * u, 60 * u)
+            lineTo(145 * u, 60 * u); quadraticTo(131 * u, 60 * u, 131 * u, 74 * u)
+            lineTo(131 * u, 79 * u); quadraticTo(131 * u, 91 * u, 119 * u, 91 * u)
+            lineTo(94 * u, 91 * u); quadraticTo(82 * u, 91 * u, 82 * u, 103 * u)
+            lineTo(82 * u, 108 * u); quadraticTo(82 * u, 120 * u, 70 * u, 120 * u)
+            lineTo(52 * u, 120 * u); quadraticTo(38 * u, 120 * u, 38 * u, 134 * u)
+            lineTo(38 * u, 171 * u); quadraticTo(38 * u, 185 * u, 52 * u, 185 * u); close()
+        }
+        if (mood != EmpuMood.PASSWORD) {
+            line(38f, 143f, 25f, 149f, EmpuTeal, 9f)
+            val angle = when (mood) {
+                EmpuMood.HAPPY -> -.70; EmpuMood.SUCCESS -> -1.05
+                EmpuMood.THINKING -> -.35; EmpuMood.SAD -> .35; else -> 0.0
+            }
+            val endX = (13 * cos(angle) - 6 * sin(angle)).toFloat()
+            val endY = (13 * sin(angle) + 6 * cos(angle)).toFloat()
+            line(202f, 143f, 202f + endX, 143f + endY, EmpuTeal, 9f)
         }
         drawPath(body, EmpuTeal)
-        val eyesY = .65f
-        if (mood != EmpuMood.PASSWORD) {
-            drawLine(EmpuTeal, p(.17f, .73f), p(.09f, .78f), .055f * s, cap = StrokeCap.Round)
-            if (!greeting) drawLine(EmpuTeal, p(.84f, .73f), p(.92f, .78f), .055f * s, cap = StrokeCap.Round)
-        }
-        if (blink && mood == EmpuMood.IDLE) {
-            listOf(.43f, .66f).forEach { x ->
-                drawLine(EmpuLight, p(x - .045f, eyesY), p(x + .045f, eyesY), strokeWidth = .025f * s, cap = StrokeCap.Round)
-            }
-        } else {
-            listOf(.43f, .66f).forEach { x ->
-                drawCircle(EmpuLight, radius = .07f * s, center = p(x, eyesY))
-                drawCircle(EmpuInk, radius = .027f * s, center = p(x + .018f * look, eyesY))
-            }
-        }
-        when (mood) {
-            EmpuMood.SAD -> drawArc(
-                EmpuLight, 205f, 130f, false, topLeft = p(.475f, .80f), size = Size(.14f * s, .09f * s),
-                style = Stroke(.018f * s, cap = StrokeCap.Round),
-            )
-            EmpuMood.EMPTY -> drawCircle(EmpuLight, .023f * s, p(.545f, .80f), style = Stroke(.012f * s))
-            EmpuMood.THINKING, EmpuMood.LOADING -> drawLine(EmpuLight, p(.50f, .80f), p(.59f, .80f), .018f * s, cap = StrokeCap.Round)
-            else -> drawArc(
-                EmpuLight, 10f, 160f, false, topLeft = p(.475f, .76f), size = Size(.14f * s, .09f * s),
-                style = Stroke(.018f * s, cap = StrokeCap.Round),
-            )
-        }
-        if (mood == EmpuMood.THINKING) {
-            drawLine(EmpuLight, p(.59f, .54f), p(.67f, .52f), .016f * s, cap = StrokeCap.Round)
-        }
-        if (mood == EmpuMood.LOADING) {
-            drawCircle(EmpuLight, .018f * s, p(.30f, if (loadingBeat) .45f else .48f))
-            drawCircle(EmpuLight, .012f * s, p(.25f, if (loadingBeat) .49f else .46f))
-        }
         if (mood == EmpuMood.PASSWORD) {
-            drawCircle(EmpuInk, .09f * s, p(.43f, eyesY))
-            drawCircle(EmpuInk, .09f * s, p(.66f, eyesY))
-            drawLine(EmpuInk, p(.18f, .76f), p(.41f, .65f), .07f * s, cap = StrokeCap.Round)
-            drawLine(EmpuInk, p(.83f, .76f), p(.68f, .65f), .07f * s, cap = StrokeCap.Round)
+            drawCircle(EmpuInk, 14 * u, p(92f, 108f)); drawCircle(EmpuInk, 14 * u, p(145f, 108f))
+            line(40f, 140f, 87f, 112f, EmpuInk, 9f); line(198f, 140f, 150f, 112f, EmpuInk, 9f)
+        } else {
+            val eyeY = 108f
+            if (blink) {
+                line(82f, eyeY, 102f, eyeY, EmpuLight, 4f); line(135f, eyeY, 155f, eyeY, EmpuLight, 4f)
+            } else {
+                drawOval(EmpuLight, p(82f, 94f), Size(20 * u, 28 * u))
+                drawOval(EmpuInk, p(90f + look, 104f), Size(8 * u, 10 * u))
+                if (mood == EmpuMood.SUCCESS) {
+                    line(135f, 109f, 145f, 104f, EmpuLight, 4f); line(145f, 104f, 155f, 109f, EmpuLight, 4f)
+                } else {
+                    drawOval(EmpuLight, p(135f, 94f), Size(20 * u, 28 * u))
+                    drawOval(EmpuInk, p(143f + look, 104f), Size(8 * u, 10 * u))
+                }
+            }
         }
-        if (mood == EmpuMood.SUCCESS || mood == EmpuMood.HAPPY) {
-            drawCircle(EmpuLight, .018f * s, p(.26f, .68f))
-            drawCircle(EmpuLight, .018f * s, p(.78f, .68f))
+        val mouth = Path().apply {
+            moveTo(107 * u, 142 * u)
+            val curve = when (mood) {
+                EmpuMood.SAD -> 136f
+                EmpuMood.THINKING, EmpuMood.LOADING, EmpuMood.EMPTY -> 142f
+                EmpuMood.HAPPY, EmpuMood.SUCCESS -> 153f
+                else -> 147f
+            }
+            quadraticTo(120 * u, curve * u, 133 * u, 142 * u)
         }
-        if (mood == EmpuMood.SUCCESS) {
-            drawLine(EmpuLight, p(.89f, .28f), p(.95f, .24f), .018f * s, cap = StrokeCap.Round)
-            drawLine(EmpuLight, p(.90f, .36f), p(.97f, .36f), .018f * s, cap = StrokeCap.Round)
+        drawPath(mouth, EmpuLight, style = Stroke(4 * u, cap = StrokeCap.Round))
+        if (mood == EmpuMood.THINKING) {
+            line(79f, 87f, 98f, 91f, EmpuLight, 4f); line(138f, 91f, 155f, 84f, EmpuLight, 4f)
         }
+        if (mood == EmpuMood.HAPPY) {
+            drawCircle(EmpuLight, 3.5f * u, p(69f, 130f)); drawCircle(EmpuLight, 3.5f * u, p(168f, 130f))
+        }
+        if (mood == EmpuMood.SUCCESS) line(210f, 70f, 210f, 84f, EmpuTeal, 4f)
     }
 }
