@@ -9,7 +9,7 @@ const projectId = 'demo-tuempuje';
 let env;
 
 const user = (uid) => env.authenticatedContext(uid, { email: `${uid}@example.invalid` }).firestore();
-const profile = (uid) => ({ uid, displayName: `Perfil ${uid}`, email: `${uid}@example.invalid`, dni: '12345678', phone: '987654321' });
+const profile = (uid) => ({ uid, displayName: `Perfil ${uid}`, email: `${uid}@example.invalid`, dni: '12345678', phone: '987654321', skills: 'Edición', availability: 'Tardes' });
 const opportunity = (uid) => ({
   ownerId: uid,
   ownerName: `Perfil ${uid}`,
@@ -25,7 +25,7 @@ const opportunity = (uid) => ({
   status: 'published',
   createdAt: serverTimestamp(),
 });
-const application = (uid) => ({ applicantId: uid, applicantName: `Perfil ${uid}`, status: 'pending', createdAt: serverTimestamp() });
+const application = (uid) => ({ applicantId: uid, applicantName: `Perfil ${uid}`, applicantSkills: 'Edición', applicantAvailability: 'Tardes', applicantExperience: '', applicantDistrict: '', applicantEducation: '', applicantPortfolio: '', status: 'pending', createdAt: serverTimestamp() });
 
 before(async () => {
   env = await initializeTestEnvironment({
@@ -224,4 +224,95 @@ test('el bloqueo de eliminación impide nuevas escrituras y postulaciones a la o
   await assertFails(setDoc(doc(user('cliente'), 'opportunities', 'nueva'), opportunity('cliente')));
   await assertFails(setDoc(doc(user('candidato'), 'opportunities', 'oferta', 'applications', 'candidato'), application('candidato')));
   await assertFails(setDoc(doc(user('cliente'), 'deletionJobs', 'cliente'), { startedAt: serverTimestamp() }));
+});
+
+test('solo el responsable edita u oculta una oferta sin selección y se conserva la postulación', async () => {
+  const owner = user('cliente');
+  const job = doc(owner, 'opportunities', 'oferta');
+  await assertFails(updateDoc(doc(user('otro'), 'opportunities', 'oferta'), { title: 'Oferta alterada', updatedAt: serverTimestamp() }));
+  await assertSucceeds(updateDoc(job, { title: 'Ayudante de diseño', updatedAt: serverTimestamp() }));
+  await assertFails(updateDoc(job, { ownerId: 'otro', updatedAt: serverTimestamp() }));
+  await assertSucceeds(setDoc(doc(user('candidato'), 'opportunities', 'oferta', 'applications', 'candidato'), application('candidato')));
+  await assertSucceeds(updateDoc(job, { status: 'removed', removedAt: serverTimestamp() }));
+  await assertFails(getDoc(doc(user('otro'), 'opportunities', 'oferta')));
+  await assertSucceeds(getDoc(doc(user('candidato'), 'opportunities', 'oferta')));
+  await assertSucceeds(getDoc(job));
+  await assertSucceeds(getDocs(query(collection(owner, 'opportunities'), where('ownerId', '==', 'cliente'))));
+});
+
+test('el postulante retira su candidatura y puede volver a postular', async () => {
+  const ref = doc(user('candidato'), 'opportunities', 'oferta', 'applications', 'candidato');
+  await assertSucceeds(setDoc(ref, application('candidato')));
+  await assertFails(updateDoc(doc(user('otro'), 'opportunities', 'oferta', 'applications', 'candidato'), { status: 'withdrawn', withdrawnAt: serverTimestamp() }));
+  await assertSucceeds(updateDoc(ref, { status: 'withdrawn', withdrawnAt: serverTimestamp() }));
+  const { deleteField } = await import('firebase/firestore');
+  await assertSucceeds(updateDoc(ref, { status: 'pending', createdAt: serverTimestamp(), withdrawnAt: deleteField(), applicantName: 'Perfil candidato' }));
+});
+
+test('retirar una selección libera la vacante en una transacción', async () => {
+  const candidate = user('candidato');
+  const ref = doc(candidate, 'opportunities', 'oferta', 'applications', 'candidato');
+  await assertSucceeds(setDoc(ref, application('candidato')));
+  const owner = user('cliente');
+  await assertSucceeds(runTransaction(owner, async tx => {
+    const job = doc(owner, 'opportunities', 'oferta');
+    const app = doc(owner, 'opportunities', 'oferta', 'applications', 'candidato');
+    await tx.get(job); await tx.get(app);
+    tx.update(job, { selectedCount: 1, lastSelectedApplicantId: 'candidato' });
+    tx.update(app, { status: 'selected', selectedAt: serverTimestamp() });
+  }));
+  await assertFails(updateDoc(ref, { status: 'withdrawn', withdrawnAt: serverTimestamp() }));
+  await assertSucceeds(runTransaction(candidate, async tx => {
+    const job = doc(candidate, 'opportunities', 'oferta');
+    await tx.get(job); await tx.get(ref);
+    tx.update(job, { selectedCount: 0, lastWithdrawnApplicantId: 'candidato' });
+    tx.update(ref, { status: 'withdrawn', withdrawnAt: serverTimestamp() });
+  }));
+});
+
+test('la postulación requiere habilidades y disponibilidad en el perfil', async () => {
+  await env.withSecurityRulesDisabled(async context => {
+    await updateDoc(doc(context.firestore(), 'users', 'candidato'), { skills: '', availability: '' });
+  });
+  await assertFails(setDoc(doc(user('candidato'), 'opportunities', 'oferta', 'applications', 'candidato'), application('candidato')));
+});
+
+test('una oportunidad retirada no permite seleccionar postulantes', async () => {
+  const owner = user('cliente');
+  await assertSucceeds(setDoc(doc(user('candidato'), 'opportunities', 'oferta', 'applications', 'candidato'), application('candidato')));
+  await assertSucceeds(updateDoc(doc(owner, 'opportunities', 'oferta'), { status: 'removed', removedAt: serverTimestamp() }));
+  await assertFails(runTransaction(owner, async tx => {
+    const job = doc(owner, 'opportunities', 'oferta');
+    const app = doc(owner, 'opportunities', 'oferta', 'applications', 'candidato');
+    await tx.get(job); await tx.get(app);
+    tx.update(job, { selectedCount: 1, lastSelectedApplicantId: 'candidato' });
+    tx.update(app, { status: 'selected', selectedAt: serverTimestamp() });
+  }));
+});
+
+test('los datos compartidos deben corresponder al perfil del postulante', async () => {
+  const ref = doc(user('candidato'), 'opportunities', 'oferta', 'applications', 'candidato');
+  await assertFails(setDoc(ref, { ...application('candidato'), applicantSkills: 'Datos de otra persona' }));
+});
+
+test('los mensajes solo son visibles y enviables por participantes de la postulación', async () => {
+  const candidate = user('candidato');
+  const owner = user('cliente');
+  const stranger = user('otro');
+  const app = doc(candidate, 'opportunities', 'oferta', 'applications', 'candidato');
+  await assertSucceeds(setDoc(app, application('candidato')));
+  const path = ['opportunities', 'oferta', 'applications', 'candidato', 'messages'];
+  const message = (uid) => ({ senderId: uid, text: 'Hola, coordinemos', createdAt: serverTimestamp() });
+  await assertSucceeds(setDoc(doc(candidate, ...path, 'a'), message('candidato')));
+  await assertSucceeds(setDoc(doc(owner, ...path, 'b'), message('cliente')));
+  await assertSucceeds(getDocs(collection(candidate, ...path)));
+  await assertSucceeds(getDocs(collection(owner, ...path)));
+  await assertFails(getDocs(collection(stranger, ...path)));
+  await assertFails(setDoc(doc(stranger, ...path, 'c'), message('otro')));
+  await assertFails(setDoc(doc(candidate, ...path, 'd'), message('cliente')));
+  await assertFails(setDoc(doc(candidate, ...path, 'e'), { ...message('candidato'), text: '   ' }));
+  await assertFails(updateDoc(doc(candidate, ...path, 'a'), { text: 'Alterado' }));
+  await assertSucceeds(updateDoc(app, { status: 'withdrawn', withdrawnAt: serverTimestamp() }));
+  await assertFails(setDoc(doc(candidate, ...path, 'f'), message('candidato')));
+  await assertSucceeds(getDocs(collection(candidate, ...path)));
 });

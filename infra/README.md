@@ -60,6 +60,8 @@ El acceso con Google necesita que la huella SHA-1 de la clave que firma el APK e
 
 Los cambios posteriores a las reglas deben comprobarse en el emulador y desplegarse de forma explícita al proyecto correspondiente, la configuración actual no habilita una versión de producción
 
+Para preparar oportunidades y una postulación de ejemplo en el proyecto de desarrollo, ejecutar `node seed-demo.mjs` desde `infra/`, el comando identifica los avisos como ejemplos y guarda las cuentas locales en `.env.demo.local`, un archivo excluido de Git
+
 ## Dependencias de desarrollo
 
 Las herramientas de esta carpeta se utilizan para ejecutar emuladores y pruebas, no se incluyen en la aplicación Android
@@ -76,7 +78,8 @@ Los avisos restantes no tienen una corrección automática compatible en el árb
 |---|---|---|
 | `users/{uid}` | Nombre, correo, DNI, celular y datos privados de habilidades, experiencia y disponibilidad | Solo el titular puede leer y actualizar su perfil, el correo y el identificador son inmutables |
 | `opportunities/{id}` | Responsable, nombre, categoría, tareas, requisitos, condiciones, vacantes y estado | Una cuenta con perfil crea su propia oportunidad publicada, las cuentas autenticadas consultan publicaciones |
-| `opportunities/{id}/applications/{uid}` | Identificador y nombre del postulante, estado y fecha | El postulante crea una solicitud propia y puede leerla, el dueño de la oportunidad puede revisar y seleccionar sus postulaciones |
+| `opportunities/{id}/applications/{uid}` | Identificador, nombre, habilidades, experiencia, disponibilidad, distrito, estudios, portafolio, estado y fecha | El postulante crea una solicitud propia y puede leerla, el dueño de la oportunidad puede revisar y seleccionar sus postulaciones |
+| `opportunities/{id}/applications/{uid}/messages/{messageId}` | Mensajes asociados a una postulación | Solo quien postula y quien publicó pueden leer, el envío se bloquea si la postulación o la oferta se retiran |
 
 La consulta de oportunidades compartidas debe incluir `where('status', '==', 'published')`, porque las reglas de Firestore no filtran resultados por cuenta propia
 
@@ -84,11 +87,11 @@ Las postulaciones usan el identificador del candidato como identificador del doc
 
 Las oportunidades y postulaciones están conectadas a Firestore en Android, los cambios de reglas deben desplegarse antes de probar funciones nuevas en la nube
 
-Los perfiles son privados y no exponen el correo ni los datos de experiencia a otras cuentas, la postulación comparte únicamente el nombre del candidato confirmado contra su perfil
+Los perfiles son privados y no exponen el DNI, el celular ni el correo a otras cuentas, la postulación comparte el nombre, habilidades, experiencia, disponibilidad, distrito, estudios y portafolio confirmados contra su perfil
 
 El DNI y el celular se guardan en el perfil privado, el formato se valida sin comprobar identidad ante RENIEC
 
-La selección se realiza mediante una transacción que actualiza la postulación y el número de vacantes cubiertas de forma conjunta, las reglas y las pruebas impiden superar el límite, la edición y eliminación de oportunidades y postulaciones siguen sin habilitarse
+La selección y el retiro de una candidatura seleccionada actualizan la postulación y las vacantes de forma conjunta, una publicación sin personas seleccionadas puede editarse o retirarse y el historial sigue visible para sus participantes
 
 El contenido de pago de una oportunidad es informativo, no existe una integración de cobro ni se procesan datos bancarios
 
@@ -100,6 +103,17 @@ La asociación de Android App Links publicada en Hosting corresponde al certific
 
 Hosting reemplaza el contenido del sitio en cada despliegue, por eso hay que conservar cualquier contenido existente antes de publicar la asociación, el archivo generado no se incluye en Git y una versión de lanzamiento necesitará su propia firma y verificación
 
+## Gemini en desarrollo
+
+Firebase AI Logic utiliza Gemini Developer API en el plan Spark, el nivel gratuito tiene límites y Google puede utilizar el contenido enviado para mejorar sus productos
+
+La integración en la app está pendiente, antes de implementarla debe definirse qué información se envía, informar a la persona y exigir que revise los resultados antes de usarlos
+
+Antes de un despliegue público debe revisarse el cumplimiento de las restricciones de edad y uso de Gemini para toda la aplicación
+
+App Check está activado para Firebase AI Logic, cada instalación de depuración necesita registrar su propio token en Firebase, el token es secreto y no debe añadirse al repositorio ni distribuirse con el APK
+
+La carga de CV como archivo sigue pendiente, Firebase Storage necesita el plan Blaze y se evaluará otra opción antes de elegir dónde guardar documentos
 ## Eliminación de cuentas
 
 `functions/deleteAccount` exige una sesión reciente y elimina el perfil, las oportunidades propias con sus postulaciones, las postulaciones a otras oportunidades y los reportes relacionados, también ajusta las vacantes cuando corresponde

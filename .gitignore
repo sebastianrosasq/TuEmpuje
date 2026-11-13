@@ -1,5 +1,6 @@
 # Android y Gradle
 .gradle/
+.kotlin/
 **/build/
 local.properties
 firebase.local.properties

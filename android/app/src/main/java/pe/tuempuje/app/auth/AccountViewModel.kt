@@ -34,6 +34,10 @@ data class AccountUiState(
     val skills: String = "",
     val experience: String = "",
     val availability: String = "",
+    val district: String = "",
+    val organization: String = "",
+    val education: String = "",
+    val portfolio: String = "",
     val needsProfile: Boolean = false,
     val profileLoadFailed: Boolean = false,
     val error: String? = null,
@@ -161,12 +165,13 @@ class AccountViewModel(
         mutableState.value = mutableState.value.copy(error = message, message = null)
     }
 
-    fun register(name: String, email: String, password: String, dni: String, phone: String) {
+    fun register(name: String, email: String, password: String, dni: String, phone: String, role: String?, interests: Set<String>, district: String, organization: String) {
         val cleanName = name.trim()
         val emailValue = email.trim()
         val cleanDni = dni.trim()
         val cleanPhone = phone.trim()
-        val validation = validateName(cleanName) ?: validateCredentials(emailValue, password) ?: identityError(cleanDni, cleanPhone)
+        val purposeError = if (role == "employer" && district.trim().length !in 2..100) "Ingresa tu distrito para crear la cuenta" else null
+        val validation = validateName(cleanName) ?: validateCredentials(emailValue, password) ?: identityError(cleanDni, cleanPhone) ?: purposeError
         if (validation != null) {
             mutableState.value = mutableState.value.copy(error = validation)
             return
@@ -177,8 +182,8 @@ class AccountViewModel(
             val user = withTimeout(12_000) { auth.createUserWithEmailAndPassword(emailValue, password).await() }.user
                 ?: error("No se creó la cuenta")
             try {
-                writeProfile(user, cleanName, cleanDni, cleanPhone)
-                mutableState.value = signedIn(user, cleanName).copy(dni = cleanDni, phone = cleanPhone)
+                writeProfile(user, cleanName, cleanDni, cleanPhone, role, interests, district, organization)
+                mutableState.value = signedIn(user, cleanName).copy(dni = cleanDni, phone = cleanPhone, district = district.trim(), organization = organization.trim())
             } catch (exception: TimeoutCancellationException) {
                 mutableState.value = signedIn(user).copy(
                     displayName = cleanName,
@@ -201,11 +206,15 @@ class AccountViewModel(
         }
     }
 
-    fun saveExperience(skills: String, experience: String, availability: String) {
+    fun saveExperience(skills: String, experience: String, availability: String, district: String, organization: String, education: String, portfolio: String) {
         val cleanSkills = skills.trim()
         val cleanExperience = experience.trim()
         val cleanAvailability = availability.trim()
-        if (cleanSkills.length > 500 || cleanExperience.length > 1500 || cleanAvailability.length > 200) {
+        val cleanDistrict = district.trim()
+        val cleanOrganization = organization.trim()
+        val cleanEducation = education.trim()
+        val cleanPortfolio = portfolio.trim()
+        if (cleanSkills.length > 500 || cleanExperience.length > 1500 || cleanAvailability.length > 200 || cleanDistrict.length > 100 || cleanOrganization.length > 100 || cleanEducation.length > 500 || cleanPortfolio.length > 500) {
             mutableState.value = mutableState.value.copy(error = "Revisa la longitud de los datos del perfil")
             return
         }
@@ -215,11 +224,13 @@ class AccountViewModel(
             try {
                 withTimeout(12_000) {
                     firestore.collection("users").document(user.uid).set(
-                        mapOf("skills" to cleanSkills, "experience" to cleanExperience, "availability" to cleanAvailability),
+                        mapOf("skills" to cleanSkills, "experience" to cleanExperience, "availability" to cleanAvailability,
+                            "district" to cleanDistrict, "organization" to cleanOrganization, "education" to cleanEducation, "portfolio" to cleanPortfolio),
                         SetOptions.merge(),
                     ).await()
                 }
-                mutableState.value = previous.copy(loading = false, skills = cleanSkills, experience = cleanExperience, availability = cleanAvailability, error = null)
+                mutableState.value = previous.copy(loading = false, skills = cleanSkills, experience = cleanExperience, availability = cleanAvailability, district = cleanDistrict, organization = cleanOrganization,
+                    education = cleanEducation, portfolio = cleanPortfolio, error = null)
             } catch (exception: TimeoutCancellationException) {
                 mutableState.value = previous.copy(loading = false, error = unconfirmedProfileMessage)
             } catch (exception: CancellationException) {
@@ -230,11 +241,11 @@ class AccountViewModel(
         }
     }
 
-    fun saveProfile(name: String, dni: String, phone: String) {
+    fun saveProfile(name: String, dni: String, phone: String, role: String?, interests: Set<String>, district: String, organization: String) {
         val cleanName = name.trim()
         val cleanDni = dni.trim()
         val cleanPhone = phone.trim()
-        val validation = validateName(cleanName) ?: identityError(cleanDni, cleanPhone)
+        val validation = validateName(cleanName) ?: identityError(cleanDni, cleanPhone) ?: if (role == "employer" && district.trim().length !in 2..100) "Ingresa tu distrito" else null
         if (validation != null) {
             mutableState.value = mutableState.value.copy(error = validation)
             return
@@ -246,8 +257,8 @@ class AccountViewModel(
         val previous = mutableState.value
         runOperation {
             try {
-                writeProfile(user, cleanName, cleanDni, cleanPhone)
-                mutableState.value = previous.copy(loading = false, displayName = cleanName, dni = cleanDni, phone = cleanPhone, needsProfile = false, error = null)
+                writeProfile(user, cleanName, cleanDni, cleanPhone, role, interests, district, organization)
+                mutableState.value = previous.copy(loading = false, displayName = cleanName, dni = cleanDni, phone = cleanPhone, district = district.trim(), organization = organization.trim(), needsProfile = false, error = null)
             } catch (exception: TimeoutCancellationException) {
                 mutableState.value = previous.copy(loading = false, error = unconfirmedProfileMessage)
             } catch (exception: CancellationException) {
@@ -345,11 +356,11 @@ class AccountViewModel(
         }
     }
 
-    private suspend fun writeProfile(user: FirebaseUser, name: String, dni: String, phone: String) {
+    private suspend fun writeProfile(user: FirebaseUser, name: String, dni: String, phone: String, role: String? = null, interests: Set<String> = emptySet(), district: String = "", organization: String = "") {
         val email = user.email ?: error("La cuenta no tiene correo")
         withTimeout(12_000) {
             firestore.collection("users").document(user.uid).set(
-                mapOf("uid" to user.uid, "displayName" to name, "email" to email, "dni" to dni, "phone" to phone), SetOptions.merge(),
+                (mapOf("uid" to user.uid, "displayName" to name, "email" to email, "dni" to dni, "phone" to phone) + if (role in setOf("worker", "employer")) mapOf("role" to role, "interests" to interests.sorted(), "district" to district.trim(), "organization" to organization.trim()) else emptyMap()), SetOptions.merge(),
             ).await()
         }
     }
@@ -401,6 +412,10 @@ class AccountViewModel(
         skills = profile.getString("skills").orEmpty(),
         experience = profile.getString("experience").orEmpty(),
         availability = profile.getString("availability").orEmpty(),
+        district = profile.getString("district").orEmpty(),
+        organization = profile.getString("organization").orEmpty(),
+        education = profile.getString("education").orEmpty(),
+        portfolio = profile.getString("portfolio").orEmpty(),
     )
 
     private fun validateCredentials(email: String, password: String): String? = when {

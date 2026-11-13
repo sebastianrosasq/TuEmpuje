@@ -28,6 +28,7 @@ test("la eliminación requiere autenticación y elimina datos asociados sin afec
   await own.collection("applications").doc("otra-persona").set({ applicantId: "otra-persona" });
   await other.set({ ownerId: "otra-persona", selectedCount: 1 });
   await other.collection("applications").doc(uid).set({ applicantId: uid, status: "selected" });
+  await other.collection("applications").doc(uid).collection("messages").doc("mensaje").set({ senderId: uid, text: "Hola" });
   await db.collection("reports").doc("reporte-propio").set({ reporterId: uid, opportunityId: "ajena" });
   await db.collection("reports").doc("reporte-ajeno").set({ reporterId: "otra-persona", opportunityId: "propia" });
   const response = await call(account.idToken);
@@ -37,6 +38,7 @@ test("la eliminación requiere autenticación y elimina datos asociados sin afec
   assert.equal((await own.collection("applications").doc("otra-persona").get()).exists, false);
   assert.equal((await other.get()).get("selectedCount"), 0);
   assert.equal((await other.collection("applications").doc(uid).get()).exists, false);
+  assert.equal((await other.collection("applications").doc(uid).collection("messages").get()).empty, true);
   assert.equal((await db.collection("reports").get()).empty, true);
   assert.ok((await db.collection("deletionJobs").doc(uid).get()).get("expireAt"));
   await assert.rejects(getAuth().getUser(uid), { code: "auth/user-not-found" });

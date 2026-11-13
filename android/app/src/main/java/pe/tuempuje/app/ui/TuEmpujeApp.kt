@@ -55,6 +55,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
@@ -83,6 +84,7 @@ import pe.tuempuje.app.ui.components.AppNotice
 import pe.tuempuje.app.ui.components.AppPrimaryButton
 import pe.tuempuje.app.ui.components.AppLoadingState
 import pe.tuempuje.app.ui.components.Empu
+import pe.tuempuje.app.ui.components.EmpuAccessory
 import pe.tuempuje.app.ui.components.EmpuMood
 import pe.tuempuje.app.ui.components.EmpuProvider
 import pe.tuempuje.app.ui.components.EmptyIllustration
@@ -104,16 +106,30 @@ private val destinations = listOf(
 @Composable
 fun TuEmpujeApp(services: FirebaseServices?, resetCode: String? = null, onResetConsumed: () -> Unit = {}, model: OpportunityViewModel = viewModel(factory = OpportunityViewModelFactory(services))) {
     var showIntro by rememberSaveable { mutableStateOf(true) }
+    val preferences = LocalAppPreferences.current
+    var choosePurpose by rememberSaveable { mutableStateOf(preferences?.purpose == null) }
+    LaunchedEffect(model.userId, model.profileLoaded) {
+        if (model.profileLoaded && preferences != null) {
+            if (model.profileRole != null) preferences.updatePurpose(model.profileRole!!, model.profileInterests)
+            else preferences.purpose?.let { model.savePurpose(it, preferences.interests) }
+        }
+    }
     EmpuProvider {
-        Box(Modifier.fillMaxSize()) {
-            TuEmpujeContent(services, model, resetCode, onResetConsumed)
-            if (showIntro) WelcomeIntro { showIntro = false }
+        Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background, contentColor = MaterialTheme.colorScheme.onBackground) {
+            Box(Modifier.fillMaxSize()) {
+                if (choosePurpose && resetCode == null) PurposeScreen(preferences?.purpose, preferences?.interests.orEmpty()) { role, interests ->
+                    preferences?.updatePurpose(role, interests)
+                    model.savePurpose(role, interests)
+                    choosePurpose = false
+                } else TuEmpujeContent(services, model, resetCode, onResetConsumed, onChoosePurpose = { choosePurpose = true })
+                if (showIntro) WelcomeIntro { showIntro = false }
+            }
         }
     }
 }
 
 @Composable
-private fun TuEmpujeContent(services: FirebaseServices?, model: OpportunityViewModel, resetCode: String?, onResetConsumed: () -> Unit) {
+private fun TuEmpujeContent(services: FirebaseServices?, model: OpportunityViewModel, resetCode: String?, onResetConsumed: () -> Unit, onChoosePurpose: () -> Unit) {
     val nav = rememberNavController()
     val preferences = LocalAppPreferences.current
     val reduceMotion = preferences?.reduceMotion == true
@@ -125,7 +141,12 @@ private fun TuEmpujeContent(services: FirebaseServices?, model: OpportunityViewM
     val snackbar = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     val navigationGroups = if (LocalConfiguration.current.fontScale >= 1.8f) destinations.chunked(2) else listOf(destinations)
+    var tabHistory by rememberSaveable { mutableStateOf<List<String>>(emptyList()) }
     val openDestination: (String) -> Unit = { route ->
+        val current = nav.currentDestination?.route
+        if (current != null && current != route && current in destinations.map { it.route }) {
+            tabHistory = (tabHistory + current).takeLast(12)
+        }
         nav.navigate(route) {
             popUpTo(nav.graph.findStartDestination().id) { saveState = true }
             launchSingleTop = true
@@ -135,6 +156,15 @@ private fun TuEmpujeContent(services: FirebaseServices?, model: OpportunityViewM
     LaunchedEffect(resetCode) { if (resetCode != null) openDestination("perfil") }
     val backStackEntry by nav.currentBackStackEntryAsState()
     val currentRoute = backStackEntry?.destination?.route
+    BackHandler(enabled = currentRoute in destinations.map { it.route } && tabHistory.isNotEmpty()) {
+        val previous = tabHistory.last()
+        tabHistory = tabHistory.dropLast(1)
+        nav.navigate(previous) {
+            popUpTo(nav.graph.findStartDestination().id) { saveState = true }
+            launchSingleTop = true
+            restoreState = true
+        }
+    }
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
         snackbarHost = { SnackbarHost(snackbar) },
@@ -178,7 +208,7 @@ private fun TuEmpujeContent(services: FirebaseServices?, model: OpportunityViewM
         Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.TopCenter) {
             NavHost(
                 navController = nav,
-                startDestination = "explorar",
+                startDestination = if (preferences?.purpose == "employer") "publicar" else "explorar",
                 modifier = Modifier.widthIn(max = 600.dp).fillMaxWidth(),
                 enterTransition = {
                     if (targetState.destination.route?.startsWith("detalle/") == true) {
@@ -213,7 +243,7 @@ private fun TuEmpujeContent(services: FirebaseServices?, model: OpportunityViewM
                 }
                 composable("perfil") {
                     if (services != null) {
-                        AccountScreen(services.auth, services.firestore, onSettings = { nav.navigate("ajustes") }, onSaved = { nav.navigate("guardados") }, resetCode = resetCode, onResetConsumed = onResetConsumed) { nav.navigate("debug/empu") }
+                        AccountScreen(services.auth, services.firestore, onSettings = { nav.navigate("ajustes") }, onSaved = { nav.navigate("guardados") }, onChoosePurpose = onChoosePurpose, resetCode = resetCode, onResetConsumed = onResetConsumed) { nav.navigate("debug/empu") }
                     } else {
                         ProfileScreen(onSettings = { nav.navigate("ajustes") }, onSaved = { nav.navigate("guardados") })
                     }
@@ -225,13 +255,20 @@ private fun TuEmpujeContent(services: FirebaseServices?, model: OpportunityViewM
                 }
                 composable("detalle/{id}") { entry ->
                     val opportunity = model.find(entry.arguments?.getString("id").orEmpty())
-                    DetailScreen(opportunity, model, onBack = { nav.popBackStack() }, onCandidates = { nav.navigate("candidatos/$it") }, onApplied = {
+                    DetailScreen(opportunity, model, onBack = { nav.popBackStack() }, onCandidates = { nav.navigate("candidatos/$it") }, onEdit = { nav.navigate("editar/$it") }, onProfile = { openDestination("perfil") }, onChat = { job, applicant -> nav.navigate("conversacion/$job/$applicant") }, onApplied = {
                         scope.launch { snackbar.showSnackbar("Postulación enviada") }
                     })
                 }
+                composable("editar/{id}") { entry ->
+                    EditOpportunityScreen(model.find(entry.arguments?.getString("id").orEmpty()), model, onBack = { nav.popBackStack() })
+                }
                 composable("candidatos/{id}") { entry ->
                     val opportunity = model.find(entry.arguments?.getString("id").orEmpty())
-                    CandidatesScreen(opportunity, model, onBack = { nav.popBackStack() })
+                    CandidatesScreen(opportunity, model, onBack = { nav.popBackStack() }, onChat = { job, applicant -> nav.navigate("conversacion/$job/$applicant") })
+                }
+                composable("conversacion/{id}/{applicant}") { entry ->
+                    val job = model.find(entry.arguments?.getString("id").orEmpty())
+                    ConversationScreen(services, job, entry.arguments?.getString("applicant").orEmpty()) { nav.popBackStack() }
                 }
             }
         }
@@ -243,16 +280,18 @@ private fun ExploreScreen(model: OpportunityViewModel, onSaved: () -> Unit, onSe
     var query by rememberSaveable { mutableStateOf("") }
     var selectedCategory by rememberSaveable { mutableStateOf("Todas") }
     val categories = listOf("Todas") + model.opportunities.map { it.category }.distinct().sorted()
+    val interests = LocalAppPreferences.current?.interests.orEmpty()
     val opportunities = model.opportunities.filter {
-        (selectedCategory == "Todas" || it.category == selectedCategory) &&
+        it.status == "published" && (selectedCategory == "Todas" || it.category == selectedCategory) &&
             (query.isBlank() || listOf(it.title, it.organization, it.category, it.location)
                 .any { field -> field.contains(query.trim(), ignoreCase = true) })
-    }
+    }.sortedByDescending { it.category in interests }
     LazyColumn(
         contentPadding = PaddingValues(start = 22.dp, end = 22.dp, top = 20.dp, bottom = 26.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
         item { BrandHeader(onSaved, onSettings) }
+        item { Hero() }
         item {
             OutlinedTextField(
                 value = query,
@@ -280,6 +319,7 @@ private fun ExploreScreen(model: OpportunityViewModel, onSaved: () -> Unit, onSe
         }
         if (model.loading) item { AppLoadingState("Cargando oportunidades") }
         (model.feedError ?: model.error)?.let { message -> item { AppNotice(message, isError = true); TextButton(onClick = model::retry) { Text("Reintentar") } } }
+        if (interests.isNotEmpty()) item { Text("Primero verás las categorías que elegiste", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
         item {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Text("Oportunidades", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
@@ -295,7 +335,6 @@ private fun ExploreScreen(model: OpportunityViewModel, onSaved: () -> Unit, onSe
         items(opportunities, key = { it.id }) { opportunity ->
             OpportunityCard(opportunity, modifier = if (reduceMotion) Modifier else Modifier.animateItem()) { open(opportunity.id) }
         }
-        item { Hero() }
         item { QuickActions(onSaved, onPublish) }
     }
 }
@@ -343,21 +382,23 @@ private fun BrandHeader(onSaved: () -> Unit, onSettings: () -> Unit) {
 
 @Composable
 private fun Hero() {
+    val accessory = if (LocalAppPreferences.current?.purpose == "employer") EmpuAccessory.BUSINESS else EmpuAccessory.WORK
     Surface(
         modifier = Modifier.fillMaxWidth(),
-        shape = MaterialTheme.shapes.large,
+        shape = MaterialTheme.shapes.extraLarge,
         color = MaterialTheme.colorScheme.primaryContainer,
         contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
     ) {
-        Row(Modifier.padding(18.dp), verticalAlignment = Alignment.CenterVertically) {
+        val colors = MaterialTheme.colorScheme
+        Row(Modifier.background(Brush.linearGradient(listOf(colors.primaryContainer, colors.secondaryContainer))).padding(start = 20.dp, end = 6.dp, top = 12.dp, bottom = 12.dp), verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text("TU PRÓXIMO PASO", style = MaterialTheme.typography.labelSmall, letterSpacing = 1.2.sp)
-                Text("Crece con cada oportunidad", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-                Text("Conecta tus habilidades con personas y proyectos", style = MaterialTheme.typography.bodyMedium)
+                Text("TU PRÓXIMO PASO", style = MaterialTheme.typography.labelSmall, letterSpacing = 1.2.sp, color = colors.onPrimaryContainer)
+                Text("Encuentra tu oportunidad", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = colors.onPrimaryContainer)
+                Text("Conecta tus habilidades con personas y proyectos", style = MaterialTheme.typography.bodyMedium, color = colors.onPrimaryContainer)
             }
             if (LocalConfiguration.current.fontScale < 1.3f) {
                 Spacer(Modifier.width(10.dp))
-                Empu(EmpuMood.IDLE, Modifier.size(76.dp))
+                Empu(EmpuMood.HAPPY, Modifier.size(104.dp), accessory = accessory)
             }
         }
     }
@@ -477,8 +518,24 @@ private fun OpportunityCard(opportunity: Opportunity, status: String? = null, mo
 }
 
 @Composable
-private fun DetailScreen(opportunity: Opportunity?, model: OpportunityViewModel, onBack: () -> Unit, onCandidates: (String) -> Unit, onApplied: () -> Unit) {
+private fun DetailScreen(opportunity: Opportunity?, model: OpportunityViewModel, onBack: () -> Unit, onCandidates: (String) -> Unit, onEdit: (String) -> Unit, onProfile: () -> Unit, onChat: (String, String) -> Unit, onApplied: () -> Unit) {
     var confirmApplication by rememberSaveable(opportunity?.id) { mutableStateOf(false) }
+    var confirmWithdraw by rememberSaveable(opportunity?.id) { mutableStateOf(false) }
+    var confirmRemove by rememberSaveable(opportunity?.id) { mutableStateOf(false) }
+    if (confirmWithdraw && opportunity != null) AlertDialog(
+        onDismissRequest = { confirmWithdraw = false }, icon = { Empu(EmpuMood.THINKING, Modifier.size(112.dp)) },
+        title = { Text("¿Retirar tu postulación?") },
+        text = { Text(if (model.applications[opportunity.id] == "selected") "Si ya fuiste seleccionado, la vacante volverá a estar disponible" else "Podrás volver a postular mientras la oportunidad esté disponible") },
+        confirmButton = { TextButton(enabled = !model.busy, onClick = { model.withdraw(opportunity.id) { confirmWithdraw = false } }) { Text("Retirar") } },
+        dismissButton = { TextButton(onClick = { confirmWithdraw = false }) { Text("Cancelar") } },
+    )
+    if (confirmRemove && opportunity != null) AlertDialog(
+        onDismissRequest = { confirmRemove = false }, icon = { Empu(EmpuMood.SAD, Modifier.size(112.dp)) },
+        title = { Text("¿Eliminar publicación?") },
+        text = { Text("Dejará de aparecer en la búsqueda, quienes ya postularon conservarán su historial") },
+        confirmButton = { TextButton(enabled = !model.busy, onClick = { model.removeOpportunity(opportunity.id) { confirmRemove = false; onBack() } }) { Text("Eliminar") } },
+        dismissButton = { TextButton(onClick = { confirmRemove = false }) { Text("Cancelar") } },
+    )
     var mapUnavailable by rememberSaveable { mutableStateOf(false) }
     var showReport by rememberSaveable(opportunity?.id) { mutableStateOf(false) }
     var reportReason by rememberSaveable(opportunity?.id) { mutableStateOf("Información engañosa") }
@@ -508,7 +565,7 @@ private fun DetailScreen(opportunity: Opportunity?, model: OpportunityViewModel,
             onDismissRequest = { confirmApplication = false },
             icon = { Empu(EmpuMood.THINKING, Modifier.size(112.dp)) },
             title = { Text("Confirmar postulación") },
-            text = { Text("Tu nombre se compartirá con quien publicó ${opportunity.title}") },
+            text = { Text("Tu nombre, habilidades, experiencia, disponibilidad, distrito, estudios y portafolio se compartirán con quien publicó ${opportunity.title}, tu DNI, celular y correo seguirán privados") },
             confirmButton = { TextButton(onClick = { model.apply(opportunity.id, onApplied); confirmApplication = false }, enabled = !model.busy) { Text("Enviar postulación") } },
             dismissButton = { TextButton(onClick = { confirmApplication = false }) { Text("Cancelar") } },
         )
@@ -551,17 +608,38 @@ private fun DetailScreen(opportunity: Opportunity?, model: OpportunityViewModel,
             Text(opportunity.description, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Text("Conocimientos y requisitos", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
             Text(opportunity.requirements, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            if (opportunity.status != "published") AppNotice("Esta publicación fue retirada, su información se conserva en el historial")
             if (!opportunity.own) {
-                val applied = opportunity.id in model.applications
+                val status = model.applications[opportunity.id]
+                val applied = status != null && status != "withdrawn"
                 val full = opportunity.selectedCount >= opportunity.vacancies
-                AppPrimaryButton(if (applied) "Ya postulaste" else if (full) "Vacantes cubiertas" else "Postular", onClick = { confirmApplication = true }, enabled = !applied && !full && !model.busy)
+                if (opportunity.status == "published" && !applied) {
+                    if (!model.profileReady) {
+                        AppNotice("Completa tus habilidades y disponibilidad antes de postular")
+                        OutlinedButton(onClick = onProfile, modifier = Modifier.fillMaxWidth()) { Text("Completar mi perfil") }
+                    } else AppPrimaryButton(if (full) "Vacantes cubiertas" else if (status == "withdrawn") "Volver a postular" else "Postular", onClick = { confirmApplication = true }, enabled = !full && !model.busy)
+                }
+                if (applied) {
+                    AppNotice(when (status) { "selected" -> "Fuiste seleccionado"; "completed" -> "Trabajo finalizado"; else -> "Postulación enviada" })
+                    if (status == "pending" || status == "selected") OutlinedButton(onClick = { confirmWithdraw = true }, enabled = !model.busy, modifier = Modifier.fillMaxWidth()) { Text("Retirar postulación") }
+                }
+                if (status != null) model.userId?.let { applicant ->
+                    OutlinedButton(onClick = { onChat(opportunity.id, applicant) }, modifier = Modifier.fillMaxWidth()) {
+                        Text(if (status == "withdrawn") "Ver conversación anterior" else "Conversar")
+                    }
+                }
                 if (model.busy) AppLoadingState("Procesando solicitud")
-                if (reportSent) AppNotice("Reporte guardado, la revisión aún no está habilitada")
-                else TextButton(onClick = { showReport = true }) { Text("Reportar oportunidad") }
+                if (opportunity.status == "published") {
+                    if (reportSent) AppNotice("Reporte guardado, la revisión aún no está habilitada")
+                    else TextButton(onClick = { showReport = true }) { Text("Reportar oportunidad") }
+                }
             } else {
                 Text("Es tu oportunidad · ${opportunity.selectedCount} de ${opportunity.vacancies} vacantes seleccionadas", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                FilledTonalButton(onClick = { onCandidates(opportunity.id) }, modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp)) {
-                    Text("Ver postulaciones")
+                FilledTonalButton(onClick = { onCandidates(opportunity.id) }, modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp)) { Text("Ver postulaciones") }
+                if (opportunity.status == "published") {
+                    OutlinedButton(onClick = { onEdit(opportunity.id) }, enabled = opportunity.selectedCount == 0 && !model.busy, modifier = Modifier.fillMaxWidth()) { Text("Editar publicación") }
+                    TextButton(onClick = { confirmRemove = true }, enabled = opportunity.selectedCount == 0 && !model.busy) { Text("Eliminar publicación") }
+                    if (opportunity.selectedCount > 0) Text("No puedes editar ni retirar la publicación mientras haya personas seleccionadas", style = MaterialTheme.typography.bodySmall)
                 }
             }
         }
@@ -569,7 +647,7 @@ private fun DetailScreen(opportunity: Opportunity?, model: OpportunityViewModel,
 }
 
 @Composable
-private fun CandidatesScreen(opportunity: Opportunity?, model: OpportunityViewModel, onBack: () -> Unit) {
+private fun CandidatesScreen(opportunity: Opportunity?, model: OpportunityViewModel, onBack: () -> Unit, onChat: (String, String) -> Unit) {
     var selected by remember { mutableStateOf<pe.tuempuje.app.data.Candidate?>(null) }
     var completing by remember { mutableStateOf<pe.tuempuje.app.data.Candidate?>(null) }
     completing?.let { candidate ->
@@ -615,14 +693,14 @@ private fun CandidatesScreen(opportunity: Opportunity?, model: OpportunityViewMo
                 AppEmptyState("Aún no hay postulaciones", "Cuando alguien postule aparecerá en esta sección")
             }
             model.candidates.forEach { candidate ->
-                CandidateCard(candidate, canSelect = candidate.status == "pending" && opportunity.selectedCount < opportunity.vacancies && !model.busy, onSelect = { selected = candidate }, onComplete = { completing = candidate })
+                CandidateCard(candidate, canSelect = candidate.status == "pending" && opportunity.status == "published" && opportunity.selectedCount < opportunity.vacancies && !model.busy, onSelect = { selected = candidate }, onComplete = { completing = candidate }, onChat = { onChat(opportunity.id, candidate.id) })
             }
         }
     }
 }
 
 @Composable
-private fun CandidateCard(candidate: pe.tuempuje.app.data.Candidate, canSelect: Boolean, onSelect: () -> Unit, onComplete: () -> Unit) {
+private fun CandidateCard(candidate: pe.tuempuje.app.data.Candidate, canSelect: Boolean, onSelect: () -> Unit, onComplete: () -> Unit, onChat: () -> Unit) {
     Surface(shape = MaterialTheme.shapes.large, color = MaterialTheme.colorScheme.surface, border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant), modifier = Modifier.fillMaxWidth()) {
         Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -631,9 +709,16 @@ private fun CandidateCard(candidate: pe.tuempuje.app.data.Candidate, canSelect: 
                 }
                 Column {
                     Text(candidate.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                    Text(when (candidate.status) { "selected" -> "Seleccionado"; "completed" -> "Trabajo finalizado"; else -> "Postulación recibida" }, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(when (candidate.status) { "selected" -> "Seleccionado"; "completed" -> "Trabajo finalizado"; "withdrawn" -> "Postulación retirada"; else -> "Postulación recibida" }, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
+            if (candidate.skills.isNotBlank()) DetailRow("Habilidades", candidate.skills)
+            if (candidate.experience.isNotBlank()) DetailRow("Experiencia o proyectos", candidate.experience)
+            if (candidate.availability.isNotBlank()) DetailRow("Disponibilidad", candidate.availability)
+            if (candidate.district.isNotBlank()) DetailRow("Distrito", candidate.district)
+            if (candidate.education.isNotBlank()) DetailRow("Estudios o formación", candidate.education)
+            if (candidate.portfolio.isNotBlank()) DetailRow("Portafolio o proyectos", candidate.portfolio)
+            OutlinedButton(onClick = onChat, modifier = Modifier.fillMaxWidth()) { Text("Conversar") }
             if (candidate.status == "pending") OutlinedButton(onClick = onSelect, enabled = canSelect, modifier = Modifier.fillMaxWidth()) { Text(if (canSelect) "Seleccionar" else "Vacantes cubiertas") }
             if (candidate.status == "selected") OutlinedButton(onClick = onComplete, modifier = Modifier.fillMaxWidth()) { Text("Finalizar trabajo") }
         }
@@ -713,7 +798,7 @@ private fun PublishScreen(model: OpportunityViewModel, onBack: () -> Unit, onAcc
             onDismissRequest = { showAiInfo = false },
             icon = { Empu(EmpuMood.THINKING, Modifier.size(112.dp)) },
             title = { Text("Redactar con ayuda de IA") },
-            text = { Text("Más adelante podrás describir lo que necesitas y recibir un borrador para revisar y editar antes de publicar. La herramienta aún no está disponible") },
+            text = { Text("Más adelante podrás describir lo que necesitas para preparar un borrador, después podrás revisarlo antes de publicar") },
             confirmButton = { TextButton(onClick = { showAiInfo = false }) { Text("Entendido") } },
         )
     }
@@ -772,12 +857,14 @@ private fun PublishScreen(model: OpportunityViewModel, onBack: () -> Unit, onAcc
         }
     }
     Column(Modifier.fillMaxSize().verticalScroll(scrollState).padding(22.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Column(Modifier.weight(1f)) {
-                Text("Publicar", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
-                Text("Cuéntanos qué apoyo necesitas", style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Surface(shape = MaterialTheme.shapes.extraLarge, color = MaterialTheme.colorScheme.secondaryContainer, modifier = Modifier.fillMaxWidth()) {
+            Row(Modifier.padding(start = 18.dp, end = 6.dp, top = 10.dp, bottom = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text("Publicar", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSecondaryContainer)
+                    Text("Cuéntanos qué apoyo necesitas y define las condiciones", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSecondaryContainer)
+                }
+                if (LocalConfiguration.current.fontScale < 1.3f) Empu(EmpuMood.THINKING, Modifier.size(100.dp), accessory = EmpuAccessory.BUSINESS)
             }
-            if (LocalConfiguration.current.fontScale < 1.3f) Empu(EmpuMood.THINKING, Modifier.size(58.dp))
         }
         if (model.userId == null) {
             AppNotice("Inicia sesión para publicar una oportunidad")
@@ -791,10 +878,10 @@ private fun PublishScreen(model: OpportunityViewModel, onBack: () -> Unit, onAcc
         }
         if (step == 0) {
             FormSectionHeading("01", "Trabajo", "Describe el apoyo que necesitas")
-            OutlinedButton(onClick = { showAiInfo = true }, modifier = Modifier.fillMaxWidth()) { Text("Redactar con IA · Próximamente") }
+            OutlinedButton(onClick = { showAiInfo = true }, modifier = Modifier.fillMaxWidth()) { Text("Ayuda de IA · Próximamente") }
             Text("Tipo de trabajo", style = MaterialTheme.typography.labelLarge)
             LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                items(listOf("Ayudantía", "Creativo", "Eventos", "Otro")) { item ->
+                items(workInterests) { item ->
                     FilterChip(selected = category == item, onClick = { category = item }, label = { Text(item) })
                 }
             }
@@ -935,13 +1022,23 @@ private fun ActivityScreen(model: OpportunityViewModel, activityRevision: Int, o
     val reduceMotion = LocalAppPreferences.current?.reduceMotion == true
     val myPosts = model.opportunities.filter { it.own }
     val myApplications = model.opportunities.filter { it.id in model.applications }
-    var section by rememberSaveable(activityRevision) { mutableStateOf("Publicaciones") }
+    val purpose = LocalAppPreferences.current?.purpose
+    var section by rememberSaveable(activityRevision) { mutableStateOf(if (purpose == "worker") "Postulaciones" else "Publicaciones") }
     LazyColumn(contentPadding = PaddingValues(22.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-        item { Text("Actividad", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold) }
-        item { Text("Revisa tus oportunidades y postulaciones", style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+        item {
+            Surface(shape = MaterialTheme.shapes.extraLarge, color = MaterialTheme.colorScheme.secondaryContainer, modifier = Modifier.fillMaxWidth()) {
+                Row(Modifier.padding(start = 18.dp, end = 6.dp, top = 10.dp, bottom = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text("Tu actividad", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSecondaryContainer)
+                        Text("Revisa tus publicaciones y postulaciones", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSecondaryContainer)
+                    }
+                    if (LocalConfiguration.current.fontScale < 1.3f) Empu(EmpuMood.IDLE, Modifier.size(90.dp), accessory = if (purpose == "employer") EmpuAccessory.BUSINESS else EmpuAccessory.WORK)
+                }
+            }
+        }
         if (model.userId == null) item { AppEmptyState("Inicia sesión para ver tu actividad", "Tus publicaciones y postulaciones aparecerán aquí", "Ir a mi cuenta") { openDestination("perfil") } }
         if (model.loading || model.applicationsLoading) item { AppLoadingState("Cargando actividad") }
-        (model.error ?: model.feedError ?: model.applicationsError)?.let { message -> item { AppNotice(message, isError = true); TextButton(onClick = model::retry) { Text("Reintentar") } } }
+        (model.error ?: model.feedError ?: model.applicationsError ?: model.ownError)?.let { message -> item { AppNotice(message, isError = true); TextButton(onClick = model::retry) { Text("Reintentar") } } }
         item {
             LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 item { FilterChip(selected = section == "Publicaciones", onClick = { section = "Publicaciones" }, label = { Text("Publicaciones (${myPosts.size})") }) }
@@ -951,7 +1048,7 @@ private fun ActivityScreen(model: OpportunityViewModel, activityRevision: Int, o
         if (model.userId != null) item {
             Text(if (section == "Publicaciones") "Oportunidades que publicaste" else "Oportunidades a las que postulaste", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
         }
-        if (model.userId == null || model.loading || model.applicationsLoading || model.error != null || model.feedError != null || model.applicationsError != null) {
+        if (model.userId == null || model.loading || model.applicationsLoading || model.error != null || model.feedError != null || model.applicationsError != null || model.ownError != null) {
             Unit
         } else if (myPosts.isEmpty() && myApplications.isEmpty()) {
             item {
@@ -969,10 +1066,10 @@ private fun ActivityScreen(model: OpportunityViewModel, activityRevision: Int, o
             }
         } else if (section == "Publicaciones") {
             if (myPosts.isEmpty()) item { AppEmptyState("Aún no tienes publicaciones", "Crea una oportunidad para encontrar apoyo", "Crear publicación", EmptyIllustration.Posts) { openDestination("publicar") } }
-            items(myPosts, key = { "post-${it.id}" }) { item -> OpportunityCard(item, "Publicada", if (reduceMotion) Modifier else Modifier.animateItem()) { open(item.id) } }
+            items(myPosts, key = { "post-${it.id}" }) { item -> OpportunityCard(item, if (item.status == "removed") "Retirada" else "Publicada", if (reduceMotion) Modifier else Modifier.animateItem()) { open(item.id) } }
         } else {
             if (myApplications.isEmpty()) item { AppEmptyState("Aún no tienes postulaciones", "Explora las oportunidades y encuentra una para ti", "Explorar oportunidades", EmptyIllustration.Applications) { openDestination("explorar") } }
-            items(myApplications, key = { "application-${it.id}" }) { item -> OpportunityCard(item, when (model.applications[item.id]) { "selected" -> "Seleccionada"; "completed" -> "Trabajo finalizado"; else -> "Postulación enviada" }, if (reduceMotion) Modifier else Modifier.animateItem()) { open(item.id) } }
+            items(myApplications, key = { "application-${it.id}" }) { item -> OpportunityCard(item, when (model.applications[item.id]) { "selected" -> "Seleccionada"; "completed" -> "Trabajo finalizado"; "withdrawn" -> "Postulación retirada"; else -> "Postulación enviada" }, if (reduceMotion) Modifier else Modifier.animateItem()) { open(item.id) } }
         }
     }
 }

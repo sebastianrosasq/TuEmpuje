@@ -71,7 +71,15 @@ La recuperación de contraseña envía un enlace al correo, la app puede validar
 
 La eliminación completa de cuentas se preparó para el emulador mediante una función protegida, su despliegue y la configuración de expiración de bloqueos están pendientes, por lo que todavía no está disponible en la nube
 
-La web, Gemini, los pagos, la mensajería y la moderación todavía no están implementados, el proyecto de desarrollo se usa únicamente con datos de prueba
+La app permite elegir entre buscar trabajo y publicar, ordenar oportunidades por intereses y cambiar de objetivo desde el perfil
+
+Las personas pueden completar sus habilidades y disponibilidad antes de postular, retirar una candidatura, editar o retirar una publicación sin seleccionados y consultar el historial
+
+Gemini Developer API está habilitada en el proyecto de desarrollo, la asistencia para preparar CV y redactar oportunidades se implementará y verificará en una etapa posterior
+
+Las conversaciones entre quien publica y quien postula funcionan dentro de cada oportunidad, sin notificaciones automáticas por ahora
+
+La carga y entrega de archivos CV, la web, los pagos y la moderación están pendientes, el proyecto de desarrollo se usa únicamente con datos de prueba
 
 El sistema visual comparte avisos, botones y estados vacíos, con transiciones y una navegación que se adapta al texto ampliado, las pruebas y limitaciones están registradas en [Diseño y navegación](docs/10-diseno-y-navegacion.md)
 
@@ -106,6 +114,7 @@ Ambas compilaciones usan la misma ruta de salida del APK, por lo que la última 
 | [Requisitos](docs/01-requisitos.md) | Reglas de negocio, permisos y criterios de aceptación |
 | [Plan de trabajo y pruebas](docs/02-plan-y-pruebas.md) | Prioridades, entregables y escenarios de prueba |
 | [Plan de 16 sprints](docs/09-sprints.md) | Objetivos, dependencias y criterios de aceptación |
+| [Referentes de empleo](docs/13-referentes.md) | Flujos consultados y decisiones de adaptación |
 | [Diseño y navegación](docs/10-diseno-y-navegacion.md) | Dirección visual, recorridos e interacciones |
 | [Asistencia y ubicación](docs/12-asistencia-y-ubicacion.md) | Funciones futuras de IA y alternativas para mapas |
 | [Temas del curso](docs/05-temas-del-curso.md) | Aplicación de Kotlin, Compose, Room y Firebase |

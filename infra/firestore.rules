@@ -16,7 +16,7 @@ service cloud.firestore {
 
     function validProfile(data, uid) {
       return data.keys().hasAll(['uid', 'displayName', 'email'])
-        && data.keys().hasOnly(['uid', 'displayName', 'email', 'dni', 'phone', 'skills', 'experience', 'availability'])
+        && data.keys().hasOnly(['uid', 'displayName', 'email', 'dni', 'phone', 'skills', 'experience', 'availability', 'role', 'interests', 'district', 'organization', 'education', 'portfolio'])
         && data.uid == uid
         && textWithin(data.displayName, 2, 80)
         && data.displayName.matches('(?s).*\\S.*')
@@ -25,7 +25,13 @@ service cloud.firestore {
         && (!('phone' in data) || (data.phone is string && data.phone.matches('9[0-9]{8}')))
         && (!('skills' in data) || textWithin(data.skills, 0, 500))
         && (!('experience' in data) || textWithin(data.experience, 0, 1500))
-        && (!('availability' in data) || textWithin(data.availability, 0, 200));
+        && (!('availability' in data) || textWithin(data.availability, 0, 200))
+        && (!('role' in data) || data.role in ['worker', 'employer'])
+        && (!('interests' in data) || (data.interests is list && data.interests.size() <= 11 && data.interests.hasOnly(['Ayudantía', 'Creativo', 'Diseño y edición', 'Programación', 'Ventas y atención', 'Administración', 'Eventos', 'Logística', 'Educación', 'Servicios', 'Otro'])))
+        && (!('district' in data) || textWithin(data.district, 0, 100))
+        && (!('organization' in data) || textWithin(data.organization, 0, 100))
+        && (!('education' in data) || textWithin(data.education, 0, 500))
+        && (!('portfolio' in data) || textWithin(data.portfolio, 0, 500));
     }
 
     match /users/{uid} {
@@ -39,7 +45,7 @@ service cloud.firestore {
       allow update: if signedIn() && active(request.auth.uid)
         && request.auth.uid == uid
         && validProfile(request.resource.data, uid)
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['displayName', 'dni', 'phone', 'skills', 'experience', 'availability']);
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['displayName', 'dni', 'phone', 'skills', 'experience', 'availability', 'role', 'interests', 'district', 'organization', 'education', 'portfolio']);
       allow delete: if false;
     }
 
@@ -73,12 +79,15 @@ service cloud.firestore {
     }
 
     match /opportunities/{opportunityId} {
-      allow read: if signedIn() && resource.data.status == 'published';
+      allow read: if signedIn() && (resource.data.status == 'published'
+        || resource.data.ownerId == request.auth.uid
+        || exists(/databases/$(database)/documents/opportunities/$(opportunityId)/applications/$(request.auth.uid)));
       allow create: if signedIn() && active(request.auth.uid)
         && exists(/databases/$(database)/documents/users/$(request.auth.uid))
         && validOpportunity(request.resource.data);
       allow update: if signedIn() && active(request.auth.uid)
         && resource.data.ownerId == request.auth.uid
+        && resource.data.status == 'published'
         && active(request.resource.data.lastSelectedApplicantId)
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['selectedCount', 'lastSelectedApplicantId'])
         && request.resource.data.selectedCount == resource.data.selectedCount + 1
@@ -87,6 +96,30 @@ service cloud.firestore {
         && exists(/databases/$(database)/documents/opportunities/$(opportunityId)/applications/$(request.resource.data.lastSelectedApplicantId))
         && get(/databases/$(database)/documents/opportunities/$(opportunityId)/applications/$(request.resource.data.lastSelectedApplicantId)).data.status == 'pending'
         && getAfter(/databases/$(database)/documents/opportunities/$(opportunityId)/applications/$(request.resource.data.lastSelectedApplicantId)).data.status == 'selected';
+      allow update: if signedIn() && active(request.auth.uid)
+        && resource.data.ownerId == request.auth.uid && resource.data.status == 'published'
+        && resource.data.selectedCount == 0
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['title', 'description', 'location', 'pay', 'duration', 'requirements', 'category', 'vacancies', 'updatedAt'])
+        && textWithin(request.resource.data.title, 3, 120)
+        && textWithin(request.resource.data.description, 10, 3000)
+        && textWithin(request.resource.data.location, 2, 120)
+        && textWithin(request.resource.data.pay, 3, 120)
+        && textWithin(request.resource.data.duration, 2, 120)
+        && textWithin(request.resource.data.requirements, 2, 1500)
+        && textWithin(request.resource.data.category, 2, 40)
+        && request.resource.data.vacancies is int && request.resource.data.vacancies >= 1 && request.resource.data.vacancies <= 99
+        && request.resource.data.updatedAt == request.time;
+      allow update: if signedIn() && active(request.auth.uid)
+        && resource.data.ownerId == request.auth.uid && resource.data.status == 'published'
+        && resource.data.selectedCount == 0
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'removedAt'])
+        && request.resource.data.status == 'removed' && request.resource.data.removedAt == request.time;
+      allow update: if signedIn() && active(request.auth.uid)
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['selectedCount', 'lastWithdrawnApplicantId'])
+        && request.resource.data.lastWithdrawnApplicantId == request.auth.uid
+        && resource.data.selectedCount > 0 && request.resource.data.selectedCount == resource.data.selectedCount - 1
+        && get(/databases/$(database)/documents/opportunities/$(opportunityId)/applications/$(request.auth.uid)).data.status == 'selected'
+        && getAfter(/databases/$(database)/documents/opportunities/$(opportunityId)/applications/$(request.auth.uid)).data.status == 'withdrawn';
       allow delete: if false;
 
       match /applications/{applicantId} {
@@ -101,16 +134,26 @@ service cloud.firestore {
         allow create: if signedIn() && active(request.auth.uid)
           && request.auth.uid == applicantId
           && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+          && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('dni', '').matches('[0-9]{8}')
+          && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('phone', '').matches('9[0-9]{8}')
+          && textWithin(get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('skills', ''), 2, 500)
+          && textWithin(get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('availability', ''), 2, 200)
           && exists(opportunityPath(opportunityId))
           && active(opportunity().data.ownerId)
           && opportunity().data.status == 'published'
           && opportunity().data.selectedCount < opportunity().data.vacancies
           && opportunity().data.ownerId != request.auth.uid
-          && request.resource.data.keys().hasAll(['applicantId', 'applicantName', 'status', 'createdAt'])
-          && request.resource.data.keys().hasOnly(['applicantId', 'applicantName', 'status', 'createdAt'])
+          && request.resource.data.keys().hasAll(['applicantId', 'applicantName', 'applicantSkills', 'applicantAvailability', 'applicantExperience', 'applicantDistrict', 'applicantEducation', 'applicantPortfolio', 'status', 'createdAt'])
+          && request.resource.data.keys().hasOnly(['applicantId', 'applicantName', 'applicantSkills', 'applicantAvailability', 'applicantExperience', 'applicantDistrict', 'applicantEducation', 'applicantPortfolio', 'status', 'createdAt'])
           && request.resource.data.applicantId == request.auth.uid
           && request.resource.data.applicantName == get(/databases/$(database)/documents/users/$(request.auth.uid)).data.displayName
           && textWithin(request.resource.data.applicantName, 2, 80)
+          && request.resource.data.applicantSkills == get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('skills', '')
+          && request.resource.data.applicantAvailability == get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('availability', '')
+          && request.resource.data.applicantExperience == get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('experience', '')
+          && request.resource.data.applicantDistrict == get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('district', '')
+          && request.resource.data.applicantEducation == get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('education', '')
+          && request.resource.data.applicantPortfolio == get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('portfolio', '')
           && request.resource.data.status == 'pending'
           && request.resource.data.createdAt == request.time;
         allow update: if signedIn() && active(request.auth.uid)
@@ -128,7 +171,54 @@ service cloud.firestore {
               && request.resource.data.status == 'completed'
               && request.resource.data.completedAt == request.time)
           );
+        allow update: if signedIn() && active(request.auth.uid) && request.auth.uid == applicantId
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'withdrawnAt'])
+          && request.resource.data.status == 'withdrawn' && request.resource.data.withdrawnAt == request.time
+          && (resource.data.status == 'pending' || (resource.data.status == 'selected'
+            && getAfter(opportunityPath(opportunityId)).data.selectedCount == opportunity().data.selectedCount - 1
+            && getAfter(opportunityPath(opportunityId)).data.lastWithdrawnApplicantId == applicantId));
+        allow update: if signedIn() && active(request.auth.uid) && request.auth.uid == applicantId
+          && resource.data.status == 'withdrawn' && opportunity().data.status == 'published'
+          && active(opportunity().data.ownerId) && opportunity().data.selectedCount < opportunity().data.vacancies
+          && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('dni', '').matches('[0-9]{8}')
+          && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('phone', '').matches('9[0-9]{8}')
+          && textWithin(get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('skills', ''), 2, 500)
+          && textWithin(get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('availability', ''), 2, 200)
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'createdAt', 'withdrawnAt', 'selectedAt', 'completedAt', 'applicantName', 'applicantSkills', 'applicantAvailability', 'applicantExperience', 'applicantDistrict', 'applicantEducation', 'applicantPortfolio'])
+          && request.resource.data.status == 'pending' && request.resource.data.createdAt == request.time
+          && !('withdrawnAt' in request.resource.data) && !('selectedAt' in request.resource.data) && !('completedAt' in request.resource.data)
+          && request.resource.data.applicantName == get(/databases/$(database)/documents/users/$(request.auth.uid)).data.displayName
+          && request.resource.data.applicantSkills == get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('skills', '')
+          && request.resource.data.applicantAvailability == get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('availability', '')
+          && request.resource.data.applicantExperience == get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('experience', '')
+          && request.resource.data.applicantDistrict == get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('district', '')
+          && request.resource.data.applicantEducation == get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('education', '')
+          && request.resource.data.applicantPortfolio == get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('portfolio', '');
         allow delete: if false;
+
+        match /messages/{messageId} {
+          function applicationPath() {
+            return /databases/$(database)/documents/opportunities/$(opportunityId)/applications/$(applicantId);
+          }
+
+          function participant() {
+            return signedIn() && exists(opportunityPath(opportunityId)) && exists(applicationPath())
+              && (request.auth.uid == applicantId || opportunity().data.ownerId == request.auth.uid);
+          }
+
+          allow read: if participant();
+          allow create: if participant() && active(request.auth.uid)
+            && active(applicantId) && active(opportunity().data.ownerId)
+            && opportunity().data.status == 'published'
+            && get(applicationPath()).data.status in ['pending', 'selected', 'completed']
+            && request.resource.data.keys().hasOnly(['senderId', 'text', 'createdAt'])
+            && request.resource.data.keys().hasAll(['senderId', 'text', 'createdAt'])
+            && request.resource.data.senderId == request.auth.uid
+            && textWithin(request.resource.data.text, 1, 2000)
+            && request.resource.data.text.matches('(?s).*\\S.*')
+            && request.resource.data.createdAt == request.time;
+          allow update, delete: if false;
+        }
       }
     }
 

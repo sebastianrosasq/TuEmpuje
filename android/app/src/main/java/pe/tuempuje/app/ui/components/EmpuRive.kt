@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.Canvas
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.WaterDrop
 import androidx.compose.material3.Icon
@@ -24,6 +25,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.text.font.FontWeight
@@ -43,6 +47,9 @@ import app.rive.runtime.kotlin.core.Rive as RiveRuntime
 import pe.tuempuje.app.BuildConfig
 import pe.tuempuje.app.ui.LocalAppPreferences
 import pe.tuempuje.app.R
+import pe.tuempuje.app.ui.theme.EmpuInk
+import pe.tuempuje.app.ui.theme.EmpuLight
+import pe.tuempuje.app.ui.theme.EmpuTeal
 
 private val LocalEmpuFile = staticCompositionLocalOf<RiveResult<RiveFile>?> { null }
 
@@ -77,15 +84,43 @@ fun EmpuProvider(content: @Composable () -> Unit) {
     CompositionLocalProvider(LocalEmpuFile provides file, content = content)
 }
 
+enum class EmpuAccessory { NONE, WORK, BUSINESS }
+
 @Composable
-fun Empu(mood: EmpuMood, modifier: Modifier = Modifier) {
+fun Empu(mood: EmpuMood, modifier: Modifier = Modifier, accessory: EmpuAccessory = EmpuAccessory.NONE) {
     val preferences = LocalAppPreferences.current
     if (preferences?.showMascot == false) {
         Spacer(modifier.aspectRatio(1f))
         return
     }
     BoxWithConstraints(modifier.aspectRatio(1f).clearAndSetSemantics { }) {
+        Canvas(Modifier.matchParentSize()) {
+            val u = size.minDimension / 240f
+            fun foot(x: Float, direction: Float) {
+                drawLine(EmpuTeal, Offset(x * u, 181 * u), Offset(x * u, 199 * u), 8 * u, cap = StrokeCap.Round)
+                drawLine(EmpuTeal, Offset(x * u, 199 * u), Offset((x + direction * 9) * u, 199 * u), 8 * u, cap = StrokeCap.Round)
+            }
+            foot(88f, -1f)
+            foot(161f, 1f)
+        }
         EmpuArtwork(mood, Modifier.matchParentSize())
+        if (accessory != EmpuAccessory.NONE) Canvas(Modifier.matchParentSize()) {
+            val u = size.minDimension / 240f
+            if (accessory == EmpuAccessory.WORK) {
+                val cap = Path().apply {
+                    moveTo(139 * u, 61 * u); lineTo(145 * u, 50 * u); quadraticTo(163 * u, 40 * u, 181 * u, 51 * u)
+                    lineTo(187 * u, 61 * u); close()
+                }
+                drawPath(cap, EmpuInk)
+                drawLine(EmpuInk, Offset(135 * u, 61 * u), Offset(192 * u, 61 * u), 5 * u, cap = StrokeCap.Round)
+            } else {
+                val tie = Path().apply {
+                    moveTo(113 * u, 160 * u); lineTo(121 * u, 165 * u); lineTo(129 * u, 160 * u)
+                    lineTo(129 * u, 173 * u); lineTo(121 * u, 168 * u); lineTo(113 * u, 173 * u); close()
+                }
+                drawPath(tie, EmpuLight)
+            }
+        }
         when (mood) {
             EmpuMood.THINKING -> Text(
                 "?", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold,

@@ -40,6 +40,7 @@ exports.deleteAccount = onCall({ region: "us-central1", timeoutSeconds: 540 }, a
     const applications = await db.collectionGroup("applications").where("applicantId", "==", uid).limit(100).get();
     if (applications.empty) break;
     for (const application of applications.docs) {
+      await deleteQuery(application.ref.collection("messages"));
       await db.runTransaction(async transaction => {
         const current = await transaction.get(application.ref);
         const opportunityRef = application.ref.parent.parent;

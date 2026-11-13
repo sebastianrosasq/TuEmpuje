@@ -27,6 +27,17 @@ class AppPreferences(context: Context) {
     private val savedLock = Mutex()
     private var accountJob: Job? = null
 
+    var purpose by mutableStateOf(storage.getString("proposito", null))
+        private set
+    var interests by mutableStateOf(storage.getStringSet("intereses", emptySet()).orEmpty().toSet())
+        private set
+
+    fun updatePurpose(value: String, selected: Set<String>) {
+        purpose = value
+        interests = selected.toSet()
+        storage.edit().putString("proposito", value).putStringSet("intereses", selected.toSet()).apply()
+    }
+
     var displayMode by mutableStateOf(
         DisplayMode.entries.firstOrNull { it.name == storage.getString("tema", DisplayMode.SYSTEM.name) }
             ?: DisplayMode.SYSTEM,

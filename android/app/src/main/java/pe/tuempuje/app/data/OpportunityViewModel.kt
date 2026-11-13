@@ -33,9 +33,10 @@ data class Opportunity(
     val vacancies: Int,
     val selectedCount: Int,
     val own: Boolean,
+    val status: String = "published",
 )
 
-data class Candidate(val id: String, val name: String, val status: String)
+data class Candidate(val id: String, val name: String, val status: String, val skills: String = "", val experience: String = "", val availability: String = "", val district: String = "", val education: String = "", val portfolio: String = "")
 
 class OpportunityViewModel(private val services: FirebaseServices?) : ViewModel() {
     val opportunities = mutableStateListOf<Opportunity>()
@@ -43,6 +44,20 @@ class OpportunityViewModel(private val services: FirebaseServices?) : ViewModel(
     val candidates = mutableStateListOf<Candidate>()
     var userId by mutableStateOf<String?>(null)
         private set
+    var profileReady by mutableStateOf(false)
+        private set
+    var profileLoaded by mutableStateOf(false)
+        private set
+    var profileRole by mutableStateOf<String?>(null)
+        private set
+    var profileInterests by mutableStateOf<Set<String>>(emptySet())
+        private set
+    private var profileListener: ListenerRegistration? = null
+    private var ownListener: ListenerRegistration? = null
+    private val personalListeners = mutableMapOf<String, ListenerRegistration>()
+    private val publicItems = mutableMapOf<String, Pair<Opportunity, Long>>()
+    private val ownItems = mutableMapOf<String, Pair<Opportunity, Long>>()
+    private val personalItems = mutableMapOf<String, Pair<Opportunity, Long>>()
     var loading by mutableStateOf(false)
         private set
     var candidatesLoading by mutableStateOf(false)
@@ -58,6 +73,8 @@ class OpportunityViewModel(private val services: FirebaseServices?) : ViewModel(
     var feedFromCache by mutableStateOf(true)
         private set
     var applicationsError by mutableStateOf<String?>(null)
+        private set
+    var ownError by mutableStateOf<String?>(null)
         private set
     var candidateError by mutableStateOf<String?>(null)
         private set
@@ -77,6 +94,12 @@ class OpportunityViewModel(private val services: FirebaseServices?) : ViewModel(
         opportunityListener?.remove()
         applicationListener?.remove()
         candidateListener?.remove()
+        profileListener?.remove()
+        ownListener?.remove()
+        personalListeners.values.forEach { it.remove() }
+        personalListeners.clear()
+        publicItems.clear(); ownItems.clear(); personalItems.clear()
+        profileReady = false; profileLoaded = false; profileRole = null; profileInterests = emptySet()
         opportunityListener = null
         applicationListener = null
         candidateListener = null
@@ -88,6 +111,7 @@ class OpportunityViewModel(private val services: FirebaseServices?) : ViewModel(
         feedError = null
         feedFromCache = true
         applicationsError = null
+        ownError = null
         if (uid == null || services == null) {
             loading = false
             applicationsLoading = false
@@ -95,6 +119,29 @@ class OpportunityViewModel(private val services: FirebaseServices?) : ViewModel(
         }
         loading = true
         applicationsLoading = true
+        profileListener = services.firestore.collection("users").document(uid).addSnapshotListener { profile, exception ->
+            if (uid != userId) return@addSnapshotListener
+            if (exception != null || profile == null) { profileLoaded = false; profileReady = false; return@addSnapshotListener }
+            profileLoaded = profile.exists()
+            profileReady = (profile.getString("skills")?.trim()?.length ?: 0) >= 2 && (profile.getString("availability")?.trim()?.length ?: 0) >= 2 && pe.tuempuje.app.auth.identityError(profile.getString("dni").orEmpty(), profile.getString("phone").orEmpty()) == null
+            profileRole = profile.getString("role")
+            profileInterests = (profile.get("interests") as? List<*>)?.filterIsInstance<String>()?.toSet().orEmpty()
+        }
+        ownListener = services.firestore.collection("opportunities").whereEqualTo("ownerId", uid)
+            .addSnapshotListener(MetadataChanges.INCLUDE) { snapshot, exception ->
+                if (uid != userId) return@addSnapshotListener
+                if (exception != null) {
+                    ownError = "No se pudieron cargar tus publicaciones, revisa tu conexión"
+                    return@addSnapshotListener
+                }
+                ownError = null
+                ownItems.clear()
+                snapshot?.documents.orEmpty().filterNot { it.metadata.hasPendingWrites() }.forEach { doc ->
+                    parseOpportunity(doc, uid)?.let { ownItems[doc.id] = it }
+                }
+                syncHistoryListeners(uid)
+                refreshItems()
+            }
         opportunityListener = services.firestore.collection("opportunities")
             .whereEqualTo("status", "published")
             .addSnapshotListener(MetadataChanges.INCLUDE) { snapshot, exception ->
@@ -106,26 +153,12 @@ class OpportunityViewModel(private val services: FirebaseServices?) : ViewModel(
                 }
                 feedError = null
                 feedFromCache = snapshot?.metadata?.isFromCache != false
-                val items = snapshot?.documents.orEmpty().filterNot { it.metadata.hasPendingWrites() }.mapNotNull { doc ->
-                    val owner = doc.getString("ownerId") ?: return@mapNotNull null
-                    Opportunity(
-                        id = doc.id,
-                        ownerId = owner,
-                        title = doc.getString("title").orEmpty(),
-                        organization = doc.getString("ownerName").orEmpty(),
-                        category = doc.getString("category").orEmpty(),
-                        location = doc.getString("location").orEmpty(),
-                        pay = doc.getString("pay").orEmpty(),
-                        duration = doc.getString("duration").orEmpty(),
-                        description = doc.getString("description").orEmpty(),
-                        requirements = doc.getString("requirements").orEmpty(),
-                        vacancies = (doc.getLong("vacancies") ?: 1).toInt(),
-                        selectedCount = (doc.getLong("selectedCount") ?: 0).toInt(),
-                        own = owner == uid,
-                    ) to (doc.getTimestamp("createdAt")?.seconds ?: 0L)
-                }.sortedByDescending { it.second }.map { it.first }
-                opportunities.clear()
-                opportunities.addAll(items)
+                publicItems.clear()
+                snapshot?.documents.orEmpty().filterNot { it.metadata.hasPendingWrites() }.forEach { doc ->
+                    parseOpportunity(doc, uid)?.let { publicItems[doc.id] = it }
+                }
+                syncHistoryListeners(uid)
+                refreshItems()
             }
         applicationListener = services.firestore.collectionGroup("applications")
             .whereEqualTo("applicantId", uid)
@@ -142,7 +175,57 @@ class OpportunityViewModel(private val services: FirebaseServices?) : ViewModel(
                     val opportunityId = doc.reference.parent.parent?.id ?: return@forEach
                     applications[opportunityId] = doc.getString("status").orEmpty()
                 }
+                syncHistoryListeners(uid)
+                refreshItems()
             }
+    }
+
+    private fun syncHistoryListeners(uid: String) {
+        val db = services?.firestore ?: return
+        val needed = applications.keys.toSet() - publicItems.keys - ownItems.keys
+        (personalListeners.keys.toSet() - needed).forEach { id ->
+            personalListeners.remove(id)?.remove()
+            personalItems.remove(id)
+        }
+        needed.filterNot { it in personalListeners }.forEach { id ->
+            personalListeners[id] = db.collection("opportunities").document(id).addSnapshotListener { job, exception ->
+                if (uid != userId) return@addSnapshotListener
+                if (exception != null) {
+                    applicationsError = "No se pudieron cargar algunas postulaciones, revisa tu conexión"
+                    return@addSnapshotListener
+                }
+                personalItems.remove(id)
+                if (job != null && job.exists()) parseOpportunity(job, uid)?.let { personalItems[id] = it }
+                refreshItems()
+            }
+        }
+    }
+
+    private fun parseOpportunity(doc: com.google.firebase.firestore.DocumentSnapshot, uid: String): Pair<Opportunity, Long>? {
+        val owner = doc.getString("ownerId") ?: return null
+        return Opportunity(
+            id = doc.id, ownerId = owner, title = doc.getString("title").orEmpty(), organization = doc.getString("ownerName").orEmpty(),
+            category = doc.getString("category").orEmpty(), location = doc.getString("location").orEmpty(), pay = doc.getString("pay").orEmpty(),
+            duration = doc.getString("duration").orEmpty(), description = doc.getString("description").orEmpty(),
+            requirements = doc.getString("requirements").orEmpty(), vacancies = (doc.getLong("vacancies") ?: 1).toInt(),
+            selectedCount = (doc.getLong("selectedCount") ?: 0).toInt(), own = owner == uid, status = doc.getString("status").orEmpty(),
+        ) to (doc.getTimestamp("createdAt")?.seconds ?: 0L)
+    }
+
+    private fun refreshItems() {
+        val items = (personalItems + ownItems + publicItems).values.sortedByDescending { it.second }.map { it.first }
+        opportunities.clear(); opportunities.addAll(items)
+    }
+
+    fun savePurpose(role: String, interests: Set<String>) {
+        val uid = userId ?: return
+        val db = services?.firestore ?: return
+        if (!profileLoaded || role !in listOf("worker", "employer")) return
+        viewModelScope.launch {
+            try { db.collection("users").document(uid).update(mapOf("role" to role, "interests" to interests.sorted())).await() }
+            catch (exception: CancellationException) { throw exception }
+            catch (_: Exception) { error = "No se pudieron guardar tus preferencias, vuelve a intentarlo" }
+        }
     }
 
     fun retry() {
@@ -179,7 +262,8 @@ class OpportunityViewModel(private val services: FirebaseServices?) : ViewModel(
         val uid = userId ?: run { error = "Inicia sesión para postular"; return }
         val db = services?.firestore ?: return
         val opportunity = find(id) ?: run { error = "La oportunidad ya no está disponible"; return }
-        if (opportunity.own || id in applications) return
+        if (opportunity.own || (id in applications && applications[id] != "withdrawn")) return
+        if (!profileReady) { error = "Completa tus habilidades y disponibilidad en tu perfil antes de postular"; return }
         if (opportunity.selectedCount >= opportunity.vacancies) {
             error = "Las vacantes de esta oportunidad ya están cubiertas"
             return
@@ -188,8 +272,18 @@ class OpportunityViewModel(private val services: FirebaseServices?) : ViewModel(
             val profile = db.collection("users").document(uid).get(Source.SERVER).await()
             val name = profile.getString("displayName") ?: throw IllegalStateException("Completa tu perfil antes de postular")
             check(services.auth.currentUser?.uid == uid)
-            db.collection("opportunities").document(id).collection("applications").document(uid).set(mapOf(
-                "applicantId" to uid, "applicantName" to name, "status" to "pending", "createdAt" to FieldValue.serverTimestamp(),
+            val skills = profile.getString("skills").orEmpty()
+            val availability = profile.getString("availability").orEmpty()
+            val experience = profile.getString("experience").orEmpty()
+            val district = profile.getString("district").orEmpty()
+            val education = profile.getString("education").orEmpty()
+            val portfolio = profile.getString("portfolio").orEmpty()
+            val ref = db.collection("opportunities").document(id).collection("applications").document(uid)
+            if (applications[id] == "withdrawn") {
+                ref.update(mapOf("status" to "pending", "applicantName" to name, "applicantSkills" to skills, "applicantAvailability" to availability, "applicantExperience" to experience, "applicantDistrict" to district, "applicantEducation" to education, "applicantPortfolio" to portfolio, "createdAt" to FieldValue.serverTimestamp(),
+                    "withdrawnAt" to FieldValue.delete(), "selectedAt" to FieldValue.delete(), "completedAt" to FieldValue.delete())).await()
+            } else ref.set(mapOf(
+                "applicantId" to uid, "applicantName" to name, "applicantSkills" to skills, "applicantAvailability" to availability, "applicantExperience" to experience, "applicantDistrict" to district, "applicantEducation" to education, "applicantPortfolio" to portfolio, "status" to "pending", "createdAt" to FieldValue.serverTimestamp(),
             )).await()
             onSuccess()
         }
@@ -211,7 +305,7 @@ class OpportunityViewModel(private val services: FirebaseServices?) : ViewModel(
                 }
                 candidates.clear()
                 snapshot?.documents.orEmpty().filterNot { it.metadata.hasPendingWrites() }.forEach { doc ->
-                    candidates.add(Candidate(doc.id, doc.getString("applicantName").orEmpty(), doc.getString("status").orEmpty()))
+                    candidates.add(Candidate(doc.id, doc.getString("applicantName").orEmpty(), doc.getString("status").orEmpty(), doc.getString("applicantSkills").orEmpty(), doc.getString("applicantExperience").orEmpty(), doc.getString("applicantAvailability").orEmpty(), doc.getString("applicantDistrict").orEmpty(), doc.getString("applicantEducation").orEmpty(), doc.getString("applicantPortfolio").orEmpty()))
                 }
             }
     }
@@ -233,6 +327,53 @@ class OpportunityViewModel(private val services: FirebaseServices?) : ViewModel(
                 transaction.update(job, mapOf("selectedCount" to selected + 1, "lastSelectedApplicantId" to candidateId))
                 transaction.update(application, mapOf("status" to "selected", "selectedAt" to FieldValue.serverTimestamp()))
             }.await()
+        }
+    }
+
+    fun withdraw(id: String, onSuccess: () -> Unit) {
+        val uid = userId ?: return
+        val db = services?.firestore ?: return
+        operation("No se confirmó el retiro, revisa tu actividad antes de reintentar") {
+            val job = db.collection("opportunities").document(id)
+            val application = job.collection("applications").document(uid)
+            db.runTransaction { tx ->
+                val current = tx.get(application)
+                val parent = tx.get(job)
+                when (current.getString("status")) {
+                    "pending" -> Unit
+                    "selected" -> {
+                        val count = parent.getLong("selectedCount") ?: 0
+                        check(count > 0)
+                        tx.update(job, mapOf("selectedCount" to count - 1, "lastWithdrawnApplicantId" to uid))
+                    }
+                    else -> error("La postulación no puede retirarse")
+                }
+                tx.update(application, mapOf("status" to "withdrawn", "withdrawnAt" to FieldValue.serverTimestamp()))
+            }.await()
+            onSuccess()
+        }
+    }
+
+    fun removeOpportunity(id: String, onSuccess: () -> Unit) {
+        val db = services?.firestore ?: return
+        if (find(id)?.own != true) return
+        operation("No se confirmó la eliminación, revisa tu actividad antes de reintentar") {
+            db.collection("opportunities").document(id).update(mapOf("status" to "removed", "removedAt" to FieldValue.serverTimestamp())).await()
+            onSuccess()
+        }
+    }
+
+    fun editOpportunity(id: String, title: String, description: String, location: String, pay: String, duration: String,
+        requirements: String, vacancies: Int, category: String, onSuccess: () -> Unit) {
+        val db = services?.firestore ?: return
+        if (find(id)?.own != true) return
+        operation("No se confirmó el cambio, revisa la publicación antes de reintentar") {
+            db.collection("opportunities").document(id).update(mapOf(
+                "title" to title.trim(), "description" to description.trim(), "location" to location.trim(), "pay" to pay.trim(),
+                "duration" to duration.trim(), "requirements" to requirements.trim(), "vacancies" to vacancies,
+                "category" to category, "updatedAt" to FieldValue.serverTimestamp(),
+            )).await()
+            onSuccess()
         }
     }
 
@@ -290,6 +431,9 @@ class OpportunityViewModel(private val services: FirebaseServices?) : ViewModel(
         opportunityListener?.remove()
         applicationListener?.remove()
         candidateListener?.remove()
+        profileListener?.remove()
+        ownListener?.remove()
+        personalListeners.values.forEach { it.remove() }
     }
 }
 
