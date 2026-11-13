@@ -18,7 +18,9 @@ Los sprints restantes describen la evolución del producto, por lo que su inclus
 
 Si el avance es menor al previsto, se priorizarán una app ejecutable, los casos principales y las pruebas de permisos, indicando con claridad los datos simulados y las funciones pendientes
 
-**Estado:** la app ya cuenta con navegación, cuenta, perfil privado, ajustes y guardados, las oportunidades, postulaciones y selección se conectaron a Firebase y el recorrido entre dos cuentas se verificó en emuladores locales, las reglas y el índice se desplegaron al proyecto de desarrollo
+**Estado:** la app cuenta con navegación, cuenta, perfil privado, ajustes y guardados con Room, las oportunidades, postulaciones y selección se conectaron a Firebase y el recorrido entre dos cuentas se verificó en emuladores locales y mediante el SDK en el proyecto de desarrollo, las reglas y el índice se desplegaron a ese proyecto
+
+Los guardados se verificaron al reiniciar, al cambiar de cuenta, sin conexión y mediante una migración desde la versión anterior, queda pendiente verificar el recorrido completo en teléfonos físicos y ampliar las pruebas de accesibilidad antes de cerrar el sprint 12
 
 La revisión del sistema visual incorporó componentes compartidos, estados de error y vacío, transiciones y adaptación de la navegación con texto ampliado, sigue pendiente la revisión manual con TalkBack y en otros dispositivos, el estado detallado del recorrido se encuentra en [Diseño y navegación](10-diseno-y-navegacion.md)
 
@@ -29,7 +31,7 @@ La revisión más amplia de accesibilidad y dispositivos corresponde al sprint 1
 | Sprint | Objetivo y entrega | Criterio de aceptación | Dependencias |
 |---|---|---|---|
 | 01 · Base Android | Crear el proyecto Kotlin con Compose, configuración de compilación y tema inicial de TuEmpuje | La aplicación compila y abre una pantalla inicial en un emulador o dispositivo | Entorno Android configurado y repositorio disponible |
-| 02 · Lenguaje visual | Crear colores, tipografía, componentes básicos y superficies con profundidad inspiradas en vidrio | Los componentes son legibles en fondos claros y oscuros, y las acciones tienen etiquetas y áreas táctiles adecuadas | Sprint 01 |
+| 02 · Lenguaje visual | Crear colores, tipografía, componentes básicos y superficies con Material 3 Expressive | Los componentes son legibles en fondos claros y oscuros, y las acciones tienen etiquetas y áreas táctiles adecuadas | Sprint 01 |
 | 03 · Navegación y primer avance | Conectar Explorar, Publicar, Actividad y Perfil, con detalle y formulario de oportunidad usando datos ficticios | Cada destino abre su pantalla, Atrás vuelve al contexto anterior y la demostración identifica los datos ficticios | Sprints 01 y 02 |
 | 04 · Acceso y perfiles | Configurar Firebase Authentication y perfiles básicos para publicar o postular con una misma cuenta | Dos cuentas de prueba pueden iniciar sesión y cada una recupera su perfil sin acceder al de otra para editarlo | Sprint 01 y acceso a un proyecto Firebase de desarrollo |
 | 05 · Datos y permisos | Definir oportunidades y postulaciones en Firestore, reglas iniciales de acceso y datos ficticios | Las operaciones permitidas y denegadas se comprueban con cuentas de prueba y reglas, sin credenciales privadas en el repositorio | Sprint 04 y Firebase configurado |
@@ -65,7 +67,7 @@ Las condiciones de pago, requisitos y tareas tendrán prioridad visual antes de 
 
 ## Dirección visual
 
-La interfaz utilizará los colores de TuEmpuje y una interpretación propia de superficies translúcidas y profundidad, reservada para controles y navegación cuando mejore la jerarquía visual
+La interfaz utiliza los colores de TuEmpuje y componentes de Material 3 Expressive, con profundidad reservada para los elementos donde ayude a reconocer la jerarquía visual
 
 Las tarjetas y formularios conservarán fondos legibles, contraste suficiente y una alternativa sólida para dispositivos o configuraciones donde la transparencia dificulte la lectura
 

@@ -55,6 +55,8 @@ class OpportunityViewModel(private val services: FirebaseServices?) : ViewModel(
         private set
     var feedError by mutableStateOf<String?>(null)
         private set
+    var feedFromCache by mutableStateOf(true)
+        private set
     var applicationsError by mutableStateOf<String?>(null)
         private set
     var candidateError by mutableStateOf<String?>(null)
@@ -84,6 +86,7 @@ class OpportunityViewModel(private val services: FirebaseServices?) : ViewModel(
         candidates.clear()
         error = null
         feedError = null
+        feedFromCache = true
         applicationsError = null
         if (uid == null || services == null) {
             loading = false
@@ -102,6 +105,7 @@ class OpportunityViewModel(private val services: FirebaseServices?) : ViewModel(
                     return@addSnapshotListener
                 }
                 feedError = null
+                feedFromCache = snapshot?.metadata?.isFromCache != false
                 val items = snapshot?.documents.orEmpty().filterNot { it.metadata.hasPendingWrites() }.mapNotNull { doc ->
                     val owner = doc.getString("ownerId") ?: return@mapNotNull null
                     Opportunity(

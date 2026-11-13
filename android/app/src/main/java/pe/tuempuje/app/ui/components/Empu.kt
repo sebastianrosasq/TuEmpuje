@@ -41,7 +41,7 @@ enum class EmpuMood(val riveValue: Float) {
 
 /** La expresión depende del estado de la interfaz, nunca del contenido de los campos. */
 @Composable
-internal fun EmpuFallback(mood: EmpuMood, modifier: Modifier = Modifier) {
+internal fun EmpuFallback(mood: EmpuMood, modifier: Modifier = Modifier, greeting: Boolean = false) {
     val motionEnabled = ValueAnimator.areAnimatorsEnabled() && LocalAppPreferences.current?.reduceMotion != true
     val owner = LocalLifecycleOwner.current
     var isVisible by remember(owner) { mutableStateOf(owner.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) }
@@ -128,7 +128,7 @@ internal fun EmpuFallback(mood: EmpuMood, modifier: Modifier = Modifier) {
         val eyesY = .65f
         if (mood != EmpuMood.PASSWORD) {
             drawLine(EmpuTeal, p(.17f, .73f), p(.09f, .78f), .055f * s, cap = StrokeCap.Round)
-            drawLine(EmpuTeal, p(.84f, .73f), p(.92f, .78f), .055f * s, cap = StrokeCap.Round)
+            if (!greeting) drawLine(EmpuTeal, p(.84f, .73f), p(.92f, .78f), .055f * s, cap = StrokeCap.Round)
         }
         if (blink && mood == EmpuMood.IDLE) {
             listOf(.43f, .66f).forEach { x ->

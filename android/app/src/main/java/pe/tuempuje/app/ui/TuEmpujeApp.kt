@@ -1,5 +1,9 @@
 package pe.tuempuje.app.ui
 
+import android.content.ActivityNotFoundException
+import android.content.Intent
+import android.content.res.Configuration
+import android.net.Uri
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.AnimatedContent
@@ -51,6 +55,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
@@ -79,8 +84,11 @@ import pe.tuempuje.app.ui.components.Empu
 import pe.tuempuje.app.ui.components.EmpuMood
 import pe.tuempuje.app.ui.components.EmpuProvider
 import pe.tuempuje.app.ui.components.EmptyIllustration
-import pe.tuempuje.app.ui.theme.Ink
+import pe.tuempuje.app.ui.components.WelcomeIntro
+import pe.tuempuje.app.ui.theme.EmpuLight
 import kotlinx.coroutines.launch
+import java.time.LocalDate
+import java.util.Locale
 
 private data class Destination(val route: String, val label: String, val icon: ImageVector, val selectedIcon: ImageVector)
 
@@ -93,7 +101,13 @@ private val destinations = listOf(
 
 @Composable
 fun TuEmpujeApp(services: FirebaseServices?, model: OpportunityViewModel = viewModel(factory = OpportunityViewModelFactory(services))) {
-    EmpuProvider { TuEmpujeContent(services, model) }
+    var showIntro by rememberSaveable { mutableStateOf(true) }
+    EmpuProvider {
+        Box(Modifier.fillMaxSize()) {
+            TuEmpujeContent(services, model)
+            if (showIntro) WelcomeIntro { showIntro = false }
+        }
+    }
 }
 
 @Composable
@@ -102,6 +116,9 @@ private fun TuEmpujeContent(services: FirebaseServices?, model: OpportunityViewM
     val preferences = LocalAppPreferences.current
     val reduceMotion = preferences?.reduceMotion == true
     LaunchedEffect(model.userId, preferences) { preferences?.selectAccount(model.userId) }
+    LaunchedEffect(model.opportunities.toList(), model.feedFromCache, preferences?.savedIds) {
+        if (!model.feedFromCache) preferences?.refreshSaved(model.opportunities.toList())
+    }
     var activityRevision by rememberSaveable { mutableIntStateOf(0) }
     val snackbar = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
@@ -228,14 +245,6 @@ private fun ExploreScreen(model: OpportunityViewModel, onSaved: () -> Unit, onSe
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
         item { BrandHeader(onSaved, onSettings) }
-        item { DemoNotice() }
-        item { Hero() }
-        item { QuickActions(onSaved, onPublish) }
-        if (model.userId == null) {
-            item { AppEmptyState("Encuentra tu próxima oportunidad", "Inicia sesión para consultar publicaciones y participar", "Ir a mi cuenta", EmptyIllustration.Search, showMascot = false, onAction = onAccount) }
-        }
-        if (model.loading) item { AppLoadingState("Cargando oportunidades") }
-        (model.feedError ?: model.error)?.let { message -> item { AppNotice(message, isError = true); TextButton(onClick = model::retry) { Text("Reintentar") } } }
         item {
             OutlinedTextField(
                 value = query,
@@ -258,10 +267,16 @@ private fun ExploreScreen(model: OpportunityViewModel, onSaved: () -> Unit, onSe
                 }
             }
         }
+        item { DemoNotice() }
+        if (model.userId == null) {
+            item { AppEmptyState("Encuentra tu próxima oportunidad", "Inicia sesión para consultar publicaciones y participar", "Ir a mi cuenta", EmptyIllustration.Search, showMascot = false, onAction = onAccount) }
+        }
+        if (model.loading) item { AppLoadingState("Cargando oportunidades") }
+        (model.feedError ?: model.error)?.let { message -> item { AppNotice(message, isError = true); TextButton(onClick = model::retry) { Text("Reintentar") } } }
         item {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Text("Oportunidades", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
-                Text("${opportunities.size} disponibles", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                if (model.userId != null) Text("${opportunities.size} resultados", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
         if (model.userId != null && !model.loading && model.feedError == null && opportunities.isEmpty()) {
@@ -273,6 +288,8 @@ private fun ExploreScreen(model: OpportunityViewModel, onSaved: () -> Unit, onSe
         items(opportunities, key = { it.id }) { opportunity ->
             OpportunityCard(opportunity, modifier = if (reduceMotion) Modifier else Modifier.animateItem()) { open(opportunity.id) }
         }
+        item { Hero() }
+        item { QuickActions(onSaved, onPublish) }
     }
 }
 
@@ -304,7 +321,7 @@ private fun QuickAction(title: String, description: String, icon: ImageVector, m
 private fun BrandHeader(onSaved: () -> Unit, onSettings: () -> Unit) {
     Row(verticalAlignment = Alignment.CenterVertically) {
         Box(
-            Modifier.size(40.dp).clip(RoundedCornerShape(13.dp)).background(Ink),
+            Modifier.size(40.dp).clip(RoundedCornerShape(13.dp)).background(EmpuLight),
             contentAlignment = Alignment.Center,
         ) { Image(painterResource(R.drawable.tuempuje_symbol), contentDescription = "Símbolo de TuEmpuje", modifier = Modifier.size(24.dp)) }
         Spacer(Modifier.width(10.dp))
@@ -364,28 +381,45 @@ private fun EmpuPreview(onBack: () -> Unit) {
 
 @Composable
 private fun SavedScreen(model: OpportunityViewModel, onBack: () -> Unit, onExplore: () -> Unit, open: (String) -> Unit) {
-    val reduceMotion = LocalAppPreferences.current?.reduceMotion == true
-    val savedIds = LocalAppPreferences.current?.savedIds.orEmpty()
-    val saved = model.opportunities.filter { it.id in savedIds }
+    val preferences = LocalAppPreferences.current
+    val reduceMotion = preferences?.reduceMotion == true
+    val saved = preferences?.savedItems.orEmpty()
     LazyColumn(contentPadding = PaddingValues(22.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
         item { TextButton(onClick = onBack) { Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = null); Text("Volver") } }
         item { Text("Tus guardados", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold) }
         item { Text("Las oportunidades que marcas se guardan en este dispositivo", style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant) }
-        if (saved.isEmpty()) {
+        preferences?.savedError?.let { message -> item { AppNotice(message, isError = true) } }
+        if (saved.isNotEmpty() && (model.feedFromCache || saved.any { model.find(it.id) == null })) {
+            item { AppNotice("Algunas oportunidades son copias guardadas, su disponibilidad necesita conexión para confirmarse") }
+        }
+        if (preferences?.savedLoading == true) item { AppLoadingState("Cargando guardados") }
+        if (saved.isEmpty() && preferences?.savedError == null && preferences?.savedLoading != true) {
             item { AppEmptyState("Aún no tienes guardados", "Marca una oportunidad para encontrarla aquí", "Explorar oportunidades", EmptyIllustration.Search, onAction = onExplore) }
         }
-        items(saved, key = { it.id }) { opportunity ->
-            OpportunityCard(opportunity, modifier = if (reduceMotion) Modifier else Modifier.animateItem()) { open(opportunity.id) }
+        items(saved, key = { it.id }) { item ->
+            val current = model.find(item.id)
+            val opportunity = current ?: item.asOpportunity()
+            if (opportunity != null) {
+                OpportunityCard(opportunity, modifier = if (reduceMotion) Modifier else Modifier.animateItem(), onClick = if (current != null) ({ open(item.id) }) else null)
+            } else {
+                Surface(shape = MaterialTheme.shapes.large, color = MaterialTheme.colorScheme.surface) {
+                    Column(Modifier.fillMaxWidth().padding(18.dp)) {
+                        Text("Oportunidad guardada", style = MaterialTheme.typography.titleMedium)
+                        Text("Conéctate para recuperar sus detalles", style = MaterialTheme.typography.bodyMedium)
+                        TextButton(onClick = { preferences?.removeSaved(item.id) }) { Text("Quitar de guardados") }
+                    }
+                }
+            }
         }
     }
 }
 
 @Composable
-private fun OpportunityCard(opportunity: Opportunity, status: String? = null, modifier: Modifier = Modifier, onClick: () -> Unit) {
+private fun OpportunityCard(opportunity: Opportunity, status: String? = null, modifier: Modifier = Modifier, onClick: (() -> Unit)?) {
     val preferences = LocalAppPreferences.current
     val saved = opportunity.id in preferences?.savedIds.orEmpty()
     Surface(
-        modifier = modifier.fillMaxWidth().clickable(role = Role.Button, onClick = onClick),
+        modifier = modifier.fillMaxWidth().then(if (onClick != null) Modifier.clickable(role = Role.Button, onClick = onClick) else Modifier),
         shape = MaterialTheme.shapes.large,
         color = MaterialTheme.colorScheme.surface,
         border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
@@ -410,7 +444,7 @@ private fun OpportunityCard(opportunity: Opportunity, status: String? = null, mo
                 }
                 Spacer(Modifier.weight(1f))
                 if (preferences != null) {
-                    IconButton(onClick = { preferences.toggleSaved(opportunity.id) }) {
+                    IconButton(onClick = { preferences.toggleSaved(opportunity) }) {
                         Icon(
                             if (saved) Icons.Rounded.Bookmark else Icons.Rounded.BookmarkBorder,
                             contentDescription = if (saved) "Quitar de guardados" else "Guardar oportunidad",
@@ -418,13 +452,14 @@ private fun OpportunityCard(opportunity: Opportunity, status: String? = null, mo
                         )
                     }
                 }
-                Icon(Icons.AutoMirrored.Rounded.ArrowForward, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(18.dp))
+                if (onClick != null) Icon(Icons.AutoMirrored.Rounded.ArrowForward, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(18.dp))
             }
             Text(opportunity.title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
             Text(opportunity.organization, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             if (status != null) {
-                Surface(shape = MaterialTheme.shapes.small, color = MaterialTheme.colorScheme.tertiaryContainer) {
-                    Text(status, modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onTertiaryContainer)
+                val selected = status == "Seleccionada"
+                Surface(shape = MaterialTheme.shapes.small, color = if (selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.secondaryContainer) {
+                    Text(status, modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp), style = MaterialTheme.typography.labelMedium, color = if (selected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSecondaryContainer)
                 }
             }
             Spacer(Modifier.height(2.dp))
@@ -442,9 +477,12 @@ private fun OpportunityCard(opportunity: Opportunity, status: String? = null, mo
 @Composable
 private fun DetailScreen(opportunity: Opportunity?, model: OpportunityViewModel, onBack: () -> Unit, onCandidates: (String) -> Unit, onApplied: () -> Unit) {
     var confirmApplication by rememberSaveable(opportunity?.id) { mutableStateOf(false) }
+    var mapUnavailable by rememberSaveable { mutableStateOf(false) }
+    val context = LocalContext.current
     if (confirmApplication && opportunity != null && !opportunity.own) {
         AlertDialog(
             onDismissRequest = { confirmApplication = false },
+            icon = { Empu(EmpuMood.THINKING, Modifier.size(112.dp)) },
             title = { Text("Confirmar postulación") },
             text = { Text("Tu nombre se compartirá con quien publicó ${opportunity.title}") },
             confirmButton = { TextButton(onClick = { model.apply(opportunity.id, onApplied); confirmApplication = false }, enabled = !model.busy) { Text("Enviar postulación") } },
@@ -468,8 +506,21 @@ private fun DetailScreen(opportunity: Opportunity?, model: OpportunityViewModel,
             Surface(shape = MaterialTheme.shapes.large, color = MaterialTheme.colorScheme.secondaryContainer, modifier = Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     DetailRow("Ubicación", opportunity.location)
+                    if (opportunity.location.trim().lowercase(Locale.ROOT) !in setOf("remoto", "virtual", "en línea", "online")) {
+                        TextButton(onClick = {
+                            try {
+                                val query = Uri.encode(opportunity.location)
+                                context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("geo:0,0?q=$query")))
+                                mapUnavailable = false
+                            } catch (_: ActivityNotFoundException) {
+                                mapUnavailable = true
+                            }
+                        }) { Text("Buscar ubicación en el mapa") }
+                        if (mapUnavailable) Text("No se encontró una aplicación de mapas", style = MaterialTheme.typography.bodySmall)
+                        Text("Comprueba el lugar con quien publicó la oportunidad", style = MaterialTheme.typography.bodySmall)
+                    }
                     DetailRow("Pago ofrecido", opportunity.pay)
-                    DetailRow("Duración", opportunity.duration)
+                    DetailRow("Fecha y duración", opportunity.duration)
                     DetailRow("Vacantes", opportunity.vacancies.toString())
                 }
             }
@@ -502,6 +553,7 @@ private fun CandidatesScreen(opportunity: Opportunity?, model: OpportunityViewMo
     selected?.let { candidate ->
         AlertDialog(
             onDismissRequest = { selected = null },
+            icon = { Empu(EmpuMood.THINKING, Modifier.size(112.dp)) },
             title = { Text("Seleccionar postulante") },
             text = { Text("Seleccionarás a ${candidate.name} para esta oportunidad, esto no confirma un pago") },
             confirmButton = { TextButton(enabled = !model.busy && opportunity != null, onClick = { opportunity?.let { model.selectCandidate(it.id, candidate.id) }; selected = null }) { Text("Seleccionar") } },
@@ -559,6 +611,7 @@ private fun DetailRow(label: String, value: String) {
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun PublishScreen(model: OpportunityViewModel, onBack: () -> Unit, onAccount: () -> Unit, onPublished: () -> Unit) {
     var title by rememberSaveable { mutableStateOf("") }
@@ -566,29 +619,45 @@ private fun PublishScreen(model: OpportunityViewModel, onBack: () -> Unit, onAcc
     var location by rememberSaveable { mutableStateOf("") }
     var pay by rememberSaveable { mutableStateOf("") }
     var duration by rememberSaveable { mutableStateOf("") }
+    var selectedDate by rememberSaveable { mutableStateOf<Long?>(null) }
+    var flexibleDate by rememberSaveable { mutableStateOf(false) }
     var requirements by rememberSaveable { mutableStateOf("") }
     var vacancies by rememberSaveable { mutableStateOf("1") }
     var category by rememberSaveable { mutableStateOf("Ayudantía") }
     var showError by rememberSaveable { mutableStateOf(false) }
+    var step by rememberSaveable { mutableIntStateOf(0) }
     var confirmDiscard by rememberSaveable { mutableStateOf(false) }
+    var confirmPublish by rememberSaveable { mutableStateOf(false) }
+    var showCalendar by rememberSaveable { mutableStateOf(false) }
+    var showAiInfo by rememberSaveable { mutableStateOf(false) }
     val scrollState = rememberScrollState()
     val scope = rememberCoroutineScope()
+    val today = LocalDate.now()
+    val todayMillis = dateAsUtcMillis(today)
+    val schedule = workSchedule(selectedDate, duration, flexibleDate)
+    val schedulePrefix = workSchedule(selectedDate, "", flexibleDate)
     val invalidVacancies = vacancies.toIntOrNull() !in 1..99
-    val invalidCount = listOf(
+    val workErrors = listOf(
         title.trim().length !in 3..120,
         description.trim().length !in 10..3000,
         requirements.trim().length !in 2..1500,
+    ).count { it }
+    val conditionErrors = listOf(
         location.trim().length !in 2..120,
         pay.trim().length !in 3..120,
-        duration.trim().length !in 2..120,
+        schedule.length !in 2..120 || (selectedDate != null && selectedDate!! < todayMillis),
         invalidVacancies,
     ).count { it }
-    val hasDraft = listOf(title, description, location, pay, duration, requirements).any { it.isNotBlank() } || vacancies != "1" || category != "Ayudantía"
+    val invalidCount = if (step == 0) workErrors else conditionErrors
+    val hasDraft = listOf(title, description, location, pay, duration, requirements).any { it.isNotBlank() } || selectedDate != null || flexibleDate || vacancies != "1" || category != "Ayudantía"
 
-    BackHandler(enabled = hasDraft) { confirmDiscard = true }
+    BackHandler(enabled = hasDraft || step > 0) {
+        if (step > 0) { step--; showError = false } else confirmDiscard = true
+    }
     if (confirmDiscard) {
         AlertDialog(
             onDismissRequest = { confirmDiscard = false },
+            icon = { Empu(EmpuMood.SAD, Modifier.size(112.dp)) },
             title = { Text("¿Descartar esta publicación?") },
             text = { Text("Los datos que ingresaste se perderán") },
             confirmButton = {
@@ -598,6 +667,69 @@ private fun PublishScreen(model: OpportunityViewModel, onBack: () -> Unit, onAcc
                 TextButton(onClick = { confirmDiscard = false }) { Text("Seguir editando") }
             },
         )
+    }
+    if (showAiInfo) {
+        AlertDialog(
+            onDismissRequest = { showAiInfo = false },
+            icon = { Empu(EmpuMood.THINKING, Modifier.size(112.dp)) },
+            title = { Text("Redactar con ayuda de IA") },
+            text = { Text("Más adelante podrás describir lo que necesitas y recibir un borrador para revisar y editar antes de publicar. La herramienta aún no está disponible") },
+            confirmButton = { TextButton(onClick = { showAiInfo = false }) { Text("Entendido") } },
+        )
+    }
+    if (confirmPublish) {
+        AlertDialog(
+            onDismissRequest = { if (!model.busy) confirmPublish = false },
+            icon = { Empu(EmpuMood.THINKING, Modifier.size(112.dp)) },
+            title = { Text("¿Publicar esta oportunidad?") },
+            text = { Text("Se mostrará a las personas de TuEmpuje con las condiciones que acabas de revisar") },
+            confirmButton = {
+                TextButton(enabled = !model.busy, onClick = {
+                    model.publish(title, description, location, pay, schedule, requirements, vacancies.toIntOrNull() ?: 0, category) {
+                        title = ""; description = ""; location = ""; pay = ""; duration = ""; selectedDate = null; flexibleDate = false; requirements = ""; vacancies = "1"; category = "Ayudantía"
+                        showError = false; confirmPublish = false; step = 0
+                        onPublished()
+                    }
+                    confirmPublish = false
+                }) { Text("Publicar") }
+            },
+            dismissButton = { TextButton(enabled = !model.busy, onClick = { confirmPublish = false }) { Text("Seguir revisando") } },
+        )
+    }
+    if (showCalendar) {
+        val context = LocalContext.current
+        val currentConfiguration = LocalConfiguration.current
+        val locale = remember { Locale.forLanguageTag("es-PE") }
+        val configuration = remember(currentConfiguration, locale) { Configuration(currentConfiguration).apply { setLocale(locale) } }
+        val localizedContext = remember(context, configuration) { context.createConfigurationContext(configuration) }
+        val selectable = remember(todayMillis) {
+            object : SelectableDates {
+                override fun isSelectableDate(utcTimeMillis: Long) = utcTimeMillis >= todayMillis
+                override fun isSelectableYear(year: Int) = year >= today.year
+            }
+        }
+        val datePicker = remember(selectedDate, todayMillis) {
+            DatePickerState(locale = locale, initialSelectedDateMillis = selectedDate?.takeIf { it >= todayMillis }, selectableDates = selectable)
+        }
+        CompositionLocalProvider(LocalContext provides localizedContext, LocalConfiguration provides configuration) {
+            DatePickerDialog(
+                onDismissRequest = { showCalendar = false },
+                confirmButton = {
+                    TextButton(enabled = datePicker.selectedDateMillis != null, onClick = {
+                        selectedDate = datePicker.selectedDateMillis
+                        flexibleDate = false
+                        showCalendar = false
+                    }) { Text("Usar fecha") }
+                },
+                dismissButton = { TextButton(onClick = { showCalendar = false }) { Text("Cancelar") } },
+            ) {
+                DatePicker(
+                    state = datePicker,
+                    title = { Text("Selecciona una fecha", modifier = Modifier.padding(start = 24.dp, top = 16.dp)) },
+                    headline = { Text(datePicker.selectedDateMillis?.let(::displayWorkDate) ?: "Elige un día", modifier = Modifier.padding(start = 24.dp, bottom = 12.dp)) },
+                )
+            }
+        }
     }
     Column(Modifier.fillMaxSize().verticalScroll(scrollState).padding(22.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -613,46 +745,86 @@ private fun PublishScreen(model: OpportunityViewModel, onBack: () -> Unit, onAcc
             OutlinedButton(onClick = onAccount, modifier = Modifier.fillMaxWidth()) { Text("Ir a mi cuenta") }
         }
         model.error?.let { AppNotice(it, isError = true) }
+        Text("Paso ${step + 1} de 3 · ${listOf("Trabajo", "Condiciones", "Revisión")[step]}", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
+        LinearProgressIndicator(progress = { (step + 1) / 3f }, modifier = Modifier.fillMaxWidth())
         AnimatedVisibility(visible = showError && invalidCount > 0) {
             AppNotice("Revisa los campos marcados, faltan o necesitan corrección: $invalidCount", isError = true)
         }
-        FormSectionHeading("01", "La oportunidad", "Describe el apoyo que necesitas")
-        Text("Tipo de trabajo", style = MaterialTheme.typography.labelLarge)
-        LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            items(listOf("Ayudantía", "Creativo", "Eventos", "Otro")) { item ->
-                FilterChip(selected = category == item, onClick = { category = item }, label = { Text(item) })
-            }
-        }
-        DraftField(title, { title = it }, "Título de la oportunidad", "Escribe entre 3 y 120 caracteres", showError, minLength = 3, maxLength = 120)
-        DraftField(description, { description = it }, "Tareas a realizar", "Escribe entre 10 y 3000 caracteres", showError, multiline = true, minLength = 10, maxLength = 3000)
-        DraftField(requirements, { requirements = it }, "Conocimientos o requisitos", "Escribe entre 2 y 1500 caracteres", showError, multiline = true, minLength = 2, maxLength = 1500)
-        FormSectionHeading("02", "Condiciones", "Aclara el tiempo, el lugar y el pago")
-        DraftField(location, { location = it }, "Ubicación o remoto", "Escribe entre 2 y 120 caracteres", showError, minLength = 2, maxLength = 120)
-        DraftField(pay, { pay = it }, "Pago y unidad, por ejemplo S/ 60 por día", "Escribe entre 3 y 120 caracteres", showError, minLength = 3, maxLength = 120)
-        DraftField(duration, { duration = it }, "Duración o fecha", "Escribe entre 2 y 120 caracteres", showError, minLength = 2, maxLength = 120)
-        OutlinedTextField(
-            value = vacancies,
-            onValueChange = { vacancies = it.filter(Char::isDigit).take(2) },
-            label = { Text("Número de vacantes") },
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-            isError = showError && invalidVacancies,
-            supportingText = if (showError && invalidVacancies) { { Text("Indica entre 1 y 99 vacantes") } } else null,
-            singleLine = true,
-            modifier = Modifier.fillMaxWidth(),
-            shape = MaterialTheme.shapes.medium,
-        )
-        Text("La publicación mostrará el nombre de tu cuenta", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        AppPrimaryButton("Publicar oportunidad", enabled = model.userId != null && !model.busy, onClick = {
-            if (invalidCount == 0) {
-                model.publish(title, description, location, pay, duration, requirements, vacancies.toIntOrNull() ?: 0, category) {
-                    title = ""; description = ""; location = ""; pay = ""; duration = ""; requirements = ""; vacancies = "1"; category = "Ayudantía"; showError = false
-                    onPublished()
+        if (step == 0) {
+            FormSectionHeading("01", "Trabajo", "Describe el apoyo que necesitas")
+            OutlinedButton(onClick = { showAiInfo = true }, modifier = Modifier.fillMaxWidth()) { Text("Redactar con IA · Próximamente") }
+            Text("Tipo de trabajo", style = MaterialTheme.typography.labelLarge)
+            LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                items(listOf("Ayudantía", "Creativo", "Eventos", "Otro")) { item ->
+                    FilterChip(selected = category == item, onClick = { category = item }, label = { Text(item) })
                 }
-            } else {
-                showError = true
-                scope.launch { scrollState.animateScrollTo(0) }
             }
-        })
+            DraftField(title, { title = it }, "Título de la oportunidad", "Escribe entre 3 y 120 caracteres", showError, minLength = 3, maxLength = 120)
+            DraftField(description, { description = it }, "Tareas a realizar", "Escribe entre 10 y 3000 caracteres", showError, multiline = true, minLength = 10, maxLength = 3000)
+            DraftField(requirements, { requirements = it }, "Conocimientos o requisitos", "Escribe entre 2 y 1500 caracteres", showError, multiline = true, minLength = 2, maxLength = 1500)
+        } else if (step == 1) {
+            FormSectionHeading("02", "Condiciones", "Aclara el tiempo, el lugar y el pago")
+            DraftField(location, { location = it }, "Ubicación o remoto", "Escribe entre 2 y 120 caracteres", showError, minLength = 2, maxLength = 120)
+            DraftField(pay, { pay = it }, "Pago y unidad, por ejemplo S/ 60 por día", "Escribe entre 3 y 120 caracteres", showError, minLength = 3, maxLength = 120)
+            Text("¿Cuándo será?", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+            Text("Puedes elegir hoy o una fecha futura, o dejar la fecha por coordinar", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                item { FilterChip(selected = selectedDate == todayMillis, onClick = { selectedDate = todayMillis; flexibleDate = false }, label = { Text("Hoy") }) }
+                item { FilterChip(selected = selectedDate == dateAsUtcMillis(today.plusDays(1)), onClick = { selectedDate = dateAsUtcMillis(today.plusDays(1)); flexibleDate = false }, label = { Text("Mañana") }) }
+                item { FilterChip(selected = flexibleDate, onClick = { selectedDate = null; flexibleDate = true }, label = { Text("Por coordinar") }) }
+            }
+            OutlinedButton(onClick = { showCalendar = true }, modifier = Modifier.fillMaxWidth()) {
+                Text(selectedDate?.let { "Cambiar fecha · ${displayWorkDate(it)}" } ?: "Elegir una fecha en el calendario")
+            }
+            if (showError && selectedDate != null && selectedDate!! < todayMillis) Text("Elige una fecha de hoy en adelante", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+            DraftField(
+                duration, { duration = it }, "Duración u horario",
+                if (schedulePrefix.isEmpty()) "Indica una duración u horario o elige una fecha" else "Acorta la duración u horario",
+                showError, minLength = if (schedulePrefix.isEmpty()) 2 else 0, maxLength = if (schedulePrefix.isEmpty()) 120 else 117 - schedulePrefix.length,
+            )
+            Text("Por ejemplo: 4 horas, por las tardes o por coordinar", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            OutlinedTextField(
+                value = vacancies,
+                onValueChange = { vacancies = it.filter(Char::isDigit).take(2) },
+                label = { Text("Número de vacantes") },
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                isError = showError && invalidVacancies,
+                supportingText = if (showError && invalidVacancies) { { Text("Indica entre 1 y 99 vacantes") } } else null,
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth(),
+                shape = MaterialTheme.shapes.medium,
+            )
+        } else {
+            FormSectionHeading("03", "Revisión", "Comprueba la información antes de publicar")
+            Surface(shape = MaterialTheme.shapes.large, color = MaterialTheme.colorScheme.surface, modifier = Modifier.fillMaxWidth()) {
+                Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                    DetailRow("Tipo de trabajo", category)
+                    DetailRow("Título", title.trim())
+                    DetailRow("Tareas", description.trim())
+                    DetailRow("Conocimientos", requirements.trim())
+                    DetailRow("Ubicación", location.trim())
+                    DetailRow("Pago", pay.trim())
+                    DetailRow("Fecha y duración", schedule)
+                    DetailRow("Vacantes", vacancies)
+                }
+            }
+            Text("La publicación mostrará el nombre de tu cuenta", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        if (step < 2) {
+            AppPrimaryButton("Continuar", enabled = !model.busy, onClick = {
+                if (invalidCount == 0) { step++; showError = false } else showError = true
+                scope.launch { scrollState.animateScrollTo(0) }
+            })
+        } else {
+            AppPrimaryButton("Publicar oportunidad", enabled = model.userId != null && !model.busy, onClick = {
+                if (workErrors > 0 || conditionErrors > 0) {
+                    step = if (workErrors > 0) 0 else 1
+                    showError = true
+                    scope.launch { scrollState.animateScrollTo(0) }
+                } else confirmPublish = true
+            })
+        }
+        if (step > 0) TextButton(enabled = !model.busy, onClick = { step--; showError = false; scope.launch { scrollState.animateScrollTo(0) } }) { Text("Paso anterior") }
         if (model.busy) AppLoadingState("Publicando oportunidad")
     }
 }
@@ -714,6 +886,9 @@ private fun ActivityScreen(model: OpportunityViewModel, activityRevision: Int, o
                 item { FilterChip(selected = section == "Postulaciones", onClick = { section = "Postulaciones" }, label = { Text("Postulaciones (${myApplications.size})") }) }
             }
         }
+        if (model.userId != null) item {
+            Text(if (section == "Publicaciones") "Oportunidades que publicaste" else "Oportunidades a las que postulaste", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+        }
         if (model.userId == null || model.loading || model.applicationsLoading || model.error != null || model.feedError != null || model.applicationsError != null) {
             Unit
         } else if (myPosts.isEmpty() && myApplications.isEmpty()) {
@@ -735,7 +910,7 @@ private fun ActivityScreen(model: OpportunityViewModel, activityRevision: Int, o
             items(myPosts, key = { "post-${it.id}" }) { item -> OpportunityCard(item, "Publicada", if (reduceMotion) Modifier else Modifier.animateItem()) { open(item.id) } }
         } else {
             if (myApplications.isEmpty()) item { AppEmptyState("Aún no tienes postulaciones", "Explora las oportunidades y encuentra una para ti", "Explorar oportunidades", EmptyIllustration.Applications) { openDestination("explorar") } }
-            items(myApplications, key = { "application-${it.id}" }) { item -> OpportunityCard(item, if (model.applications[item.id] == "selected") "Seleccionada" else "Enviada", if (reduceMotion) Modifier else Modifier.animateItem()) { open(item.id) } }
+            items(myApplications, key = { "application-${it.id}" }) { item -> OpportunityCard(item, if (model.applications[item.id] == "selected") "Seleccionada" else "Postulación enviada", if (reduceMotion) Modifier else Modifier.animateItem()) { open(item.id) } }
         }
     }
 }

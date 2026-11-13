@@ -52,6 +52,7 @@ import androidx.credentials.ClearCredentialStateRequest
 import androidx.credentials.CustomCredential
 import androidx.credentials.GetCredentialRequest
 import androidx.credentials.exceptions.GetCredentialCancellationException
+import androidx.credentials.exceptions.NoCredentialException
 import com.google.android.libraries.identity.googleid.GetSignInWithGoogleOption
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
 import com.google.firebase.auth.FirebaseAuth
@@ -78,10 +79,32 @@ fun AccountScreen(auth: FirebaseAuth, firestore: FirebaseFirestore, isLocal: Boo
     val context = LocalContext.current
     val credentialManager = remember(context) { CredentialManager.create(context) }
     val scope = rememberCoroutineScope()
+    var confirmSignOut by rememberSaveable(state.uid) { mutableStateOf(false) }
+    var showCvInfo by rememberSaveable { mutableStateOf(false) }
     val signOut = {
         account.signOut()
         scope.launch { runCatching { credentialManager.clearCredentialState(ClearCredentialStateRequest()) } }
         Unit
+    }
+
+    if (confirmSignOut) {
+        AlertDialog(
+            onDismissRequest = { confirmSignOut = false },
+            icon = { Empu(EmpuMood.THINKING, Modifier.size(112.dp)) },
+            title = { Text("¿Cerrar sesión?") },
+            text = { Text("Podrás volver a entrar con tu cuenta cuando quieras") },
+            confirmButton = { TextButton(onClick = { confirmSignOut = false; signOut() }) { Text("Cerrar sesión") } },
+            dismissButton = { TextButton(onClick = { confirmSignOut = false }) { Text("Quedarme") } },
+        )
+    }
+    if (showCvInfo) {
+        AlertDialog(
+            onDismissRequest = { showCvInfo = false },
+            icon = { Empu(EmpuMood.THINKING, Modifier.size(112.dp)) },
+            title = { Text("Tu futuro CV") },
+            text = { Text("Más adelante podrás recibir recomendaciones y preparar un CV con la información que decidas proporcionar. Esta herramienta aún no está disponible") },
+            confirmButton = { TextButton(onClick = { showCvInfo = false }) { Text("Entendido") } },
+        )
     }
 
     LaunchedEffect(state.error) {
@@ -118,11 +141,15 @@ fun AccountScreen(auth: FirebaseAuth, firestore: FirebaseFirestore, isLocal: Boo
         state.message?.let { AppNotice(it) }
         when {
             state.uid == null -> AuthForm(account, state.loading, state.error != null)
-            state.profileLoadFailed -> ProfileUnavailable(account, state.loading, signOut)
-            else -> ProfileForm(state, account, onShowExperience = { showExperience = true }, onSignOut = signOut)
+            state.profileLoadFailed -> ProfileUnavailable(account, state.loading) { confirmSignOut = true }
+            else -> ProfileForm(state, account, onShowExperience = { showExperience = true }, onSignOut = { confirmSignOut = true })
         }
+        if (state.uid != null) {
+            Text("Tu desarrollo", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+            OutlinedButton(onClick = { showCvInfo = true }, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) { Text("Asistente para mi CV · Próximamente") }
+        }
+        Text("Tu espacio", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
         OutlinedButton(onClick = onSaved, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) { Text("Oportunidades guardadas") }
-        OutlinedButton(onClick = onSettings, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) { Text("Personalizar aplicación") }
         if (BuildConfig.DEBUG) {
             TextButton(onClick = onMascotDemo) { Text("Probar expresiones de Empu") }
         }
@@ -211,6 +238,8 @@ private fun AuthForm(account: AccountViewModel, loading: Boolean, hasError: Bool
                                 account.reportGoogleError("No se pudo leer la credencial de Google")
                             }
                         } catch (_: GetCredentialCancellationException) {
+                        } catch (_: NoCredentialException) {
+                            account.reportGoogleError("No se encontró una cuenta de Google disponible en este dispositivo")
                         } catch (exception: CancellationException) {
                             throw exception
                         } catch (_: Exception) {
@@ -309,6 +338,7 @@ private fun ExperienceEditor(state: AccountUiState, account: AccountViewModel, o
     if (confirmDiscard) {
         AlertDialog(
             onDismissRequest = { confirmDiscard = false },
+            icon = { Empu(EmpuMood.THINKING, Modifier.size(112.dp)) },
             title = { Text("¿Descartar los cambios?") },
             text = { Text("Los cambios que no guardaste se perderán") },
             confirmButton = { TextButton(onClick = { confirmDiscard = false; onBack() }) { Text("Salir") } },

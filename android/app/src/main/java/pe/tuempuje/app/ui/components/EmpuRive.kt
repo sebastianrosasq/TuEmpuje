@@ -4,8 +4,16 @@ import android.animation.ValueAnimator
 import android.util.Log
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.WaterDrop
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
@@ -15,7 +23,11 @@ import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.sp
 import app.rive.Result as RiveResult
 import app.rive.RenderBackend
 import app.rive.Rive
@@ -66,15 +78,35 @@ fun EmpuProvider(content: @Composable () -> Unit) {
 }
 
 @Composable
-fun Empu(mood: EmpuMood, modifier: Modifier = Modifier) {
-    val file = LocalEmpuFile.current
+fun Empu(mood: EmpuMood, modifier: Modifier = Modifier, greeting: Boolean = false) {
     val preferences = LocalAppPreferences.current
     if (preferences?.showMascot == false) {
         Spacer(modifier.aspectRatio(1f))
         return
     }
+    BoxWithConstraints(modifier.aspectRatio(1f).clearAndSetSemantics { }) {
+        EmpuArtwork(mood, Modifier.matchParentSize(), greeting)
+        when (mood) {
+            EmpuMood.THINKING -> Text(
+                "?", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold,
+                fontSize = (maxWidth.value * .25f).sp,
+                modifier = Modifier.align(Alignment.TopEnd).padding(end = maxWidth * .08f),
+            )
+            EmpuMood.SAD -> Icon(
+                Icons.Rounded.WaterDrop, contentDescription = null, tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.align(Alignment.TopEnd).padding(end = maxWidth * .08f, top = maxWidth * .13f).size(maxWidth * .16f),
+            )
+            else -> Unit
+        }
+    }
+}
+
+@Composable
+private fun EmpuArtwork(mood: EmpuMood, modifier: Modifier = Modifier, greeting: Boolean = false) {
+    val file = LocalEmpuFile.current
+    val preferences = LocalAppPreferences.current
     if (!ValueAnimator.areAnimatorsEnabled() || preferences?.reduceMotion == true || file !is RiveResult.Success) {
-        EmpuFallback(mood, modifier)
+        EmpuFallback(mood, modifier, greeting)
         return
     }
     val instance = rememberViewModelInstanceResult(file.value, ViewModelSource.Named("EmpuData").defaultInstance())
@@ -87,7 +119,7 @@ fun Empu(mood: EmpuMood, modifier: Modifier = Modifier) {
             LaunchedEffect(instance.value, mood) { instance.value.setNumber("mood", mood.riveValue) }
             var frameReady by remember(file.value, instance.value) { mutableStateOf(false) }
             Box(modifier.aspectRatio(1f)) {
-                if (!frameReady) EmpuFallback(mood, Modifier.fillMaxSize())
+                if (!frameReady) EmpuFallback(mood, Modifier.fillMaxSize(), greeting)
                 Rive(
                     file = file.value,
                     viewModelInstance = instance.value,
@@ -97,6 +129,6 @@ fun Empu(mood: EmpuMood, modifier: Modifier = Modifier) {
                 )
             }
         }
-        else -> EmpuFallback(mood, modifier)
+        else -> EmpuFallback(mood, modifier, greeting)
     }
 }

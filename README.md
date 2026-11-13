@@ -51,11 +51,11 @@ Las tecnologías pueden ajustarse según los requisitos del curso y las necesida
 
 El proyecto se encuentra en **desarrollo inicial**
 
-El repositorio incluye una aplicación Android en desarrollo con navegación, cuenta, perfil, ajustes y guardados locales
+El repositorio incluye una aplicación Android en desarrollo con navegación, cuenta, perfil, ajustes y guardados locales con Room
 
 Las cuentas y los perfiles pueden probarse con los emuladores locales o con un proyecto Firebase de desarrollo en la nube, utilizando datos ficticios
 
-Las oportunidades, postulaciones y selección de candidatos están conectadas a Firestore en el entorno de desarrollo, las reglas y el recorrido entre cuentas se verificaron con los emuladores de Firebase
+Las oportunidades, postulaciones y selección de candidatos están conectadas a Firestore en el entorno de desarrollo, el recorrido se verificó entre cuentas en emuladores locales y mediante el SDK en Firebase de desarrollo
 
 El acceso con Google está integrado y configurado en el proyecto de desarrollo, queda por probar el inicio de sesión completo con una cuenta de Google en un teléfono compatible
 
@@ -95,6 +95,7 @@ Ambas compilaciones usan la misma ruta de salida del APK, por lo que la última 
 | [Plan de trabajo y pruebas](docs/02-plan-y-pruebas.md) | Prioridades, entregables y escenarios de prueba |
 | [Plan de 16 sprints](docs/09-sprints.md) | Objetivos, dependencias y criterios de aceptación |
 | [Diseño y navegación](docs/10-diseno-y-navegacion.md) | Dirección visual, recorridos e interacciones |
+| [Asistencia y ubicación](docs/12-asistencia-y-ubicacion.md) | Funciones futuras de IA y alternativas para mapas |
 | [Temas del curso](docs/05-temas-del-curso.md) | Aplicación de Kotlin, Compose, Room y Firebase |
 | [Plan de inteligencia artificial](docs/06-plan-inteligencia-artificial.md) | Asistencia con Gemini y evaluación de un modelo propio |
 | [Diseño de interfaces](docs/04-diseno.md) | Criterios de diseño y pantallas principales |

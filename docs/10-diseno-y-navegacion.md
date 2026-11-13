@@ -9,6 +9,7 @@ Las capturas muestran etapas del diseño de Android con datos ficticios de desar
 <img src="assets/explorar-rediseño.png" alt="Explorar en el rediseño de TuEmpuje" width="280">
 <img src="assets/publicar-rediseño.png" alt="Formulario de publicación en el rediseño de TuEmpuje" width="280">
 <img src="assets/ajustes-personalizacion.png" alt="Opciones de personalización de TuEmpuje" width="280">
+<img src="assets/calendario-publicacion.png" alt="Selector de fecha para una publicación de prueba" width="280">
 <img src="assets/perfil-rediseño.png" alt="Pantalla de cuenta en el rediseño de TuEmpuje" width="280">
 
 La [captura anterior de Explorar](assets/explorar-antes.png) permite comparar la jerarquía y los espacios
@@ -59,8 +60,8 @@ La aplicación contempla cuatro destinos principales al mismo nivel, una cantida
 
 | Destino | Función prevista | Acciones principales |
 |---|---|---|
-| Explorar | Descubrir oportunidades disponibles | Buscar, filtrar, abrir una oportunidad y revisar sus condiciones |
-| Publicar | Crear una oportunidad para una tarea o ayudantía | Completar el formulario, revisar datos y publicar cuando exista conexión y autorización |
+| Explorar | Descubrir oportunidades disponibles | Buscar y filtrar desde el inicio, abrir una oportunidad y revisar sus condiciones |
+| Publicar | Crear una oportunidad para una tarea o ayudantía | Completar trabajo y condiciones, revisar y confirmar la publicación cuando exista conexión y autorización |
 | Actividad | Seguir la participación del usuario | Consultar postulaciones y publicaciones propias, revisar candidatos y estados |
 | Perfil | Administrar la información de la cuenta | Iniciar o cerrar sesión, editar el nombre y guardar habilidades privadas |
 
@@ -68,14 +69,18 @@ Una misma cuenta podrá publicar y postular, siempre que cumpla las condiciones 
 
 El detalle de una oportunidad, el formulario de postulación y la revisión de candidatos serán pantallas secundarias asociadas al recorrido correspondiente
 
+El formulario de publicación conserva la información al pasar entre los pasos de trabajo, condiciones y revisión, cada paso señala sus campos incorrectos y la publicación requiere una confirmación adicional
+
+En condiciones se puede elegir hoy, mañana, una fecha futura en el calendario o una fecha por coordinar, la duración y el horario se escriben por separado y no se reemplazan al cambiar la fecha, el calendario también permite entrada mediante teclado
+
 ### Revisión del flujo actual
 
 | Etapa | Disponible en la app | Falta para completar el recorrido |
 |---|---|---|
 | Cuenta | Registro y acceso con Firebase de desarrollo, recuperación de contraseña y perfil privado ampliado | Comprobar el acceso con Google en un teléfono, eliminación de cuenta y pruebas adicionales |
 | Explorar | Búsqueda y filtros sobre oportunidades compartidas de desarrollo | Paginación y búsqueda en servidor |
-| Oportunidad | Detalle con tareas, condiciones, requisitos y vacantes | Verificación de identidad y mecanismos de moderación |
-| Publicar | Formulario con validación y guardado en Firestore de desarrollo | Edición, cierre y moderación |
+| Oportunidad | Detalle con tareas, condiciones, requisitos, vacantes y búsqueda opcional de ubicación en otra app | Verificación de identidad y mecanismos de moderación |
+| Publicar | Formulario con validación, calendario opcional y guardado en Firestore de desarrollo | Edición, cierre y moderación |
 | Postular | Envío autenticado, prevención de duplicados y seguimiento del estado | Retiro de postulación y avisos |
 | Candidatos | Consulta autorizada de nombres y selección atómica sin superar las vacantes | Vista pública con información adicional y comunicación |
 | Finalizar | No disponible | Acuerdo, finalización, reporte y soporte |
@@ -160,6 +165,10 @@ Con una escala de texto de 1,8 o más, la navegación se distribuye en dos filas
 - En emuladores locales de Firebase se probaron acceso, publicación, postulación desde otra cuenta, selección, estado recibido por el postulante y guardado del perfil
 - En Firebase de desarrollo se verificaron publicación, postulación y selección entre dos cuentas temporales mediante el SDK, queda pendiente repetir el recorrido completo desde Android en un teléfono físico
 - Se comprobaron los guardados, el cambio de tema y las opciones de movimiento y mascota, así como su persistencia al reiniciar
+- Se verificaron guardados en Room para dos cuentas, la consulta sin conexión con aviso de datos no confirmados y la migración de identificadores anteriores sin inventar detalles
+- La confirmación para cerrar sesión muestra a Empu, el calendario y los accesos informativos de IA se revisaron en Android, la conexión de IA sigue pendiente
+- En Android se verificaron los pasos de publicación, la confirmación, una postulación desde otra cuenta, el calendario en español, la conservación del horario al cambiar de fecha y la revisión de una fecha por coordinar
+- Se comprobó que el paso de revisión y la navegación siguen visibles con el texto ampliado al 200 %, queda pendiente una evaluación manual completa con lector de pantalla y en teléfonos físicos
 - En un emulador Android 36 se revisaron Explorar, el detalle, Publicar, Actividad y la vista de candidatos con datos ficticios
 - Se comprobaron búsqueda sin resultados, recuperación de filtros, error del formulario, conservación del borrador y publicación simulada
 - Se verificó el error de conexión de la cuenta y la conservación de los datos escritos al intentar iniciar sesión sin red

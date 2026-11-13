@@ -7,6 +7,7 @@ import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 import pe.tuempuje.app.data.FirebaseEnvironment
@@ -22,6 +23,7 @@ class MainActivity : ComponentActivity() {
         val services = FirebaseEnvironment.create(applicationContext)
         setContent {
             val preferences = remember { AppPreferences(applicationContext) }
+            DisposableEffect(preferences) { onDispose { preferences.close() } }
             val darkTheme = when (preferences.displayMode) {
                 DisplayMode.SYSTEM -> isSystemInDarkTheme()
                 DisplayMode.LIGHT -> false
