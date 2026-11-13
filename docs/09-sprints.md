@@ -38,7 +38,7 @@ Los sprints 12, 13 y 14 siguen abiertos hasta completar sus verificaciones y ent
 |---|---|---|---|
 | 01 · Base Android | Crear el proyecto Kotlin con Compose, configuración de compilación y tema inicial de TuEmpuje | La aplicación compila y abre una pantalla inicial en un emulador o dispositivo | Entorno Android configurado y repositorio disponible |
 | 02 · Lenguaje visual | Crear colores, tipografía, componentes básicos y superficies con Material 3 Expressive | Los componentes son legibles en fondos claros y oscuros, y las acciones tienen etiquetas y áreas táctiles adecuadas | Sprint 01 |
-| 03 · Navegación y primer avance | Conectar Explorar, Publicar, Actividad y Perfil, con detalle y formulario de oportunidad usando datos ficticios | Cada destino abre su pantalla, Atrás vuelve al contexto anterior y la demostración identifica los datos ficticios | Sprints 01 y 02 |
+| 03 · Navegación y primer avance | Conectar Explorar, Publicar, Actividad y Perfil según el objetivo elegido, con detalle y formulario de oportunidad | Cada destino abre su pantalla, Atrás vuelve al contexto anterior y la demostración identifica los datos de ejemplo | Sprints 01 y 02 |
 | 04 · Acceso y perfiles | Configurar Firebase Authentication y perfiles básicos para publicar o postular con una misma cuenta | Dos cuentas de prueba pueden iniciar sesión y cada una recupera su perfil sin acceder al de otra para editarlo | Sprint 01 y acceso a un proyecto Firebase de desarrollo |
 | 05 · Datos y permisos | Definir oportunidades y postulaciones en Firestore, reglas iniciales de acceso y datos ficticios | Las operaciones permitidas y denegadas se comprueban con cuentas de prueba y reglas, sin credenciales privadas en el repositorio | Sprint 04 y Firebase configurado |
 | 06 · Publicación | Implementar el formulario, las validaciones y el guardado de oportunidades en Android | Una publicación válida se guarda asociada a su responsable y una incompleta muestra errores sin publicarse | Sprints 03 a 05 |
@@ -63,7 +63,7 @@ Si el entorno o las dependencias impiden ejecutar la app a tiempo, se registrar�
 
 ## Navegación y comportamiento
 
-Los destinos principales previstos son **Explorar**, **Publicar**, **Actividad** y **Perfil**
+Los destinos principales son **Explorar**, **Actividad** y **Perfil**, el destino **Publicar** se muestra cuando el objetivo elegido es ofrecer trabajo
 
 El detalle de una oportunidad, el formulario y la revisión de candidatos serán pantallas secundarias con un regreso coherente al contexto anterior
 

@@ -31,6 +31,7 @@ data class AccountUiState(
     val displayName: String = "",
     val dni: String = "",
     val phone: String = "",
+    val nationality: String = "",
     val skills: String = "",
     val experience: String = "",
     val availability: String = "",
@@ -165,13 +166,13 @@ class AccountViewModel(
         mutableState.value = mutableState.value.copy(error = message, message = null)
     }
 
-    fun register(name: String, email: String, password: String, dni: String, phone: String, role: String?, interests: Set<String>, district: String, organization: String) {
+    fun register(name: String, email: String, password: String, dni: String, phone: String, nationality: String, role: String?, interests: Set<String>, district: String, organization: String) {
         val cleanName = name.trim()
         val emailValue = email.trim()
         val cleanDni = dni.trim()
         val cleanPhone = phone.trim()
         val purposeError = if (role == "employer" && district.trim().length !in 2..100) "Ingresa tu distrito para crear la cuenta" else null
-        val validation = validateName(cleanName) ?: validateCredentials(emailValue, password) ?: identityError(cleanDni, cleanPhone) ?: purposeError
+        val validation = validateName(cleanName) ?: validateCredentials(emailValue, password) ?: identityError(cleanDni, cleanPhone) ?: (if (nationality.trim().length !in 2..80) "Ingresa tu nacionalidad" else null) ?: purposeError
         if (validation != null) {
             mutableState.value = mutableState.value.copy(error = validation)
             return
@@ -182,8 +183,8 @@ class AccountViewModel(
             val user = withTimeout(12_000) { auth.createUserWithEmailAndPassword(emailValue, password).await() }.user
                 ?: error("No se creó la cuenta")
             try {
-                writeProfile(user, cleanName, cleanDni, cleanPhone, role, interests, district, organization)
-                mutableState.value = signedIn(user, cleanName).copy(dni = cleanDni, phone = cleanPhone, district = district.trim(), organization = organization.trim())
+                writeProfile(user, cleanName, cleanDni, cleanPhone, nationality, role, interests, district, organization)
+                mutableState.value = signedIn(user, cleanName).copy(dni = cleanDni, phone = cleanPhone, nationality = nationality.trim(), district = district.trim(), organization = organization.trim())
             } catch (exception: TimeoutCancellationException) {
                 mutableState.value = signedIn(user).copy(
                     displayName = cleanName,
@@ -241,11 +242,11 @@ class AccountViewModel(
         }
     }
 
-    fun saveProfile(name: String, dni: String, phone: String, role: String?, interests: Set<String>, district: String, organization: String) {
+    fun saveProfile(name: String, dni: String, phone: String, nationality: String, role: String?, interests: Set<String>, district: String, organization: String) {
         val cleanName = name.trim()
         val cleanDni = dni.trim()
         val cleanPhone = phone.trim()
-        val validation = validateName(cleanName) ?: identityError(cleanDni, cleanPhone) ?: if (role == "employer" && district.trim().length !in 2..100) "Ingresa tu distrito" else null
+        val validation = validateName(cleanName) ?: identityError(cleanDni, cleanPhone) ?: (if (nationality.trim().length !in 2..80) "Ingresa tu nacionalidad" else null) ?: if (role == "employer" && district.trim().length !in 2..100) "Ingresa tu distrito" else null
         if (validation != null) {
             mutableState.value = mutableState.value.copy(error = validation)
             return
@@ -257,8 +258,8 @@ class AccountViewModel(
         val previous = mutableState.value
         runOperation {
             try {
-                writeProfile(user, cleanName, cleanDni, cleanPhone, role, interests, district, organization)
-                mutableState.value = previous.copy(loading = false, displayName = cleanName, dni = cleanDni, phone = cleanPhone, district = district.trim(), organization = organization.trim(), needsProfile = false, error = null)
+                writeProfile(user, cleanName, cleanDni, cleanPhone, nationality, role, interests, district, organization)
+                mutableState.value = previous.copy(loading = false, displayName = cleanName, dni = cleanDni, phone = cleanPhone, nationality = nationality.trim(), district = district.trim(), organization = organization.trim(), needsProfile = false, error = null)
             } catch (exception: TimeoutCancellationException) {
                 mutableState.value = previous.copy(loading = false, error = unconfirmedProfileMessage)
             } catch (exception: CancellationException) {
@@ -356,11 +357,11 @@ class AccountViewModel(
         }
     }
 
-    private suspend fun writeProfile(user: FirebaseUser, name: String, dni: String, phone: String, role: String? = null, interests: Set<String> = emptySet(), district: String = "", organization: String = "") {
+    private suspend fun writeProfile(user: FirebaseUser, name: String, dni: String, phone: String, nationality: String, role: String? = null, interests: Set<String> = emptySet(), district: String = "", organization: String = "") {
         val email = user.email ?: error("La cuenta no tiene correo")
         withTimeout(12_000) {
             firestore.collection("users").document(user.uid).set(
-                (mapOf("uid" to user.uid, "displayName" to name, "email" to email, "dni" to dni, "phone" to phone) + if (role in setOf("worker", "employer")) mapOf("role" to role, "interests" to interests.sorted(), "district" to district.trim(), "organization" to organization.trim()) else emptyMap()), SetOptions.merge(),
+                (mapOf("uid" to user.uid, "displayName" to name, "email" to email, "dni" to dni, "phone" to phone, "nationality" to nationality.trim()) + if (role in setOf("worker", "employer")) mapOf("role" to role, "interests" to interests.sorted(), "district" to district.trim(), "organization" to organization.trim()) else emptyMap()), SetOptions.merge(),
             ).await()
         }
     }
@@ -408,6 +409,7 @@ class AccountViewModel(
     private fun fromProfile(user: FirebaseUser, profile: DocumentSnapshot) = signedIn(user, profile.getString("displayName").orEmpty()).copy(
         dni = profile.getString("dni").orEmpty(),
         phone = profile.getString("phone").orEmpty(),
+        nationality = profile.getString("nationality").orEmpty(),
         needsProfile = identityError(profile.getString("dni").orEmpty(), profile.getString("phone").orEmpty()) != null,
         skills = profile.getString("skills").orEmpty(),
         experience = profile.getString("experience").orEmpty(),

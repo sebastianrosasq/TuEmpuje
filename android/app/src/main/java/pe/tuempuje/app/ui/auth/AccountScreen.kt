@@ -74,7 +74,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.CancellationException
 
 @Composable
-fun AccountScreen(auth: FirebaseAuth, firestore: FirebaseFirestore, onSettings: () -> Unit, onSaved: () -> Unit, onChoosePurpose: () -> Unit = {}, resetCode: String? = null, onResetConsumed: () -> Unit = {}, onMascotDemo: () -> Unit) {
+fun AccountScreen(auth: FirebaseAuth, firestore: FirebaseFirestore, onSettings: () -> Unit, onSaved: () -> Unit, onChoosePurpose: () -> Unit = {}, resetCode: String? = null, onResetConsumed: () -> Unit = {}, authGate: Boolean = false) {
     val factory = remember(auth, firestore) { AccountViewModelFactory(auth, firestore) }
     val account: AccountViewModel = viewModel(factory = factory)
     val state by account.state.collectAsState()
@@ -192,11 +192,11 @@ fun AccountScreen(auth: FirebaseAuth, firestore: FirebaseFirestore, onSettings: 
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            Text("Perfil", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
-            IconButton(onClick = onSettings) { Icon(Icons.Rounded.Settings, contentDescription = "Personalizar aplicación") }
+            Text(if (authGate) "Bienvenido a TuEmpuje" else "Perfil", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
+            if (!authGate) IconButton(onClick = onSettings) { Icon(Icons.Rounded.Settings, contentDescription = "Personalizar aplicación") }
         }
         Text(
-            "Administra tu cuenta y personaliza tu experiencia",
+            if (authGate) "Inicia sesión o crea tu cuenta para continuar" else "Administra tu cuenta y personaliza tu experiencia",
             style = MaterialTheme.typography.bodyLarge,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -210,16 +210,15 @@ fun AccountScreen(auth: FirebaseAuth, firestore: FirebaseFirestore, onSettings: 
             state.profileLoadFailed -> ProfileUnavailable(account, state.loading) { confirmSignOut = true }
             else -> ProfileForm(state, account, isEmployer, onShowExperience = { showExperience = true }, onSignOut = { confirmSignOut = true })
         }
-        if (state.uid != null) {
+        if (state.uid != null && !authGate) {
             TextButton(enabled = !state.loading, onClick = { confirmDelete = true }) { Text("Eliminar cuenta", color = MaterialTheme.colorScheme.error) }
             Text("Tu desarrollo", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
             OutlinedButton(onClick = { showCvInfo = true }, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) { Text("Asistente para mi CV · Próximamente") }
         }
-        OutlinedButton(onClick = onChoosePurpose, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) { Text("Cambiar qué quiero hacer") }
-        Text("Tu espacio", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-        OutlinedButton(onClick = onSaved, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) { Text("Oportunidades guardadas") }
-        if (BuildConfig.DEBUG) {
-            TextButton(onClick = onMascotDemo) { Text("Probar expresiones de Empu") }
+        if (!authGate) {
+            OutlinedButton(onClick = onChoosePurpose, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) { Text("Cambiar qué quiero hacer") }
+            Text("Tu espacio", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+            if (!isEmployer) OutlinedButton(onClick = onSaved, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) { Text("Oportunidades guardadas") }
         }
     }
 }
@@ -230,6 +229,7 @@ private fun AuthForm(account: AccountViewModel, loading: Boolean, hasError: Bool
     var name by rememberSaveable { mutableStateOf("") }
     var dni by rememberSaveable { mutableStateOf("") }
     var phone by rememberSaveable { mutableStateOf("") }
+    var nationality by rememberSaveable { mutableStateOf("") }
     var district by rememberSaveable { mutableStateOf("") }
     var organization by rememberSaveable { mutableStateOf("") }
     val preferences = LocalAppPreferences.current
@@ -271,6 +271,7 @@ private fun AuthForm(account: AccountViewModel, loading: Boolean, hasError: Bool
                     label = { Text("Celular") }, enabled = !loading, singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone), modifier = Modifier.fillMaxWidth(),
                 )
+                OutlinedTextField(value = nationality, onValueChange = { nationality = it.take(80) }, label = { Text("Nacionalidad") }, enabled = !loading, singleLine = true, modifier = Modifier.fillMaxWidth())
                 if (preferences?.purpose == "employer") {
                     OutlinedTextField(value = district, onValueChange = { district = it.take(100) }, label = { Text("Distrito donde necesitas apoyo") }, enabled = !loading, singleLine = true, modifier = Modifier.fillMaxWidth())
                     OutlinedTextField(value = organization, onValueChange = { organization = it.take(100) }, label = { Text("Negocio u organización, opcional") }, enabled = !loading, singleLine = true, modifier = Modifier.fillMaxWidth())
@@ -307,7 +308,7 @@ private fun AuthForm(account: AccountViewModel, loading: Boolean, hasError: Bool
             AppPrimaryButton(
                 label = if (register) "Crear cuenta" else "Entrar",
                 onClick = {
-                    if (register) account.register(name, email, password, dni, phone, preferences?.purpose, preferences?.interests.orEmpty(), district, organization)
+                    if (register) account.register(name, email, password, dni, phone, nationality, preferences?.purpose, preferences?.interests.orEmpty(), district, organization)
                     else account.signIn(email, password)
                 },
                 enabled = !loading,
@@ -392,6 +393,7 @@ private fun ProfileForm(state: AccountUiState, account: AccountViewModel, isEmpl
     var name by rememberSaveable(state.uid, state.displayName) { mutableStateOf(state.displayName) }
     var dni by rememberSaveable(state.uid, state.dni) { mutableStateOf(state.dni) }
     var phone by rememberSaveable(state.uid, state.phone) { mutableStateOf(state.phone) }
+    var nationality by rememberSaveable(state.uid, state.nationality) { mutableStateOf(state.nationality) }
     var district by rememberSaveable(state.uid, state.district) { mutableStateOf(state.district) }
     var organization by rememberSaveable(state.uid, state.organization) { mutableStateOf(state.organization) }
     val preferences = LocalAppPreferences.current
@@ -429,18 +431,19 @@ private fun ProfileForm(state: AccountUiState, account: AccountViewModel, isEmpl
                     label = { Text("Celular") }, enabled = !state.loading, singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone), modifier = Modifier.fillMaxWidth(),
                 )
+                OutlinedTextField(value = nationality, onValueChange = { nationality = it.take(80) }, label = { Text("Nacionalidad") }, enabled = !state.loading, singleLine = true, modifier = Modifier.fillMaxWidth())
                 if (isEmployer) {
                     OutlinedTextField(value = district, onValueChange = { district = it.take(100) }, label = { Text("Distrito donde necesitas apoyo") }, enabled = !state.loading, modifier = Modifier.fillMaxWidth())
                     OutlinedTextField(value = organization, onValueChange = { organization = it.take(100) }, label = { Text("Negocio u organización, opcional") }, enabled = !state.loading, modifier = Modifier.fillMaxWidth())
                 }
                 Text("Tu DNI y celular se guardan en tu perfil privado, su formato no verifica tu identidad", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Button(
-                    onClick = { account.saveProfile(name, dni, phone, preferences?.purpose, preferences?.interests.orEmpty(), district, organization) },
+                    onClick = { account.saveProfile(name, dni, phone, nationality, preferences?.purpose, preferences?.interests.orEmpty(), district, organization) },
                     enabled = !state.loading,
                     modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
                 ) { Text("Guardar perfil") }
                 if (!state.needsProfile) {
-                    TextButton(enabled = !state.loading, onClick = { name = state.displayName; dni = state.dni; phone = state.phone; editing = false }) { Text("Cancelar") }
+                    TextButton(enabled = !state.loading, onClick = { name = state.displayName; dni = state.dni; phone = state.phone; nationality = state.nationality; editing = false }) { Text("Cancelar") }
                 }
             } else {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -453,6 +456,7 @@ private fun ProfileForm(state: AccountUiState, account: AccountViewModel, isEmpl
                     Column(Modifier.weight(1f)) {
                         Text(state.displayName, style = MaterialTheme.typography.titleMedium)
                         Text(state.email, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        if (state.nationality.isNotBlank()) Text(state.nationality, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         Text("DNI ••••${state.dni.takeLast(4)} · ${state.phone}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }

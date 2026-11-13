@@ -67,7 +67,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
@@ -121,7 +120,10 @@ fun TuEmpujeApp(services: FirebaseServices?, resetCode: String? = null, onResetC
                     preferences?.updatePurpose(role, interests)
                     model.savePurpose(role, interests)
                     choosePurpose = false
-                } else TuEmpujeContent(services, model, resetCode, onResetConsumed, onChoosePurpose = { choosePurpose = true })
+                } else if (services != null && (model.userId == null || !model.profileLoaded)) {
+                    AccountScreen(services.auth, services.firestore, onSettings = {}, onSaved = {}, onChoosePurpose = { choosePurpose = true }, resetCode = resetCode, onResetConsumed = onResetConsumed, authGate = true)
+                } else if (services != null) TuEmpujeContent(services, model, resetCode, onResetConsumed, onChoosePurpose = { choosePurpose = true })
+                else AppNotice("No se pudo conectar con el servicio de cuentas")
                 if (showIntro) WelcomeIntro { showIntro = false }
             }
         }
@@ -140,31 +142,15 @@ private fun TuEmpujeContent(services: FirebaseServices?, model: OpportunityViewM
     var activityRevision by rememberSaveable { mutableIntStateOf(0) }
     val snackbar = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
-    val navigationGroups = if (LocalConfiguration.current.fontScale >= 1.8f) destinations.chunked(2) else listOf(destinations)
-    var tabHistory by rememberSaveable { mutableStateOf<List<String>>(emptyList()) }
+    val availableDestinations = if (preferences?.purpose == "employer") destinations else destinations.filterNot { it.route == "publicar" }
+    val navigationGroups = if (LocalConfiguration.current.fontScale >= 1.8f) availableDestinations.chunked(2) else listOf(availableDestinations)
     val openDestination: (String) -> Unit = { route ->
         val current = nav.currentDestination?.route
-        if (current != null && current != route && current in destinations.map { it.route }) {
-            tabHistory = (tabHistory + current).takeLast(12)
-        }
-        nav.navigate(route) {
-            popUpTo(nav.graph.findStartDestination().id) { saveState = true }
-            launchSingleTop = true
-            restoreState = true
-        }
+        if (route in availableDestinations.map { it.route } && current != route) nav.navigate(route) { launchSingleTop = true }
     }
     LaunchedEffect(resetCode) { if (resetCode != null) openDestination("perfil") }
     val backStackEntry by nav.currentBackStackEntryAsState()
     val currentRoute = backStackEntry?.destination?.route
-    val backToPreviousTab: () -> Unit = {
-        val previous = tabHistory.last()
-        tabHistory = tabHistory.dropLast(1)
-        nav.navigate(previous) {
-            popUpTo(nav.graph.findStartDestination().id) { saveState = true }
-            launchSingleTop = true
-            restoreState = true
-        }
-    }
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
         snackbarHost = { SnackbarHost(snackbar) },
@@ -221,72 +207,75 @@ private fun TuEmpujeContent(services: FirebaseServices?, model: OpportunityViewM
                     if (initialState.destination.route in destinations.map { it.route } && targetState.destination.route in destinations.map { it.route }) ExitTransition.None
                     else fadeOut(tween(if (reduceMotion) 0 else 120))
                 },
-                popEnterTransition = { fadeIn(tween(if (reduceMotion) 0 else 180)) },
-                popExitTransition = {
-                    if (initialState.destination.route?.startsWith("detalle/") == true) {
-                        fadeOut(tween(if (reduceMotion) 0 else 180)) + slideOutHorizontally(tween(if (reduceMotion) 0 else 220)) { it / 14 }
-                    } else fadeOut(tween(if (reduceMotion) 0 else 120))
-                },
+                popEnterTransition = { if (reduceMotion) EnterTransition.None else slideInHorizontally(tween(220)) { -it / 4 } },
+                popExitTransition = { if (reduceMotion) ExitTransition.None else slideOutHorizontally(tween(220)) { it } },
             ) {
                 composable("explorar") {
-                    BackHandler(enabled = currentRoute == "explorar" && tabHistory.isNotEmpty(), onBack = backToPreviousTab)
-                    ExploreScreen(model, onSaved = { nav.navigate("guardados") }, onSettings = { nav.navigate("ajustes") }, onAccount = { openDestination("perfil") }, onPublish = { openDestination("publicar") }) { nav.navigate("detalle/$it") { launchSingleTop = true } }
+                    DestinationSurface { ExploreScreen(model, onSaved = { nav.navigate("guardados") }, onSettings = { nav.navigate("ajustes") }, onAccount = { openDestination("perfil") }, onPublish = { openDestination("publicar") }) { nav.navigate("detalle/$it") { launchSingleTop = true } } }
                 }
                 composable("publicar") {
-                    BackHandler(enabled = currentRoute == "publicar" && tabHistory.isNotEmpty(), onBack = backToPreviousTab)
-                    PublishScreen(model, onBack = { nav.popBackStack() }, onAccount = { openDestination("perfil") }) {
+                    if (preferences?.purpose == "employer") DestinationSurface { PublishScreen(model, onBack = { nav.popBackStack() }, onAccount = { openDestination("perfil") }) {
                         activityRevision++
                         openDestination("actividad")
                         scope.launch { snackbar.showSnackbar("Oportunidad publicada") }
-                    }
+                    } }
                 }
                 composable("actividad") {
-                    BackHandler(enabled = currentRoute == "actividad" && tabHistory.isNotEmpty(), onBack = backToPreviousTab)
-                    ActivityScreen(model, activityRevision, openDestination) { nav.navigate("detalle/$it") { launchSingleTop = true } }
+                    DestinationSurface { ActivityScreen(model, activityRevision, openDestination) { nav.navigate("detalle/$it") { launchSingleTop = true } } }
                 }
                 composable("perfil") {
-                    BackHandler(enabled = currentRoute == "perfil" && tabHistory.isNotEmpty(), onBack = backToPreviousTab)
+                    DestinationSurface {
                     if (services != null) {
-                        AccountScreen(services.auth, services.firestore, onSettings = { nav.navigate("ajustes") }, onSaved = { nav.navigate("guardados") }, onChoosePurpose = onChoosePurpose, resetCode = resetCode, onResetConsumed = onResetConsumed) { nav.navigate("debug/empu") }
+                        AccountScreen(services.auth, services.firestore, onSettings = { nav.navigate("ajustes") }, onSaved = { nav.navigate("guardados") }, onChoosePurpose = onChoosePurpose, resetCode = resetCode, onResetConsumed = onResetConsumed)
                     } else {
                         ProfileScreen(onSettings = { nav.navigate("ajustes") }, onSaved = { nav.navigate("guardados") })
                     }
+                    }
                 }
-                composable("ajustes") { if (preferences != null) SettingsScreen(preferences) { nav.popBackStack() } }
-                composable("guardados") { SavedScreen(model, onBack = { nav.popBackStack() }, onExplore = { openDestination("explorar") }) { nav.navigate("detalle/$it") } }
-                if (BuildConfig.DEBUG) {
-                    composable("debug/empu") { EmpuPreview { nav.popBackStack() } }
-                }
+                composable("ajustes") { DestinationSurface { if (preferences != null) SettingsScreen(preferences) { nav.popBackStack() } } }
+                composable("guardados") { DestinationSurface { SavedScreen(model, onBack = { nav.popBackStack() }, onExplore = { openDestination("explorar") }) { nav.navigate("detalle/$it") } } }
                 composable("detalle/{id}") { entry ->
                     val opportunity = model.find(entry.arguments?.getString("id").orEmpty())
-                    DetailScreen(opportunity, model, onBack = { nav.popBackStack() }, onCandidates = { nav.navigate("candidatos/$it") }, onEdit = { nav.navigate("editar/$it") }, onProfile = { openDestination("perfil") }, onChat = { job, applicant -> nav.navigate("conversacion/$job/$applicant") }, onApplied = {
+                    DestinationSurface { DetailScreen(opportunity, model, onBack = { nav.popBackStack() }, onCandidates = { nav.navigate("candidatos/$it") }, onEdit = { nav.navigate("editar/$it") }, onProfile = { openDestination("perfil") }, onChat = { job, applicant -> nav.navigate("conversacion/$job/$applicant") }, onApplied = {
                         scope.launch { snackbar.showSnackbar("Postulación enviada") }
-                    })
+                    }) }
                 }
                 composable("editar/{id}") { entry ->
-                    EditOpportunityScreen(model.find(entry.arguments?.getString("id").orEmpty()), model, onBack = { nav.popBackStack() })
+                    DestinationSurface { EditOpportunityScreen(model.find(entry.arguments?.getString("id").orEmpty()), model, onBack = { nav.popBackStack() }) }
                 }
                 composable("candidatos/{id}") { entry ->
                     val opportunity = model.find(entry.arguments?.getString("id").orEmpty())
-                    CandidatesScreen(opportunity, model, onBack = { nav.popBackStack() }, onChat = { job, applicant -> nav.navigate("conversacion/$job/$applicant") })
+                    DestinationSurface { CandidatesScreen(opportunity, model, onBack = { nav.popBackStack() }, onChat = { job, applicant -> nav.navigate("conversacion/$job/$applicant") }) }
                 }
                 composable("conversacion/{id}/{applicant}") { entry ->
                     val job = model.find(entry.arguments?.getString("id").orEmpty())
-                    ConversationScreen(services, job, entry.arguments?.getString("applicant").orEmpty()) { nav.popBackStack() }
+                    DestinationSurface { ConversationScreen(services, job, entry.arguments?.getString("applicant").orEmpty()) { nav.popBackStack() } }
                 }
             }
         }
     }
+}
+
+@Composable
+private fun DestinationSurface(content: @Composable () -> Unit) {
+    Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background, contentColor = MaterialTheme.colorScheme.onBackground) { content() }
 }
 @Composable
 private fun ExploreScreen(model: OpportunityViewModel, onSaved: () -> Unit, onSettings: () -> Unit, onAccount: () -> Unit, onPublish: () -> Unit, open: (String) -> Unit) {
     val reduceMotion = LocalAppPreferences.current?.reduceMotion == true
     var query by rememberSaveable { mutableStateOf("") }
     var selectedCategory by rememberSaveable { mutableStateOf("Todas") }
+    var locationFilter by rememberSaveable { mutableStateOf("") }
+    var remoteOnly by rememberSaveable { mutableStateOf(false) }
+    var availableOnly by rememberSaveable { mutableStateOf(false) }
+    var showFilters by rememberSaveable { mutableStateOf(false) }
     val categories = listOf("Todas") + model.opportunities.map { it.category }.distinct().sorted()
     val interests = LocalAppPreferences.current?.interests.orEmpty()
     val opportunities = model.opportunities.filter {
         it.status == "published" && (selectedCategory == "Todas" || it.category == selectedCategory) &&
+            (locationFilter.isBlank() || it.location.contains(locationFilter.trim(), ignoreCase = true)) &&
+            (!remoteOnly || it.location.contains("remoto", ignoreCase = true)) &&
+            (!availableOnly || it.selectedCount < it.vacancies) &&
             (query.isBlank() || listOf(it.title, it.organization, it.category, it.location)
                 .any { field -> field.contains(query.trim(), ignoreCase = true) })
     }.sortedByDescending { it.category in interests }
@@ -318,6 +307,18 @@ private fun ExploreScreen(model: OpportunityViewModel, onSaved: () -> Unit, onSe
                 }
             }
         }
+        item {
+            TextButton(onClick = { showFilters = !showFilters }) { Text(if (showFilters) "Ocultar filtros" else "Más filtros") }
+            AnimatedVisibility(visible = showFilters) {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedTextField(value = locationFilter, onValueChange = { locationFilter = it.take(100) }, label = { Text("Distrito o ubicación") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        FilterChip(selected = remoteOnly, onClick = { remoteOnly = !remoteOnly }, label = { Text("Remoto") })
+                        FilterChip(selected = availableOnly, onClick = { availableOnly = !availableOnly }, label = { Text("Con vacantes") })
+                    }
+                }
+            }
+        }
         if (model.userId == null) {
             item { AppEmptyState("Encuentra tu próxima oportunidad", "Inicia sesión para consultar publicaciones y participar", "Ir a mi cuenta", EmptyIllustration.Search, showMascot = false, onAction = onAccount) }
         }
@@ -333,21 +334,21 @@ private fun ExploreScreen(model: OpportunityViewModel, onSaved: () -> Unit, onSe
         if (model.userId != null && !model.loading && model.feedError == null && opportunities.isEmpty()) {
             item {
                 if (model.opportunities.isEmpty()) AppEmptyState("Aún no hay oportunidades", "Cuando alguien publique una oportunidad aparecerá aquí")
-                else AppEmptyState("No encontramos coincidencias", "Prueba con otra palabra o categoría", "Limpiar filtros", EmptyIllustration.Search) { query = ""; selectedCategory = "Todas" }
+                else AppEmptyState("No encontramos coincidencias", "Prueba con otra palabra o cambia los filtros", "Limpiar filtros", EmptyIllustration.Search) { query = ""; selectedCategory = "Todas"; locationFilter = ""; remoteOnly = false; availableOnly = false }
             }
         }
         items(opportunities, key = { it.id }) { opportunity ->
             OpportunityCard(opportunity, modifier = if (reduceMotion) Modifier else Modifier.animateItem()) { open(opportunity.id) }
         }
-        item { QuickActions(onSaved, onPublish) }
+        item { QuickActions(onSaved, onPublish, LocalAppPreferences.current?.purpose == "employer") }
     }
 }
 
 @Composable
-private fun QuickActions(onSaved: () -> Unit, onPublish: () -> Unit) {
+private fun QuickActions(onSaved: () -> Unit, onPublish: () -> Unit, canPublish: Boolean) {
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
         QuickAction("Guardados", "Tus favoritos", Icons.Rounded.BookmarkBorder, Modifier.weight(1f), onSaved)
-        QuickAction("Publicar", "Ofrece una oportunidad", Icons.Rounded.AddCircleOutline, Modifier.weight(1f), onPublish)
+        if (canPublish) QuickAction("Publicar", "Ofrece una oportunidad", Icons.Rounded.AddCircleOutline, Modifier.weight(1f), onPublish)
     }
 }
 
@@ -404,24 +405,6 @@ private fun Hero() {
                 Spacer(Modifier.width(10.dp))
                 Empu(EmpuMood.HAPPY, Modifier.size(104.dp), accessory = accessory)
             }
-        }
-    }
-}
-
-@Composable
-private fun EmpuPreview(onBack: () -> Unit) {
-    var selected by remember { mutableStateOf(EmpuMood.IDLE) }
-    LazyColumn(
-        contentPadding = PaddingValues(22.dp),
-        verticalArrangement = Arrangement.spacedBy(14.dp),
-    ) {
-        item { TextButton(onClick = onBack) { Text("Volver al perfil") } }
-        item { Text("Expresiones de Empu", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold) }
-        item { Text("Vista de desarrollo para revisar las expresiones", style = MaterialTheme.typography.bodyMedium) }
-        item { Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) { Empu(selected, Modifier.size(180.dp)) } }
-        item { Text(selected.name, style = MaterialTheme.typography.titleMedium) }
-        items(EmpuMood.entries) { mood ->
-            FilterChip(selected = selected == mood, onClick = { selected = mood }, label = { Text(mood.name) })
         }
     }
 }

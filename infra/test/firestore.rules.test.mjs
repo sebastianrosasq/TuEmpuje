@@ -9,7 +9,7 @@ const projectId = 'demo-tuempuje';
 let env;
 
 const user = (uid) => env.authenticatedContext(uid, { email: `${uid}@example.invalid` }).firestore();
-const profile = (uid) => ({ uid, displayName: `Perfil ${uid}`, email: `${uid}@example.invalid`, dni: '12345678', phone: '987654321', skills: 'Edición', availability: 'Tardes' });
+const profile = (uid) => ({ uid, displayName: `Perfil ${uid}`, email: `${uid}@example.invalid`, dni: '12345678', phone: '987654321', skills: 'Edición', availability: 'Tardes', role: uid === 'cliente' ? 'employer' : 'worker' });
 const opportunity = (uid) => ({
   ownerId: uid,
   ownerName: `Perfil ${uid}`,
@@ -56,6 +56,8 @@ test('solo el titular crea, lee y edita su perfil privado', async () => {
   await assertSucceeds(getDoc(own));
   await assertSucceeds(updateDoc(own, { displayName: 'Nombre actualizado' }));
   await assertSucceeds(updateDoc(own, { skills: 'Edición', experience: 'Proyectos personales', availability: 'Tardes' }));
+  await assertSucceeds(updateDoc(own, { nationality: 'Peruana' }));
+  await assertFails(updateDoc(own, { nationality: '' }));
   await assertFails(getDoc(doc(user('otro'), 'users', 'nueva')));
   await assertFails(getDocs(collection(user('otro'), 'users')));
   await assertFails(updateDoc(doc(user('otro'), 'users', 'nueva'), { displayName: 'Cambio ajeno' }));
@@ -103,6 +105,7 @@ test('solo se crean oportunidades propias y con campos válidos', async () => {
   await assertFails(setDoc(doc(db, 'opportunities', 'estado'), { ...opportunity('cliente'), status: 'closed' }));
   await assertFails(setDoc(doc(db, 'opportunities', 'extra'), { ...opportunity('cliente'), verified: true }));
   await assertFails(setDoc(doc(user('sinperfil'), 'opportunities', 'sin-perfil'), opportunity('sinperfil')));
+  await assertFails(setDoc(doc(user('candidato'), 'opportunities', 'trabajador-no-publica'), opportunity('candidato')));
 });
 
 test('ninguna cuenta altera vacantes, estado o dueño en esta etapa', async () => {

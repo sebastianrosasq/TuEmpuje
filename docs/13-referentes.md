@@ -9,6 +9,10 @@ El análisis se basa en documentación pública de los servicios y en sus fichas
 | Indeed | Búsqueda por puesto y lugar, ofertas guardadas, gestión de candidaturas y uso de un CV propio | Mantener búsqueda y guardados accesibles, distinguir guardado de postulación y conservar la decisión del usuario sobre su CV |
 | Bumeran | Historial de postulaciones, estados visibles y gestión de avisos por la empresa | Actividad separada entre publicaciones y postulaciones, con edición y retiro controlados |
 
+Las búsquedas por ubicación, modalidad y disponibilidad ayudan a reducir resultados poco útiles, en TuEmpuje esos filtros trabajan sobre las oportunidades disponibles y se pueden limpiar desde la misma pantalla
+
+Las alertas, el bloqueo de conversaciones y la entrega de CV como archivo requieren trabajo adicional, no se presentan como funciones terminadas
+
 La IA no debe inventar experiencia ni publicar automáticamente, la persona decide qué información envía, revisa el resultado y confirma cualquier cambio
 
 ## Referencias
@@ -20,3 +24,5 @@ La IA no debe inventar experiencia ni publicar automáticamente, la persona deci
 - [Postular y usar un CV propio en Indeed](https://support.indeed.com/hc/en-gb/articles/204652920-How-to-apply-to-a-job-on-Indeed)
 - [Seguimiento de postulaciones en Bumeran Perú](https://www.bumeran.com.pe/blog/buscar-trabajo/que-hacer-despues-de-postular-a-un-empleo-en-bumeran/)
 - [Administración de avisos en Bumeran Perú](https://www.bumeran.com.pe/productos/gratis/)
+- [Notificaciones y ajustes en Job Today](https://help.jobtoday.com/en/articles/8031614-how-can-i-enable-disable-notifications-on-my-jobseeker-s-account)
+- [Perfil e intereses para estudiantes en Bumeran](https://www.bumeran.com.pe/blog/buscar-trabajo/estrategias-y-ejemplos-de-insercion-laboral-para-estudiantes-y-recien-graduados/)

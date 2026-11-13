@@ -87,7 +87,9 @@ Las postulaciones usan el identificador del candidato como identificador del doc
 
 Las oportunidades y postulaciones están conectadas a Firestore en Android, los cambios de reglas deben desplegarse antes de probar funciones nuevas en la nube
 
-Los perfiles son privados y no exponen el DNI, el celular ni el correo a otras cuentas, la postulación comparte el nombre, habilidades, experiencia, disponibilidad, distrito, estudios y portafolio confirmados contra su perfil
+Los perfiles son privados y no exponen el DNI, el celular, la nacionalidad ni el correo a otras cuentas, la postulación comparte el nombre, habilidades, experiencia, disponibilidad, distrito, estudios y portafolio confirmados contra su perfil
+
+Solo un perfil con el objetivo de ofrecer trabajo puede crear oportunidades, la persona puede cambiar su objetivo desde la aplicación y las reglas vuelven a comprobarlo al publicar
 
 El DNI y el celular se guardan en el perfil privado, el formato se valida sin comprobar identidad ante RENIEC
 

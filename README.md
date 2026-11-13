@@ -71,7 +71,11 @@ La recuperación de contraseña envía un enlace al correo, la app puede validar
 
 La eliminación completa de cuentas se preparó para el emulador mediante una función protegida, su despliegue y la configuración de expiración de bloqueos están pendientes, por lo que todavía no está disponible en la nube
 
-La app permite elegir entre buscar trabajo y publicar, ordenar oportunidades por intereses y cambiar de objetivo desde el perfil
+Al entrar se elige entre buscar trabajo y ofrecer oportunidades, después se inicia sesión o se crea una cuenta para continuar, el objetivo puede cambiarse desde el perfil
+
+El registro solicita nombre, correo, DNI, celular y nacionalidad, la versión actual valida DNI y número móvil peruanos sin verificar identidad ante RENIEC
+
+La búsqueda puede filtrarse por categoría, ubicación, modalidad remota y vacantes, solo el objetivo de ofrecer trabajo permite publicar
 
 Las personas pueden completar sus habilidades y disponibilidad antes de postular, retirar una candidatura, editar o retirar una publicación sin seleccionados y consultar el historial
 

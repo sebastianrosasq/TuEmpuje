@@ -1,5 +1,7 @@
 package pe.tuempuje.app.ui
 
+import android.content.Intent
+import android.provider.Settings
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -27,9 +29,15 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.platform.LocalContext
+import pe.tuempuje.app.ui.components.Empu
+import pe.tuempuje.app.ui.components.EmpuMood
+import androidx.compose.foundation.layout.size
+import androidx.compose.material3.OutlinedButton
 
 @Composable
 fun SettingsScreen(preferences: AppPreferences, onBack: () -> Unit) {
+    val context = LocalContext.current
     Column(
         Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(22.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
@@ -38,7 +46,10 @@ fun SettingsScreen(preferences: AppPreferences, onBack: () -> Unit) {
             Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = null)
             Text("Volver")
         }
-        Text("Personaliza tu espacio", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Text("Personaliza tu espacio", modifier = Modifier.weight(1f), style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+            Empu(EmpuMood.HAPPY, Modifier.size(80.dp))
+        }
         Text("Elige cómo quieres usar TuEmpuje en este dispositivo", style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Surface(shape = MaterialTheme.shapes.large, color = MaterialTheme.colorScheme.surface, modifier = Modifier.fillMaxWidth()) {
             Column(Modifier.padding(vertical = 10.dp)) {
@@ -58,6 +69,20 @@ fun SettingsScreen(preferences: AppPreferences, onBack: () -> Unit) {
                         RadioButton(selected = preferences.displayMode == mode, onClick = null)
                     }
                 }
+            }
+        }
+        Surface(shape = MaterialTheme.shapes.large, color = MaterialTheme.colorScheme.surface, modifier = Modifier.fillMaxWidth()) {
+            Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("Accesibilidad", style = MaterialTheme.typography.titleLarge)
+                Text("El tamaño del texto sigue la configuración de tu teléfono", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                OutlinedButton(onClick = { runCatching { context.startActivity(Intent(Settings.ACTION_DISPLAY_SETTINGS)) } }, modifier = Modifier.fillMaxWidth()) { Text("Ajustar pantalla del dispositivo") }
+            }
+        }
+        Surface(shape = MaterialTheme.shapes.large, color = MaterialTheme.colorScheme.surface, modifier = Modifier.fillMaxWidth()) {
+            Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("Privacidad", style = MaterialTheme.typography.titleLarge)
+                Text("Tu DNI, celular y correo son privados, antes de postular podrás revisar qué datos de tu perfil se comparten", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text("Las alertas de empleo y mensajes aún no están disponibles", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
         Surface(shape = MaterialTheme.shapes.large, color = MaterialTheme.colorScheme.surface, modifier = Modifier.fillMaxWidth()) {

@@ -238,6 +238,7 @@ class OpportunityViewModel(private val services: FirebaseServices?) : ViewModel(
     fun find(id: String): Opportunity? = opportunities.find { it.id == id }
 
     fun publish(title: String, description: String, location: String, pay: String, duration: String, requirements: String, vacancies: Int, category: String, onSuccess: () -> Unit) {
+        if (profileRole != "employer") { error = "Cambia a la opción de ofrecer trabajo antes de publicar"; return }
         val uid = userId ?: run { error = "Inicia sesión para publicar"; return }
         val db = services?.firestore ?: return
         if (listOf(title, description, location, pay, duration, requirements, category).any { it.isBlank() } || vacancies !in 1..99) {
