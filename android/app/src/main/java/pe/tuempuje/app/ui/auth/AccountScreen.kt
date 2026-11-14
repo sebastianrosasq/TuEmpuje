@@ -1,6 +1,8 @@
 package pe.tuempuje.app.ui.auth
 
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -9,6 +11,10 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.shape.CircleShape
@@ -19,6 +25,9 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -38,6 +47,8 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.platform.LocalContext
@@ -70,8 +81,12 @@ import pe.tuempuje.app.ui.components.AppLoadingState
 import pe.tuempuje.app.ui.components.Empu
 import pe.tuempuje.app.ui.components.EmpuMood
 import pe.tuempuje.app.BuildConfig
+import pe.tuempuje.app.R
+import pe.tuempuje.app.profile.ResumePdf
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.withContext
 
 @Composable
 fun AccountScreen(auth: FirebaseAuth, firestore: FirebaseFirestore, onSettings: () -> Unit, onSaved: () -> Unit, onChoosePurpose: () -> Unit = {}, resetCode: String? = null, onResetConsumed: () -> Unit = {}, authGate: Boolean = false, onHelp: () -> Unit = {}) {
@@ -85,6 +100,26 @@ fun AccountScreen(auth: FirebaseAuth, firestore: FirebaseFirestore, onSettings: 
     val context = LocalContext.current
     val credentialManager = remember(context) { CredentialManager.create(context) }
     val scope = rememberCoroutineScope()
+    var pdfMessage by rememberSaveable(state.uid) { mutableStateOf<String?>(null) }
+    var pdfBusy by remember { mutableStateOf(false) }
+    var pdfProfile by remember { mutableStateOf<AccountUiState?>(null) }
+    val createPdf = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/pdf")) { destination ->
+        val profile = pdfProfile
+        pdfProfile = null
+        if (destination != null && profile != null) scope.launch {
+            pdfBusy = true
+            pdfMessage = try {
+                withContext(Dispatchers.IO) { ResumePdf.write(context.contentResolver, destination, profile) }
+                "CV guardado en el lugar que elegiste"
+            } catch (exception: CancellationException) {
+                throw exception
+            } catch (_: Exception) {
+                "No se pudo guardar el CV, inténtalo nuevamente"
+            } finally {
+                pdfBusy = false
+            }
+        }
+    }
     var confirmSignOut by rememberSaveable(state.uid) { mutableStateOf(false) }
     var confirmDelete by rememberSaveable(state.uid) { mutableStateOf(false) }
     var deletePassword by remember { mutableStateOf("") }
@@ -212,8 +247,17 @@ fun AccountScreen(auth: FirebaseAuth, firestore: FirebaseFirestore, onSettings: 
         }
         if (state.uid != null && !authGate) {
             TextButton(enabled = !state.loading, onClick = { confirmDelete = true }) { Text("Eliminar cuenta", color = MaterialTheme.colorScheme.error) }
-            Text("Tu desarrollo", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-            OutlinedButton(onClick = { showCvInfo = true }, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) { Text("Asistente para mi CV · Próximamente") }
+            if (!isEmployer && !state.profileLoadFailed) {
+                Text("Tu desarrollo", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                OutlinedButton(enabled = !state.loading && !pdfBusy, onClick = {
+                    pdfMessage = null
+                    pdfProfile = state
+                    createPdf.launch("TuEmpuje-CV.pdf")
+                }, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) { Text(if (pdfBusy) "Guardando CV…" else "Guardar mi CV en PDF") }
+                Text("El archivo se crea con los datos de tu perfil y se guarda en tu dispositivo, no se envía automáticamente", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                pdfMessage?.let { AppNotice(it) }
+                OutlinedButton(onClick = { showCvInfo = true }, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) { Text("Asistente para mi CV · Próximamente") }
+            }
         }
         if (!authGate) {
             OutlinedButton(onClick = onChoosePurpose, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) { Text("Cambiar qué quiero hacer") }
@@ -229,6 +273,7 @@ private fun AuthForm(account: AccountViewModel, loading: Boolean, hasError: Bool
     var register by rememberSaveable { mutableStateOf(false) }
     var name by rememberSaveable { mutableStateOf("") }
     var dni by rememberSaveable { mutableStateOf("") }
+    var documentType by rememberSaveable { mutableStateOf("DNI") }
     var phone by rememberSaveable { mutableStateOf("") }
     var nationality by rememberSaveable { mutableStateOf("") }
     var district by rememberSaveable { mutableStateOf("") }
@@ -262,11 +307,7 @@ private fun AuthForm(account: AccountViewModel, loading: Boolean, hasError: Bool
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                 )
-                OutlinedTextField(
-                    value = dni, onValueChange = { dni = it.filter(Char::isDigit).take(8) },
-                    label = { Text("DNI") }, enabled = !loading, singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), modifier = Modifier.fillMaxWidth(),
-                )
+                DocumentField(documentType, dni, !loading, onTypeChange = { documentType = it; dni = "" }, onValueChange = { dni = it })
                 OutlinedTextField(
                     value = phone, onValueChange = { phone = it.filter(Char::isDigit).take(9) },
                     label = { Text("Celular") }, enabled = !loading, singleLine = true,
@@ -277,7 +318,7 @@ private fun AuthForm(account: AccountViewModel, loading: Boolean, hasError: Bool
                     OutlinedTextField(value = district, onValueChange = { district = it.take(100) }, label = { Text("Distrito donde necesitas apoyo") }, enabled = !loading, singleLine = true, modifier = Modifier.fillMaxWidth())
                     OutlinedTextField(value = organization, onValueChange = { organization = it.take(100) }, label = { Text("Negocio u organización, opcional") }, enabled = !loading, singleLine = true, modifier = Modifier.fillMaxWidth())
                 }
-                Text("Tu DNI y celular se guardan en tu perfil privado, su formato no verifica tu identidad", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text("Tu documento y celular se guardan en tu perfil privado, su formato no verifica tu identidad", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             OutlinedTextField(
                 value = email,
@@ -309,7 +350,7 @@ private fun AuthForm(account: AccountViewModel, loading: Boolean, hasError: Bool
             AppPrimaryButton(
                 label = if (register) "Crear cuenta" else "Entrar",
                 onClick = {
-                    if (register) account.register(name, email, password, dni, phone, nationality, preferences?.purpose, preferences?.interests.orEmpty(), district, organization)
+                    if (register) account.register(name, email, password, dni, phone, nationality, preferences?.purpose, preferences?.interests.orEmpty(), district, organization, documentType)
                     else account.signIn(email, password)
                 },
                 enabled = !loading,
@@ -341,7 +382,13 @@ private fun AuthForm(account: AccountViewModel, loading: Boolean, hasError: Bool
                 },
                 enabled = !loading && !googleBusy && BuildConfig.FIREBASE_WEB_CLIENT_ID.isNotBlank(),
                 modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
-            ) { Text(if (BuildConfig.FIREBASE_WEB_CLIENT_ID.isBlank()) "Acceso con Google no disponible por ahora" else "Continuar con Google") }
+                colors = ButtonDefaults.outlinedButtonColors(containerColor = Color.White, contentColor = Color(0xFF1F1F1F), disabledContainerColor = Color.White, disabledContentColor = Color(0xFF747775)),
+                border = BorderStroke(1.dp, Color(0xFF747775)),
+            ) {
+                Image(painter = painterResource(R.drawable.google_g), contentDescription = null, modifier = Modifier.size(20.dp))
+                Spacer(Modifier.width(10.dp))
+                Text(if (BuildConfig.FIREBASE_WEB_CLIENT_ID.isBlank()) "Acceso con Google no disponible por ahora" else "Continuar con Google")
+            }
             if (!register) {
                 TextButton(enabled = !loading, onClick = onRecover) { Text("Recuperar contraseña") }
             }
@@ -350,6 +397,38 @@ private fun AuthForm(account: AccountViewModel, loading: Boolean, hasError: Bool
             }
         }
     }
+}
+
+private fun documentLabel(type: String) = when (type) {
+    "CE" -> "Carné de extranjería"
+    "PASAPORTE" -> "Pasaporte"
+    else -> "DNI"
+}
+
+@Composable
+private fun DocumentField(type: String, value: String, enabled: Boolean, onTypeChange: (String) -> Unit, onValueChange: (String) -> Unit) {
+    var expanded by remember { mutableStateOf(false) }
+    Text("Tipo de documento", style = MaterialTheme.typography.labelLarge)
+    Box {
+        OutlinedButton(onClick = { expanded = true }, enabled = enabled, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) { Text(documentLabel(type)) }
+        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            listOf("DNI", "CE", "PASAPORTE").forEach { option ->
+                DropdownMenuItem(text = { Text(documentLabel(option)) }, onClick = { expanded = false; if (option != type) onTypeChange(option) })
+            }
+        }
+    }
+    OutlinedTextField(
+        value = value,
+        onValueChange = { raw ->
+            val clean = if (type == "PASAPORTE") raw.uppercase(java.util.Locale.ROOT).filter { it in 'A'..'Z' || it in '0'..'9' }.take(15)
+            else raw.filter { it in '0'..'9' }.take(if (type == "DNI") 8 else 11)
+            onValueChange(clean)
+        },
+        label = { Text(if (type == "DNI") "Número de DNI" else "Número de ${documentLabel(type).lowercase()}") },
+        enabled = enabled, singleLine = true,
+        keyboardOptions = KeyboardOptions(keyboardType = if (type == "PASAPORTE") KeyboardType.Ascii else KeyboardType.Number),
+        modifier = Modifier.fillMaxWidth(),
+    )
 }
 
 @Composable
@@ -393,6 +472,7 @@ private fun ProfileForm(state: AccountUiState, account: AccountViewModel, isEmpl
     var editing by rememberSaveable(state.uid, state.needsProfile) { mutableStateOf(state.needsProfile) }
     var name by rememberSaveable(state.uid, state.displayName) { mutableStateOf(state.displayName) }
     var dni by rememberSaveable(state.uid, state.dni) { mutableStateOf(state.dni) }
+    var documentType by rememberSaveable(state.uid, state.documentType) { mutableStateOf(state.documentType) }
     var phone by rememberSaveable(state.uid, state.phone) { mutableStateOf(state.phone) }
     var nationality by rememberSaveable(state.uid, state.nationality) { mutableStateOf(state.nationality) }
     var district by rememberSaveable(state.uid, state.district) { mutableStateOf(state.district) }
@@ -422,11 +502,7 @@ private fun ProfileForm(state: AccountUiState, account: AccountViewModel, isEmpl
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                 )
-                OutlinedTextField(
-                    value = dni, onValueChange = { dni = it.filter(Char::isDigit).take(8) },
-                    label = { Text("DNI") }, enabled = !state.loading, singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), modifier = Modifier.fillMaxWidth(),
-                )
+                DocumentField(documentType, dni, !state.loading, onTypeChange = { documentType = it; dni = "" }, onValueChange = { dni = it })
                 OutlinedTextField(
                     value = phone, onValueChange = { phone = it.filter(Char::isDigit).take(9) },
                     label = { Text("Celular") }, enabled = !state.loading, singleLine = true,
@@ -437,14 +513,14 @@ private fun ProfileForm(state: AccountUiState, account: AccountViewModel, isEmpl
                     OutlinedTextField(value = district, onValueChange = { district = it.take(100) }, label = { Text("Distrito donde necesitas apoyo") }, enabled = !state.loading, modifier = Modifier.fillMaxWidth())
                     OutlinedTextField(value = organization, onValueChange = { organization = it.take(100) }, label = { Text("Negocio u organización, opcional") }, enabled = !state.loading, modifier = Modifier.fillMaxWidth())
                 }
-                Text("Tu DNI y celular se guardan en tu perfil privado, su formato no verifica tu identidad", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text("Tu documento y celular se guardan en tu perfil privado, su formato no verifica tu identidad", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Button(
-                    onClick = { account.saveProfile(name, dni, phone, nationality, preferences?.purpose, preferences?.interests.orEmpty(), district, organization) },
+                    onClick = { account.saveProfile(name, dni, phone, nationality, preferences?.purpose, preferences?.interests.orEmpty(), district, organization, documentType) },
                     enabled = !state.loading,
                     modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
                 ) { Text("Guardar perfil") }
                 if (!state.needsProfile) {
-                    TextButton(enabled = !state.loading, onClick = { name = state.displayName; dni = state.dni; phone = state.phone; nationality = state.nationality; editing = false }) { Text("Cancelar") }
+                    TextButton(enabled = !state.loading, onClick = { name = state.displayName; dni = state.dni; documentType = state.documentType; phone = state.phone; nationality = state.nationality; editing = false }) { Text("Cancelar") }
                 }
             } else {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -458,7 +534,7 @@ private fun ProfileForm(state: AccountUiState, account: AccountViewModel, isEmpl
                         Text(state.displayName, style = MaterialTheme.typography.titleMedium)
                         Text(state.email, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         if (state.nationality.isNotBlank()) Text(state.nationality, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        Text("DNI ••••${state.dni.takeLast(4)} · ${state.phone}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text("${documentLabel(state.documentType)} ••••${state.dni.takeLast(4)} · ${state.phone}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
                 OutlinedButton(enabled = !state.loading, onClick = { editing = true }) { Text("Editar perfil") }
@@ -502,7 +578,7 @@ private fun ExperienceEditor(state: AccountUiState, account: AccountViewModel, i
     Column(Modifier.verticalScroll(rememberScrollState()).padding(22.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
         TextButton(onClick = leave, enabled = !state.loading) { Text("Volver al perfil") }
         Text(if (isEmployer) "Datos del negocio y perfil" else "Mi perfil laboral", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
-        AppNotice("Al postular se comparten tus habilidades, experiencia, disponibilidad, distrito, estudios y portafolio, tu DNI, celular y correo permanecen privados")
+        AppNotice("Al postular se comparten tus habilidades, experiencia, disponibilidad, distrito, estudios y portafolio, tu documento, celular y correo permanecen privados")
         state.error?.let { AccountError(it) }
         Surface(shape = MaterialTheme.shapes.large, color = MaterialTheme.colorScheme.surface) {
             Column(Modifier.fillMaxWidth().padding(20.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {

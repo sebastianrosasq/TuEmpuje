@@ -26,7 +26,9 @@ La documentación reúne las decisiones de producto y desarrollo necesarias para
 |---|---|
 | [Diseño de interfaces](04-diseno.md) | Criterios de diseño y pantallas principales |
 | [Diseño y navegación](10-diseno-y-navegacion.md) | Dirección visual e interacciones de la app |
+| [Referentes de empleo](13-referentes.md) | Flujos consultados y adaptación al proyecto |
 | [Recursos visuales](11-recursos-visuales.md) | Origen de los recursos y contraste de colores |
+| [Asistencia y ubicación](12-asistencia-y-ubicacion.md) | Alternativas para funciones futuras |
 | [Plan de inteligencia artificial](06-plan-inteligencia-artificial.md) | Asistencia con Gemini y evaluación de un modelo propio |
 
 Los documentos describen el alcance previsto y deben actualizarse a medida que se implementen y prueben las funciones

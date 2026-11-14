@@ -10,6 +10,7 @@ import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.automirrored.rounded.Send
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -28,8 +29,10 @@ import pe.tuempuje.app.ui.components.AppLoadingState
 import pe.tuempuje.app.ui.components.AppNotice
 import pe.tuempuje.app.ui.components.Empu
 import pe.tuempuje.app.ui.components.EmpuMood
+import java.text.DateFormat
+import java.util.Date
 
-private data class ChatMessage(val id: String, val sender: String, val text: String)
+private data class ChatMessage(val id: String, val sender: String, val text: String, val sentAt: Date?)
 
 @Composable
 fun ConversationScreen(services: FirebaseServices?, opportunity: Opportunity?, applicantId: String, onBack: () -> Unit) {
@@ -42,10 +45,11 @@ fun ConversationScreen(services: FirebaseServices?, opportunity: Opportunity?, a
     val application = remember(opportunity.id, applicantId) { db.collection("opportunities").document(opportunity.id).collection("applications").document(applicantId) }
     var messages by remember(opportunity.id, applicantId) { mutableStateOf<List<ChatMessage>>(emptyList()) }
     var applicationStatus by remember(opportunity.id, applicantId) { mutableStateOf<String?>(null) }
-    var loading by remember { mutableStateOf(true) }
+    var loading by remember(opportunity.id, applicantId) { mutableStateOf(true) }
     var busy by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
-    var text by remember { mutableStateOf("") }
+    var text by rememberSaveable(opportunity.id, applicantId) { mutableStateOf("") }
+    var previousCount by remember(opportunity.id, applicantId) { mutableIntStateOf(0) }
     val listState = rememberLazyListState()
     val scope = rememberCoroutineScope()
     DisposableEffect(application) {
@@ -59,13 +63,19 @@ fun ConversationScreen(services: FirebaseServices?, opportunity: Opportunity?, a
             else {
                 error = null
                 messages = snapshot?.documents.orEmpty().filterNot { it.metadata.hasPendingWrites() }.map { doc ->
-                    ChatMessage(doc.id, doc.getString("senderId").orEmpty(), doc.getString("text").orEmpty())
+                    ChatMessage(doc.id, doc.getString("senderId").orEmpty(), doc.getString("text").orEmpty(), doc.getTimestamp("createdAt")?.toDate())
                 }
             }
         }
         onDispose { appListener.remove(); messageListener.remove() }
     }
-    LaunchedEffect(messages.size) { if (messages.isNotEmpty()) listState.animateScrollToItem(messages.lastIndex) }
+    LaunchedEffect(messages.size) {
+        val lastVisible = listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: -1
+        if (messages.isNotEmpty() && (previousCount == 0 || lastVisible >= previousCount - 2 || messages.last().sender == uid)) {
+            listState.animateScrollToItem(messages.lastIndex)
+        }
+        previousCount = messages.size
+    }
     val canSend = opportunity.status == "published" && applicationStatus in setOf("pending", "selected", "completed")
     Column(Modifier.fillMaxSize().padding(horizontal = 20.dp, vertical = 12.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -87,6 +97,7 @@ fun ConversationScreen(services: FirebaseServices?, opportunity: Opportunity?, a
                         Column(Modifier.padding(14.dp)) {
                             Text(if (mine) "Tú" else "Otra persona", style = MaterialTheme.typography.labelSmall)
                             Text(message.text, style = MaterialTheme.typography.bodyLarge)
+                            message.sentAt?.let { Text(DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.SHORT).format(it), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
                         }
                     }
                 }

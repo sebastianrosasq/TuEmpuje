@@ -91,11 +91,31 @@ Los avisos opcionales de actividad consultan postulaciones propias, publicacione
 
 La primera consulta guarda una referencia local por cuenta sin generar avisos, las notificaciones no incluyen mensajes ni datos personales, el sistema no utiliza FCM y su volumen de lecturas crece con las postulaciones, por lo que requiere una estrategia distinta antes de escalar
 
-Los perfiles son privados y no exponen el DNI, el celular, la nacionalidad ni el correo a otras cuentas, la postulación comparte el nombre, habilidades, experiencia, disponibilidad, distrito, estudios y portafolio confirmados contra su perfil
+Los perfiles son privados y no exponen el documento, el celular, la nacionalidad ni el correo a otras cuentas, la postulación comparte el nombre, habilidades, experiencia, disponibilidad, distrito, estudios y portafolio confirmados contra su perfil
+
+## Revisión de reportes
+
+La herramienta `functions/moderation.cjs` está destinada al equipo administrador, usa Firebase Admin y no forma parte de la aplicación Android, requiere permisos de Firestore para el proyecto indicado y credenciales locales de aplicación predeterminadas, nunca se deben guardar claves de servicio en el repositorio
+
+Desde `infra/`, después de instalar las dependencias de `functions/`, se pueden listar hasta 50 reportes abiertos:
+
+```powershell
+node functions/moderation.cjs list --project ID_DEL_PROYECTO
+```
+
+Para cerrar un reporte conservando la oportunidad se usa `keep`, para retirarla se usa `remove`, la segunda acción también impide nuevos mensajes en esa oportunidad, ambas requieren identificar a quien revisa y confirmar expresamente:
+
+```powershell
+node functions/moderation.cjs resolve ID_DEL_REPORTE keep --project ID_DEL_PROYECTO --operator "Nombre del responsable" --confirm
+```
+
+La resolución y el registro en `moderationActions` se guardan en una transacción, el nombre del responsable es una etiqueta ingresada por quien ejecuta la herramienta y no una verificación independiente de identidad, el acceso se controla mediante las credenciales administrativas y sus permisos
+
+Las pruebas locales se ejecutan con `npm run test:moderation` y el emulador de Firestore, esta herramienta no reemplaza una interfaz ni un sistema completo de auditoría para producción
 
 Solo un perfil con el objetivo de ofrecer trabajo puede crear oportunidades, la persona puede cambiar su objetivo desde la aplicación y las reglas vuelven a comprobarlo al publicar
 
-El DNI y el celular se guardan en el perfil privado, el formato se valida sin comprobar identidad ante RENIEC
+El documento y el celular se guardan en el perfil privado, se admiten DNI, carné de extranjería y pasaporte, el formato se valida sin comprobar identidad ni situación migratoria
 
 La selección y el retiro de una candidatura seleccionada actualizan la postulación y las vacantes de forma conjunta, una publicación sin personas seleccionadas puede editarse o retirarse y el historial sigue visible para sus participantes
 

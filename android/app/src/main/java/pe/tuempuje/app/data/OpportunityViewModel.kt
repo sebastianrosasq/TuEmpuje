@@ -124,7 +124,7 @@ class OpportunityViewModel(private val services: FirebaseServices?) : ViewModel(
             if (uid != userId) return@addSnapshotListener
             if (exception != null || profile == null) { profileLoaded = false; profileReady = false; return@addSnapshotListener }
             profileLoaded = profile.exists()
-            profileReady = (profile.getString("skills")?.trim()?.length ?: 0) >= 2 && (profile.getString("availability")?.trim()?.length ?: 0) >= 2 && pe.tuempuje.app.auth.identityError(profile.getString("dni").orEmpty(), profile.getString("phone").orEmpty()) == null
+            profileReady = (profile.getString("skills")?.trim()?.length ?: 0) >= 2 && (profile.getString("availability")?.trim()?.length ?: 0) >= 2 && pe.tuempuje.app.auth.identityError(profile.getString("dni").orEmpty(), profile.getString("phone").orEmpty(), profile.getString("documentType") ?: "DNI") == null
             profileRole = profile.getString("role")
             profileInterests = (profile.get("interests") as? List<*>)?.filterIsInstance<String>()?.toSet().orEmpty()
         }

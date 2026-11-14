@@ -88,6 +88,28 @@ test('un invitado no puede leer ni escribir datos privados', async () => {
   await assertFails(setDoc(doc(guest, 'opportunities', 'nueva'), opportunity('invitado')));
 });
 
+test('una cuenta normal no puede consultar ni alterar registros de moderación', async () => {
+  await env.withSecurityRulesDisabled(async context => {
+    await setDoc(doc(context.firestore(), 'moderationActions', 'revision'), { action: 'removed' });
+  });
+  const record = doc(user('candidato'), 'moderationActions', 'revision');
+  await assertFails(getDoc(record));
+  await assertFails(updateDoc(record, { action: 'kept' }));
+  await assertFails(setDoc(doc(user('candidato'), 'moderationActions', 'nueva'), { action: 'removed' }));
+});
+
+test('acepta documentos extranjeros válidos sin compartirlos en la postulación', async () => {
+  const db = user('candidato');
+  const own = doc(db, 'users', 'candidato');
+  await assertSucceeds(updateDoc(own, { documentType: 'CE', dni: '12345678901' }));
+  await assertFails(updateDoc(own, { documentType: 'CE', dni: 'ABC123' }));
+  await assertSucceeds(setDoc(doc(db, 'opportunities', 'oferta', 'applications', 'candidato'), application('candidato')));
+  await assertFails(getDoc(doc(user('cliente'), 'users', 'candidato')));
+  await assertSucceeds(updateDoc(own, { documentType: 'PASAPORTE', dni: 'AB1234567' }));
+  await assertFails(updateDoc(own, { documentType: 'PASAPORTE', dni: 'A'.repeat(16) }));
+  await assertFails(updateDoc(own, { documentType: 'OTRO', dni: '12345678' }));
+});
+
 test('oportunidades publicadas pueden consultarse por cuentas autenticadas', async () => {
   const db = user('candidato');
   await assertSucceeds(getDoc(doc(db, 'opportunities', 'oferta')));

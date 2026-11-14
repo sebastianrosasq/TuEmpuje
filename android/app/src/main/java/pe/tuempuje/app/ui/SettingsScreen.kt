@@ -96,7 +96,7 @@ fun SettingsScreen(preferences: AppPreferences, onBack: () -> Unit) {
         Surface(shape = MaterialTheme.shapes.large, color = MaterialTheme.colorScheme.surface, modifier = Modifier.fillMaxWidth()) {
             Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text("Privacidad", style = MaterialTheme.typography.titleLarge)
-                Text("Tu DNI, celular y correo son privados, antes de postular podrás revisar qué datos de tu perfil se comparten", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text("Tu documento, celular y correo son privados, antes de postular podrás revisar qué datos de tu perfil se comparten", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
         Surface(shape = MaterialTheme.shapes.large, color = MaterialTheme.colorScheme.surface, modifier = Modifier.fillMaxWidth()) {

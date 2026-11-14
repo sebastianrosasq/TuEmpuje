@@ -63,21 +63,23 @@ Las cuentas y los perfiles pueden probarse con los emuladores locales o con un p
 
 Las oportunidades, postulaciones y selección de candidatos están conectadas a Firestore en el entorno de desarrollo, el recorrido se verificó entre cuentas en emuladores locales y mediante el SDK en Firebase de desarrollo
 
-El acceso con Google está integrado y configurado en el proyecto de desarrollo, queda por probar el inicio de sesión completo con una cuenta de Google en un teléfono compatible
+El acceso con Google y la recuperación de contraseña están integrados en el proyecto de desarrollo y se probaron en un teléfono físico
 
-La finalización de trabajos y el registro de reportes están incorporados y sus reglas se desplegaron al proyecto de desarrollo, todavía falta una herramienta de moderación
+La finalización de trabajos y el registro de reportes están incorporados, el equipo cuenta con una herramienta de línea de comandos para revisar reportes, su uso en la nube requiere credenciales administrativas
 
-La recuperación de contraseña envía un enlace al correo, la app puede validar el enlace y solicitar la nueva contraseña, la asociación publicada corresponde al certificado de depuración de este entorno y falta comprobar el recorrido en un dispositivo físico
+La recuperación de contraseña envía un enlace al correo, la app valida el enlace y solicita la nueva contraseña, la asociación publicada corresponde al certificado de depuración de este entorno
 
 La eliminación completa de cuentas se preparó para el emulador mediante una función protegida, su despliegue y la configuración de expiración de bloqueos están pendientes, por lo que todavía no está disponible en la nube
 
 Al entrar se elige entre buscar trabajo y ofrecer oportunidades, después se inicia sesión o se crea una cuenta para continuar, el objetivo puede cambiarse desde el perfil
 
-El registro solicita nombre, correo, DNI, celular y nacionalidad, la versión actual valida DNI y número móvil peruanos sin verificar identidad ante RENIEC
+El registro solicita nombre, correo, documento, celular y nacionalidad, admite DNI, carné de extranjería y pasaporte con validación de formato, el celular conserva el formato peruano y los documentos no verifican identidad
 
 La búsqueda puede filtrarse por categoría, ubicación, modalidad remota y vacantes, solo el objetivo de ofrecer trabajo permite publicar
 
 Las personas pueden completar sus habilidades y disponibilidad antes de postular, retirar una candidatura, editar o retirar una publicación sin seleccionados y consultar el historial
+
+El perfil permite guardar un CV en PDF con los datos registrados, el archivo se guarda en el dispositivo y no se adjunta automáticamente a las postulaciones
 
 Gemini Developer API está habilitada en el proyecto de desarrollo, la asistencia para preparar CV y redactar oportunidades se implementará y verificará en una etapa posterior
 
@@ -85,7 +87,7 @@ La bandeja reúne las conversaciones asociadas a postulaciones, los avisos de me
 
 Los avisos revisan la actividad mediante WorkManager aproximadamente cada hora cuando hay conexión, Android puede retrasarlos por batería y la primera revisión establece una referencia sin avisar, no son mensajes push inmediatos
 
-La carga y entrega de archivos CV, la web, los pagos y la moderación están pendientes, el proyecto de desarrollo se usa únicamente con datos de prueba
+La carga y entrega de archivos CV, la web, los pagos y una interfaz de moderación están pendientes, el proyecto de desarrollo se usa únicamente con datos de prueba
 
 El sistema visual comparte avisos, botones y estados vacíos, con transiciones y una navegación que se adapta al texto ampliado, las pruebas y limitaciones están registradas en [Diseño y navegación](docs/10-diseno-y-navegacion.md)
 
@@ -111,22 +113,9 @@ Ambas compilaciones usan la misma ruta de salida del APK, por lo que la última 
 
 ## Documentación
 
-| Documento | Contenido |
-|---|---|
-| [Documento de proyecto](docs/03-documento-de-proyecto.md) | Problema, justificación, objetivos y alcance |
-| [Plan maestro](docs/00-plan-maestro.md) | Flujo general, arquitectura y etapas |
-| [Arquitectura](docs/08-arquitectura.md) | Componentes, datos y decisiones técnicas |
-| [Identidad y reglas](infra/README.md) | Emuladores, modelo de datos y pruebas de acceso |
-| [Requisitos](docs/01-requisitos.md) | Reglas de negocio, permisos y criterios de aceptación |
-| [Plan de trabajo y pruebas](docs/02-plan-y-pruebas.md) | Prioridades, entregables y escenarios de prueba |
-| [Plan de 16 sprints](docs/09-sprints.md) | Objetivos, dependencias y criterios de aceptación |
-| [Referentes de empleo](docs/13-referentes.md) | Flujos consultados y decisiones de adaptación |
-| [Diseño y navegación](docs/10-diseno-y-navegacion.md) | Dirección visual, recorridos e interacciones |
-| [Asistencia y ubicación](docs/12-asistencia-y-ubicacion.md) | Funciones futuras de IA y alternativas para mapas |
-| [Temas del curso](docs/05-temas-del-curso.md) | Aplicación de Kotlin, Compose, Room y Firebase |
-| [Plan de inteligencia artificial](docs/06-plan-inteligencia-artificial.md) | Asistencia con Gemini y evaluación de un modelo propio |
-| [Diseño de interfaces](docs/04-diseno.md) | Criterios de diseño y pantallas principales |
-| [Guía de desarrollo](docs/07-desarrollo.md) | Organización del repositorio y forma de trabajo |
+La [documentación del proyecto](docs/README.md) reúne los requisitos, la arquitectura, las decisiones de diseño y el plan de trabajo
+
+La configuración de servicios, las reglas de acceso y las pruebas de seguridad se describen en [infraestructura](infra/README.md)
 
 ## Estructura actual
 
@@ -135,25 +124,7 @@ TuEmpuje/
 ├── android/                Proyecto Android en Kotlin y Compose
 ├── infra/                  Emuladores, reglas y funciones de Firebase
 ├── design/empu-rive/       Recurso editable de Empu
-├── docs/
-│   ├── assets/
-│   │   ├── empu.png
-│   │   ├── prototipo-inicio.png
-│   │   ├── prototipo-oscuro.png
-│   │   ├── tuempuje-icono.svg
-│   │   └── tuempuje-simbolo.svg
-│   ├── 00-plan-maestro.md
-│   ├── 01-requisitos.md
-│   ├── 02-plan-y-pruebas.md
-│   ├── 03-documento-de-proyecto.md
-│   ├── 04-diseno.md
-│   ├── 05-temas-del-curso.md
-│   ├── 06-plan-inteligencia-artificial.md
-│   ├── 07-desarrollo.md
-│   ├── 08-arquitectura.md
-│   ├── 09-sprints.md
-│   ├── 10-diseno-y-navegacion.md
-│   └── README.md
+├── docs/                   Documentación y recursos visuales
 ├── .editorconfig
 ├── .gitattributes
 ├── .gitignore

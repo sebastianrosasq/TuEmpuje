@@ -10,6 +10,7 @@
     "android:config": "node configure-android.mjs",
     "emulators": "firebase emulators:start --project demo-tuempuje --only auth,firestore,functions",
     "test:rules": "firebase emulators:exec --project demo-tuempuje --only firestore \"node --test test/firestore.rules.test.mjs\"",
+    "test:moderation": "firebase emulators:exec --project demo-tuempuje --only firestore \"node --test functions/moderation.test.cjs\"",
     "test:deletion": "firebase emulators:exec --project demo-tuempuje --only auth,firestore,functions \"node --test functions/delete-account.test.cjs\""
   },
   "devDependencies": {

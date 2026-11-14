@@ -574,7 +574,7 @@ private fun DetailScreen(opportunity: Opportunity?, model: OpportunityViewModel,
             onDismissRequest = { confirmApplication = false },
             icon = { Empu(EmpuMood.THINKING, Modifier.size(112.dp)) },
             title = { Text("Confirmar postulación") },
-            text = { Text("Tu nombre, habilidades, experiencia, disponibilidad, distrito, estudios y portafolio se compartirán con quien publicó ${opportunity.title}, tu DNI, celular y correo seguirán privados") },
+            text = { Text("Tu nombre, habilidades, experiencia, disponibilidad, distrito, estudios y portafolio se compartirán con quien publicó ${opportunity.title}, tu documento, celular y correo seguirán privados") },
             confirmButton = { TextButton(onClick = { model.apply(opportunity.id, onApplied); confirmApplication = false }, enabled = !model.busy) { Text("Enviar postulación") } },
             dismissButton = { TextButton(onClick = { confirmApplication = false }) { Text("Cancelar") } },
         )
