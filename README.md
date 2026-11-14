@@ -81,7 +81,9 @@ Las personas pueden completar sus habilidades y disponibilidad antes de postular
 
 Gemini Developer API está habilitada en el proyecto de desarrollo, la asistencia para preparar CV y redactar oportunidades se implementará y verificará en una etapa posterior
 
-Las conversaciones entre quien publica y quien postula funcionan dentro de cada oportunidad, sin notificaciones automáticas por ahora
+La bandeja reúne las conversaciones asociadas a postulaciones, los avisos de mensajes y cambios de estado pueden activarse en ajustes
+
+Los avisos revisan la actividad mediante WorkManager aproximadamente cada hora cuando hay conexión, Android puede retrasarlos por batería y la primera revisión establece una referencia sin avisar, no son mensajes push inmediatos
 
 La carga y entrega de archivos CV, la web, los pagos y la moderación están pendientes, el proyecto de desarrollo se usa únicamente con datos de prueba
 

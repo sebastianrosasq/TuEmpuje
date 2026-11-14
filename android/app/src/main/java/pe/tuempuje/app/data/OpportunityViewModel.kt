@@ -34,6 +34,7 @@ data class Opportunity(
     val selectedCount: Int,
     val own: Boolean,
     val status: String = "published",
+    val createdAtSeconds: Long = 0,
 )
 
 data class Candidate(val id: String, val name: String, val status: String, val skills: String = "", val experience: String = "", val availability: String = "", val district: String = "", val education: String = "", val portfolio: String = "")
@@ -208,7 +209,7 @@ class OpportunityViewModel(private val services: FirebaseServices?) : ViewModel(
             category = doc.getString("category").orEmpty(), location = doc.getString("location").orEmpty(), pay = doc.getString("pay").orEmpty(),
             duration = doc.getString("duration").orEmpty(), description = doc.getString("description").orEmpty(),
             requirements = doc.getString("requirements").orEmpty(), vacancies = (doc.getLong("vacancies") ?: 1).toInt(),
-            selectedCount = (doc.getLong("selectedCount") ?: 0).toInt(), own = owner == uid, status = doc.getString("status").orEmpty(),
+            selectedCount = (doc.getLong("selectedCount") ?: 0).toInt(), own = owner == uid, status = doc.getString("status").orEmpty(), createdAtSeconds = doc.getTimestamp("createdAt")?.seconds ?: 0,
         ) to (doc.getTimestamp("createdAt")?.seconds ?: 0L)
     }
 

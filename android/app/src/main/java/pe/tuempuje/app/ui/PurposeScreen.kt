@@ -56,6 +56,7 @@ fun PurposeScreen(initialRole: String?, initialInterests: Set<String>, onComplet
                         Icon(Icons.AutoMirrored.Rounded.ArrowForward, contentDescription = null, modifier = Modifier.size(20.dp))
                     }
                     if (step == 1) TextButton(onClick = { step = 0 }, modifier = Modifier.align(Alignment.CenterHorizontally)) { Text("Volver") }
+                    if (step == 1 && selected.isEmpty()) TextButton(onClick = { onComplete("worker", emptySet()) }, modifier = Modifier.align(Alignment.CenterHorizontally)) { Text("Aún no me decido") }
                 }
             }
         },
@@ -81,7 +82,7 @@ fun PurposeScreen(initialRole: String?, initialInterests: Set<String>, onComplet
             } else {
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Text("Elige tus intereses", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground)
-                    Text("Selecciona uno o más, verás primero las oportunidades relacionadas", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text("Selecciona tus intereses para ver primero las oportunidades relacionadas, también puedes elegirlos después", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     workInterests.forEach { interest ->
@@ -102,7 +103,7 @@ fun PurposeScreen(initialRole: String?, initialInterests: Set<String>, onComplet
                         )
                     }
                 }
-                Text(if (selected.isEmpty()) "Elige al menos un interés" else "${selected.size} ${if (selected.size == 1) "interés elegido" else "intereses elegidos"}", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
+                Text(if (selected.isEmpty()) "Puedes elegir tus intereses más adelante" else "${selected.size} ${if (selected.size == 1) "interés elegido" else "intereses elegidos"}", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
             }
             Spacer(Modifier.height(4.dp))
         }

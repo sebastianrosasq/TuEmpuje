@@ -48,6 +48,8 @@ import androidx.compose.material.icons.outlined.BusinessCenter as BusinessOutlin
 import androidx.compose.material.icons.outlined.Person as PersonOutlineIcon
 import androidx.compose.material.icons.rounded.AddCircle
 import androidx.compose.material.icons.rounded.Person
+import androidx.compose.material.icons.rounded.ChatBubbleOutline
+import androidx.compose.material.icons.rounded.ChatBubble
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -77,6 +79,7 @@ import pe.tuempuje.app.data.Opportunity
 import pe.tuempuje.app.data.OpportunityViewModel
 import pe.tuempuje.app.data.OpportunityViewModelFactory
 import pe.tuempuje.app.data.FirebaseServices
+import pe.tuempuje.app.notifications.NotificationScheduler
 import pe.tuempuje.app.ui.auth.AccountScreen
 import pe.tuempuje.app.ui.components.AppEmptyState
 import pe.tuempuje.app.ui.components.AppNotice
@@ -91,6 +94,9 @@ import pe.tuempuje.app.ui.components.WelcomeIntro
 import pe.tuempuje.app.ui.theme.EmpuLight
 import kotlinx.coroutines.launch
 import java.time.LocalDate
+import java.time.Instant
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 import java.util.Locale
 
 private data class Destination(val route: String, val label: String, val icon: ImageVector, val selectedIcon: ImageVector)
@@ -99,6 +105,7 @@ private val destinations = listOf(
     Destination("explorar", "Explorar", Icons.Outlined.ExploreOutline, Icons.Rounded.Explore),
     Destination("publicar", "Publicar", Icons.Outlined.AddOutline, Icons.Rounded.AddCircle),
     Destination("actividad", "Actividad", Icons.Outlined.BusinessOutline, Icons.Rounded.BusinessCenter),
+    Destination("mensajes", "Mensajes", Icons.Rounded.ChatBubbleOutline, Icons.Rounded.ChatBubble),
     Destination("perfil", "Perfil", Icons.Outlined.PersonOutlineIcon, Icons.Rounded.Person),
 )
 
@@ -106,6 +113,10 @@ private val destinations = listOf(
 fun TuEmpujeApp(services: FirebaseServices?, resetCode: String? = null, onResetConsumed: () -> Unit = {}, model: OpportunityViewModel = viewModel(factory = OpportunityViewModelFactory(services))) {
     var showIntro by rememberSaveable { mutableStateOf(true) }
     val preferences = LocalAppPreferences.current
+    val appContext = LocalContext.current.applicationContext
+    LaunchedEffect(model.userId, preferences?.backgroundNotifications) {
+        NotificationScheduler.update(appContext, model.userId, preferences?.backgroundNotifications == true)
+    }
     var choosePurpose by rememberSaveable { mutableStateOf(preferences?.purpose == null) }
     LaunchedEffect(model.userId, model.profileLoaded) {
         if (model.profileLoaded && preferences != null) {
@@ -143,7 +154,7 @@ private fun TuEmpujeContent(services: FirebaseServices?, model: OpportunityViewM
     val snackbar = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     val availableDestinations = if (preferences?.purpose == "employer") destinations else destinations.filterNot { it.route == "publicar" }
-    val navigationGroups = if (LocalConfiguration.current.fontScale >= 1.8f) availableDestinations.chunked(2) else listOf(availableDestinations)
+    val navigationGroups = if (LocalConfiguration.current.fontScale >= 1.8f) availableDestinations.chunked(if (availableDestinations.size > 4) 3 else 2) else listOf(availableDestinations)
     val openDestination: (String) -> Unit = { route ->
         val current = nav.currentDestination?.route
         if (route in availableDestinations.map { it.route } && current != route) nav.navigate(route) { launchSingleTop = true }
@@ -223,16 +234,20 @@ private fun TuEmpujeContent(services: FirebaseServices?, model: OpportunityViewM
                 composable("actividad") {
                     DestinationSurface { ActivityScreen(model, activityRevision, openDestination) { nav.navigate("detalle/$it") { launchSingleTop = true } } }
                 }
+                composable("mensajes") {
+                    DestinationSurface { InboxScreen(services, model) { job, applicant -> nav.navigate("conversacion/$job/$applicant") } }
+                }
                 composable("perfil") {
                     DestinationSurface {
                     if (services != null) {
-                        AccountScreen(services.auth, services.firestore, onSettings = { nav.navigate("ajustes") }, onSaved = { nav.navigate("guardados") }, onChoosePurpose = onChoosePurpose, resetCode = resetCode, onResetConsumed = onResetConsumed)
+                        AccountScreen(services.auth, services.firestore, onSettings = { nav.navigate("ajustes") }, onSaved = { nav.navigate("guardados") }, onChoosePurpose = onChoosePurpose, resetCode = resetCode, onResetConsumed = onResetConsumed, onHelp = { nav.navigate("ayuda") })
                     } else {
                         ProfileScreen(onSettings = { nav.navigate("ajustes") }, onSaved = { nav.navigate("guardados") })
                     }
                     }
                 }
                 composable("ajustes") { DestinationSurface { if (preferences != null) SettingsScreen(preferences) { nav.popBackStack() } } }
+                composable("ayuda") { DestinationSurface { HelpScreen { nav.popBackStack() } } }
                 composable("guardados") { DestinationSurface { SavedScreen(model, onBack = { nav.popBackStack() }, onExplore = { openDestination("explorar") }) { nav.navigate("detalle/$it") } } }
                 composable("detalle/{id}") { entry ->
                     val opportunity = model.find(entry.arguments?.getString("id").orEmpty())
@@ -338,7 +353,7 @@ private fun ExploreScreen(model: OpportunityViewModel, onSaved: () -> Unit, onSe
             }
         }
         items(opportunities, key = { it.id }) { opportunity ->
-            OpportunityCard(opportunity, modifier = if (reduceMotion) Modifier else Modifier.animateItem()) { open(opportunity.id) }
+            OpportunityCard(opportunity, modifier = if (reduceMotion) Modifier else Modifier.animateItem(), availabilityConfirmed = !model.feedFromCache) { open(opportunity.id) }
         }
         item { QuickActions(onSaved, onPublish, LocalAppPreferences.current?.purpose == "employer") }
     }
@@ -430,7 +445,7 @@ private fun SavedScreen(model: OpportunityViewModel, onBack: () -> Unit, onExplo
             val current = model.find(item.id)
             val opportunity = current ?: item.asOpportunity()
             if (opportunity != null) {
-                OpportunityCard(opportunity, modifier = if (reduceMotion) Modifier else Modifier.animateItem(), onClick = if (current != null) ({ open(item.id) }) else null)
+                OpportunityCard(opportunity, modifier = if (reduceMotion) Modifier else Modifier.animateItem(), availabilityConfirmed = current != null && !model.feedFromCache, onClick = if (current != null) ({ open(item.id) }) else null)
             } else {
                 Surface(shape = MaterialTheme.shapes.large, color = MaterialTheme.colorScheme.surface) {
                     Column(Modifier.fillMaxWidth().padding(18.dp)) {
@@ -445,7 +460,7 @@ private fun SavedScreen(model: OpportunityViewModel, onBack: () -> Unit, onExplo
 }
 
 @Composable
-private fun OpportunityCard(opportunity: Opportunity, status: String? = null, modifier: Modifier = Modifier, onClick: (() -> Unit)?) {
+private fun OpportunityCard(opportunity: Opportunity, status: String? = null, modifier: Modifier = Modifier, availabilityConfirmed: Boolean = true, onClick: (() -> Unit)?) {
     val preferences = LocalAppPreferences.current
     val saved = opportunity.id in preferences?.savedIds.orEmpty()
     Surface(
@@ -500,6 +515,13 @@ private fun OpportunityCard(opportunity: Opportunity, status: String? = null, mo
                 Text(opportunity.location, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             Text(opportunity.pay, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
+            Text(opportunity.duration, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            val remaining = (opportunity.vacancies - opportunity.selectedCount).coerceAtLeast(0)
+            Text(if (opportunity.status != "published") "Publicación retirada" else if (!availabilityConfirmed) "Vacantes por confirmar" else if (remaining == 1) "1 vacante disponible" else "$remaining vacantes disponibles", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
+            if (opportunity.createdAtSeconds > 0) {
+                val date = remember(opportunity.createdAtSeconds) { Instant.ofEpochSecond(opportunity.createdAtSeconds).atZone(ZoneId.systemDefault()).toLocalDate().format(DateTimeFormatter.ofPattern("d MMM yyyy", Locale.forLanguageTag("es-PE"))) }
+                Text("Publicado el $date", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
         }
     }
 }
@@ -1028,7 +1050,7 @@ private fun ActivityScreen(model: OpportunityViewModel, activityRevision: Int, o
         (model.error ?: model.feedError ?: model.applicationsError ?: model.ownError)?.let { message -> item { AppNotice(message, isError = true); TextButton(onClick = model::retry) { Text("Reintentar") } } }
         item {
             LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                item { FilterChip(selected = section == "Publicaciones", onClick = { section = "Publicaciones" }, label = { Text("Publicaciones (${myPosts.size})") }) }
+                if (purpose == "employer" || myPosts.isNotEmpty()) item { FilterChip(selected = section == "Publicaciones", onClick = { section = "Publicaciones" }, label = { Text("Publicaciones (${myPosts.size})") }) }
                 item { FilterChip(selected = section == "Postulaciones", onClick = { section = "Postulaciones" }, label = { Text("Postulaciones (${myApplications.size})") }) }
             }
         }
@@ -1053,10 +1075,10 @@ private fun ActivityScreen(model: OpportunityViewModel, activityRevision: Int, o
             }
         } else if (section == "Publicaciones") {
             if (myPosts.isEmpty()) item { AppEmptyState("Aún no tienes publicaciones", "Crea una oportunidad para encontrar apoyo", "Crear publicación", EmptyIllustration.Posts) { openDestination("publicar") } }
-            items(myPosts, key = { "post-${it.id}" }) { item -> OpportunityCard(item, if (item.status == "removed") "Retirada" else "Publicada", if (reduceMotion) Modifier else Modifier.animateItem()) { open(item.id) } }
+            items(myPosts, key = { "post-${it.id}" }) { item -> OpportunityCard(item, if (item.status == "removed") "Retirada" else "Publicada", if (reduceMotion) Modifier else Modifier.animateItem(), availabilityConfirmed = !model.feedFromCache) { open(item.id) } }
         } else {
             if (myApplications.isEmpty()) item { AppEmptyState("Aún no tienes postulaciones", "Explora las oportunidades y encuentra una para ti", "Explorar oportunidades", EmptyIllustration.Applications) { openDestination("explorar") } }
-            items(myApplications, key = { "application-${it.id}" }) { item -> OpportunityCard(item, when (model.applications[item.id]) { "selected" -> "Seleccionada"; "completed" -> "Trabajo finalizado"; "withdrawn" -> "Postulación retirada"; else -> "Postulación enviada" }, if (reduceMotion) Modifier else Modifier.animateItem()) { open(item.id) } }
+            items(myApplications, key = { "application-${it.id}" }) { item -> OpportunityCard(item, when (model.applications[item.id]) { "selected" -> "Seleccionada"; "completed" -> "Trabajo finalizado"; "withdrawn" -> "Postulación retirada"; else -> "Postulación enviada" }, if (reduceMotion) Modifier else Modifier.animateItem(), availabilityConfirmed = !model.feedFromCache) { open(item.id) } }
         }
     }
 }

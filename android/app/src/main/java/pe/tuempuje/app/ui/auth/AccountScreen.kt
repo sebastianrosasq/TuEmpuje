@@ -74,7 +74,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.CancellationException
 
 @Composable
-fun AccountScreen(auth: FirebaseAuth, firestore: FirebaseFirestore, onSettings: () -> Unit, onSaved: () -> Unit, onChoosePurpose: () -> Unit = {}, resetCode: String? = null, onResetConsumed: () -> Unit = {}, authGate: Boolean = false) {
+fun AccountScreen(auth: FirebaseAuth, firestore: FirebaseFirestore, onSettings: () -> Unit, onSaved: () -> Unit, onChoosePurpose: () -> Unit = {}, resetCode: String? = null, onResetConsumed: () -> Unit = {}, authGate: Boolean = false, onHelp: () -> Unit = {}) {
     val factory = remember(auth, firestore) { AccountViewModelFactory(auth, firestore) }
     val account: AccountViewModel = viewModel(factory = factory)
     val state by account.state.collectAsState()
@@ -219,6 +219,7 @@ fun AccountScreen(auth: FirebaseAuth, firestore: FirebaseFirestore, onSettings: 
             OutlinedButton(onClick = onChoosePurpose, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) { Text("Cambiar qué quiero hacer") }
             Text("Tu espacio", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
             if (!isEmployer) OutlinedButton(onClick = onSaved, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) { Text("Oportunidades guardadas") }
+            OutlinedButton(onClick = onHelp, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) { Text("Ayuda y seguridad") }
         }
     }
 }
@@ -461,7 +462,7 @@ private fun ProfileForm(state: AccountUiState, account: AccountViewModel, isEmpl
                     }
                 }
                 OutlinedButton(enabled = !state.loading, onClick = { editing = true }) { Text("Editar perfil") }
-                OutlinedButton(enabled = !state.loading, onClick = onShowExperience, modifier = Modifier.fillMaxWidth()) { Text(if (isEmployer) "Datos del negocio y perfil" else "Habilidades y experiencia") }
+                OutlinedButton(enabled = !state.loading, onClick = onShowExperience, modifier = Modifier.fillMaxWidth()) { Text(if (isEmployer) "Datos del negocio y perfil" else "Mi perfil laboral") }
             }
             TextButton(enabled = !state.loading, onClick = onSignOut) { Text("Cerrar sesión") }
         }
@@ -500,17 +501,20 @@ private fun ExperienceEditor(state: AccountUiState, account: AccountViewModel, i
     }
     Column(Modifier.verticalScroll(rememberScrollState()).padding(22.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
         TextButton(onClick = leave, enabled = !state.loading) { Text("Volver al perfil") }
-        Text(if (isEmployer) "Datos del negocio y perfil" else "Habilidades y experiencia", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+        Text(if (isEmployer) "Datos del negocio y perfil" else "Mi perfil laboral", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
         AppNotice("Al postular se comparten tus habilidades, experiencia, disponibilidad, distrito, estudios y portafolio, tu DNI, celular y correo permanecen privados")
         state.error?.let { AccountError(it) }
         Surface(shape = MaterialTheme.shapes.large, color = MaterialTheme.colorScheme.surface) {
             Column(Modifier.fillMaxWidth().padding(20.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                Text("Cuéntanos sobre ti", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
+                Text("Habilidades y disponibilidad", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
                 Text("Tus conocimientos también pueden venir de estudios o proyectos personales", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 OutlinedTextField(value = skills, onValueChange = { skills = it.take(500) }, enabled = !state.loading, label = { Text("Habilidades") }, placeholder = { Text("Ejemplo: edición de video") }, modifier = Modifier.fillMaxWidth())
-                OutlinedTextField(value = experience, onValueChange = { experience = it.take(1500) }, enabled = !state.loading, label = { Text("Proyectos o experiencia") }, minLines = 3, modifier = Modifier.fillMaxWidth())
                 OutlinedTextField(value = availability, onValueChange = { availability = it.take(200) }, enabled = !state.loading, label = { Text("Disponibilidad") }, placeholder = { Text("Ejemplo: fines de semana") }, modifier = Modifier.fillMaxWidth())
+                Text("Experiencia y proyectos", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
+                OutlinedTextField(value = experience, onValueChange = { experience = it.take(1500) }, enabled = !state.loading, label = { Text("Proyectos o experiencia") }, minLines = 3, modifier = Modifier.fillMaxWidth())
+                Text("Si aún no tienes experiencia puedes dejar este campo vacío", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Text("Habilidades y disponibilidad son necesarias para postular, la experiencia es opcional", style = MaterialTheme.typography.bodySmall)
+                Text("Formación y ubicación", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
                 OutlinedTextField(value = district, onValueChange = { district = it.take(100) }, enabled = !state.loading, label = { Text("Distrito") }, modifier = Modifier.fillMaxWidth())
                 OutlinedTextField(value = education, onValueChange = { education = it.take(500) }, enabled = !state.loading, label = { Text("Estudios o formación") }, modifier = Modifier.fillMaxWidth())
                 OutlinedTextField(value = portfolio, onValueChange = { portfolio = it.take(500) }, enabled = !state.loading, label = { Text("Portafolio o proyectos") }, modifier = Modifier.fillMaxWidth())

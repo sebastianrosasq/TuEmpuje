@@ -16,9 +16,9 @@ La web se plantea como una página de presentación posterior y la integración 
 
 **Siguiente:** identidad real con permisos, acuerdo, finalización y reportes; las herramientas de administración se definirán después.
 
-**Después del recorrido principal:** el asistente con Gemini para preparar borradores, si el plazo y la configuración lo permiten. El entrenamiento y evaluación de un modelo propio se prepararán por separado cuando sea posible. También quedan para iteraciones posteriores la mensajería, notificaciones, reseñas, pagos, validación profesional y funciones de colas. Mantenerlos documentados sin simular que existen.
+**Después del recorrido principal:** el asistente con Gemini, el entrenamiento y evaluación de un modelo propio, reseñas, pagos, validación profesional y funciones de colas. La mensajería por postulación y los avisos periódicos ya cuentan con una primera implementación, sin entrega push inmediata.
 
-**Para demostrar los temas del curso:** priorizar Kotlin, Compose, manejo de estado, navegación, Material 3, Git, MVVM/UDF y Firebase durante el recorrido principal. Añadir Room para oportunidades guardadas o caché si cabe en el plazo. Retrofit requiere una API REST real definida; Google Maps, animaciones, Glance y WorkManager quedan condicionados al tiempo, las credenciales y la necesidad del producto. Consultar [Temas del curso y aplicación en TuEmpuje](05-temas-del-curso.md).
+**Para demostrar los temas del curso:** usar Kotlin, Compose, manejo de estado, navegación, Material 3, Git, MVVM/UDF, Firebase, Room para guardados y WorkManager para las revisiones periódicas. Retrofit requiere una API REST real definida; las demás integraciones dependen de su necesidad y disponibilidad. Consultar [Temas del curso y aplicación en TuEmpuje](05-temas-del-curso.md).
 
 Si la autenticación real no se termina para la presentación, se puede mostrar una demostración local con cuentas de prueba o datos ficticios, rotulada como prototipo. Eso impide abrirla a usuarios reales y debe indicarse expresamente. Sin autenticación y autorización reales no se puede afirmar que la plataforma es segura.
 
@@ -78,22 +78,17 @@ La presentación puede mostrar, de acuerdo con lo que se haya construido realmen
 
 Además: pruebas unitarias de validación y reglas; integración de repositorios y permisos; prueba manual en emulador y al menos un equipo físico si está disponible; revisión de accesibilidad, errores y datos personales; pruebas de restauración y operación antes del piloto real. Priorizar pruebas significativas de permisos, postulaciones y transiciones.
 
-### Resultados del entorno local
+### Resultados verificados
 
-- Compilación Android y `lintDebug`: correctos, con ocho avisos de versiones de dependencias
-- Nueve pruebas de reglas de Firestore: aprobadas, incluidos perfiles privados, suplantación, duplicados y bloqueo de selección
-- Android en emulador: registro de dos cuentas ficticias, edición y recuperación de perfil, cierre de sesión y acceso posterior
-- Acceso con contraseña incorrecta y servicio local apagado: se mostró un error y se conservó el formulario
-- El análisis detectó y permitió corregir dos errores de compatibilidad de estilos con Android 8
-- La auditoría de las herramientas npm de desarrollo mantiene 14 avisos moderados documentados en [Identidad y reglas de datos](../infra/README.md)
+- Compilación Android y 17 pruebas unitarias: correctas
+- 22 pruebas de reglas de Firestore en emulador: correctas, incluidos perfiles privados, rol de publicación, postulaciones y mensajes
+- En el emulador Android se comprobó el primer ingreso, la opción de omitir intereses, el acceso con dos cuentas de ejemplo y la bandeja de cada participante
+- En la interfaz Android, la cuenta de empleador publicó una oportunidad de ejemplo, la cuenta de postulante la encontró y postuló, el empleador la seleccionó y la cuenta de postulante mostró el estado seleccionado
+- La conversación de ejemplo se abrió desde ambas cuentas y mostró los mensajes registrados en la nube de desarrollo
+- Se concedió el permiso de notificaciones y se comprobó un aviso genérico tras añadir un mensaje de ejemplo y reprogramar la revisión, esto no mide el tiempo de entrega bajo restricciones de batería
+- Se revisó el tema oscuro y el tamaño de texto ampliado en el emulador
 
-Estas pruebas corresponden al entorno local y no sustituyen las pruebas en dispositivos físicos
-
-### Resultado en la nube de desarrollo
-
-- Android registró una cuenta ficticia y creó su perfil mediante Authentication y Firestore
-- Una segunda cuenta y una solicitud anónima recibieron acceso denegado al intentar leer ese perfil privado
-- Se eliminaron las cuentas y los perfiles creados para la prueba, las reglas de oportunidades y postulaciones aún deben comprobarse en la nube junto con sus recorridos Android
+El recorrido de publicación a selección se comprobó cambiando de cuenta en un emulador, la prueba en dos teléfonos, el acceso mediante Google, el gesto predictivo cancelado y la navegación con TalkBack necesitan verificación adicional
 
 ## 6. Criterios de salida
 

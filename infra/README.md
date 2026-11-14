@@ -87,6 +87,10 @@ Las postulaciones usan el identificador del candidato como identificador del doc
 
 Las oportunidades y postulaciones están conectadas a Firestore en Android, los cambios de reglas deben desplegarse antes de probar funciones nuevas en la nube
 
+Los avisos opcionales de actividad consultan postulaciones propias, publicaciones propias y el último mensaje de cada conversación mediante la sesión de la persona y las mismas reglas de Firestore, WorkManager ejecuta las comprobaciones aproximadamente cada hora y Android puede retrasarlas
+
+La primera consulta guarda una referencia local por cuenta sin generar avisos, las notificaciones no incluyen mensajes ni datos personales, el sistema no utiliza FCM y su volumen de lecturas crece con las postulaciones, por lo que requiere una estrategia distinta antes de escalar
+
 Los perfiles son privados y no exponen el DNI, el celular, la nacionalidad ni el correo a otras cuentas, la postulación comparte el nombre, habilidades, experiencia, disponibilidad, distrito, estudios y portafolio confirmados contra su perfil
 
 Solo un perfil con el objetivo de ofrecer trabajo puede crear oportunidades, la persona puede cambiar su objetivo desde la aplicación y las reglas vuelven a comprobarlo al publicar

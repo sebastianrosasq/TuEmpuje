@@ -47,6 +47,8 @@ class AppPreferences(context: Context) {
         private set
     var showMascot by mutableStateOf(storage.getBoolean("mostrar_empu", true))
         private set
+    var backgroundNotifications by mutableStateOf(storage.getBoolean("avisos_periodicos", false))
+        private set
     var savedItems by mutableStateOf<List<SavedOpportunity>>(emptyList())
         private set
     val savedIds: Set<String> get() = savedItems.mapTo(mutableSetOf()) { it.id }
@@ -70,6 +72,11 @@ class AppPreferences(context: Context) {
     fun updateShowMascot(value: Boolean) {
         showMascot = value
         storage.edit().putBoolean("mostrar_empu", value).apply()
+    }
+
+    fun updateBackgroundNotifications(value: Boolean) {
+        backgroundNotifications = value
+        storage.edit().putBoolean("avisos_periodicos", value).apply()
     }
 
     fun toggleSaved(opportunity: Opportunity) {

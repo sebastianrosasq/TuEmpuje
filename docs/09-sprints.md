@@ -18,7 +18,7 @@ Los sprints restantes describen la evolución del producto, por lo que su inclus
 
 Si el avance es menor al previsto, se priorizarán una app ejecutable, los casos principales y las pruebas de permisos, indicando con claridad los datos simulados y las funciones pendientes
 
-**Estado:** la app cuenta con navegación, cuenta, perfil privado, ajustes y guardados con Room, las oportunidades, postulaciones y selección se conectaron a Firebase y el recorrido entre dos cuentas se verificó en emuladores locales y mediante el SDK en el proyecto de desarrollo, las reglas y el índice se desplegaron a ese proyecto
+**Estado:** la app cuenta con navegación, cuenta, perfil privado, ajustes, guardados con Room, bandeja de conversaciones y avisos periódicos opcionales, las oportunidades, postulaciones y selección están conectadas a Firebase y se verificaron en Android con dos cuentas de ejemplo en el proyecto de desarrollo
 
 Los guardados se verificaron al reiniciar, al cambiar de cuenta, sin conexión y mediante una migración desde la versión anterior, queda pendiente verificar el recorrido completo en teléfonos físicos y ampliar las pruebas de accesibilidad antes de cerrar el sprint 12
 
@@ -30,7 +30,7 @@ La recuperación de cuenta incluye una pantalla propia y el manejo del enlace de
 
 La eliminación de cuentas está preparada y probada en emuladores, no se ha habilitado en la nube porque requiere un servicio protegido y el proyecto mantiene el plan sin facturación
 
-Los sprints 12, 13 y 14 siguen abiertos hasta completar sus verificaciones y entregables, especialmente accesibilidad, pruebas en dispositivos, documentación de entrega y moderación
+La entrega académica cuenta con APK de depuración, instrucciones y registro del recorrido probado, la revisión de accesibilidad con TalkBack, las pruebas en teléfonos físicos y la moderación siguen pendientes antes de un piloto abierto
 
 ## Sprints
 

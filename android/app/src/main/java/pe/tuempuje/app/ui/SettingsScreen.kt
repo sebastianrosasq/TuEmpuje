@@ -2,6 +2,12 @@ package pe.tuempuje.app.ui
 
 import android.content.Intent
 import android.provider.Settings
+import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Build
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.ContextCompat
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -24,6 +30,10 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.Role
@@ -38,6 +48,11 @@ import androidx.compose.material3.OutlinedButton
 @Composable
 fun SettingsScreen(preferences: AppPreferences, onBack: () -> Unit) {
     val context = LocalContext.current
+    var permissionDenied by remember { mutableStateOf(false) }
+    val permission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        permissionDenied = !granted
+        preferences.updateBackgroundNotifications(granted)
+    }
     Column(
         Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(22.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
@@ -82,7 +97,21 @@ fun SettingsScreen(preferences: AppPreferences, onBack: () -> Unit) {
             Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text("Privacidad", style = MaterialTheme.typography.titleLarge)
                 Text("Tu DNI, celular y correo son privados, antes de postular podrás revisar qué datos de tu perfil se comparten", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Text("Las alertas de empleo y mensajes aún no están disponibles", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
+        Surface(shape = MaterialTheme.shapes.large, color = MaterialTheme.colorScheme.surface, modifier = Modifier.fillMaxWidth()) {
+            Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("Notificaciones", style = MaterialTheme.typography.titleLarge)
+                PreferenceSwitch("Avisos de actividad", "Revisar mensajes y cambios de postulaciones aproximadamente cada hora", preferences.backgroundNotifications) { enabled ->
+                    if (!enabled) { permissionDenied = false; preferences.updateBackgroundNotifications(false) }
+                    else if (Build.VERSION.SDK_INT >= 33 && ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) permission.launch(Manifest.permission.POST_NOTIFICATIONS)
+                    else { permissionDenied = false; preferences.updateBackgroundNotifications(true) }
+                }
+                Text("Las revisiones requieren conexión y pueden demorarse por el ahorro de batería. La primera revisión establece una referencia", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                if (permissionDenied || (preferences.backgroundNotifications && !androidx.core.app.NotificationManagerCompat.from(context).areNotificationsEnabled())) {
+                    Text("Activa las notificaciones en los ajustes del teléfono para recibir avisos", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+                    OutlinedButton(onClick = { runCatching { context.startActivity(Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)) } }) { Text("Abrir ajustes de notificaciones") }
+                }
             }
         }
         Surface(shape = MaterialTheme.shapes.large, color = MaterialTheme.colorScheme.surface, modifier = Modifier.fillMaxWidth()) {
