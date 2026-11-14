@@ -98,6 +98,77 @@ test('una cuenta normal no puede consultar ni alterar registros de moderación',
   await assertFails(setDoc(doc(user('candidato'), 'moderationActions', 'nueva'), { action: 'removed' }));
 });
 
+test('la experiencia previa acepta un indicador booleano y conserva compatibilidad', async () => {
+  const db = user('cliente');
+  await assertSucceeds(setDoc(doc(db, 'opportunities', 'antigua'), opportunity('cliente')));
+  await assertSucceeds(setDoc(doc(db, 'opportunities', 'primera'), { ...opportunity('cliente'), noExperienceRequired: true }));
+  await assertFails(setDoc(doc(db, 'opportunities', 'invalida'), { ...opportunity('cliente'), noExperienceRequired: 'sí' }));
+  await assertSucceeds(updateDoc(doc(db, 'opportunities', 'primera'), { noExperienceRequired: false, updatedAt: serverTimestamp() }));
+  await assertFails(updateDoc(doc(db, 'opportunities', 'primera'), { noExperienceRequired: 'no', updatedAt: serverTimestamp() }));
+});
+
+test('la experiencia y la referencia requieren la confirmación de ambas partes', async () => {
+  await env.withSecurityRulesDisabled(async context => {
+    await setDoc(doc(context.firestore(), 'opportunities', 'oferta', 'applications', 'candidato'), { ...application('candidato'), status: 'selected' });
+  });
+  const applicant = user('candidato');
+  const owner = user('cliente');
+  const other = user('otro');
+  const app = doc(applicant, 'opportunities', 'oferta', 'applications', 'candidato');
+  const data = { opportunityId: 'oferta', workerId: 'candidato', authorId: 'cliente', authorName: 'Perfil cliente', title: 'Ayudante de fotografía', text: 'Colaboró con responsabilidad', visible: false, createdAt: serverTimestamp() };
+  const ref = doc(owner, 'workReferences', 'oferta_candidato');
+  await assertFails(updateDoc(app, { workerConfirmedAt: serverTimestamp() }));
+  await env.withSecurityRulesDisabled(async context => {
+    await updateDoc(doc(context.firestore(), 'opportunities', 'oferta', 'applications', 'candidato'), { status: 'completed' });
+  });
+  await assertFails(setDoc(ref, data));
+  await assertFails(updateDoc(doc(other, 'opportunities', 'oferta', 'applications', 'candidato'), { workerConfirmedAt: serverTimestamp() }));
+  await assertFails(updateDoc(app, { workerConfirmedAt: serverTimestamp(), status: 'pending' }));
+  await assertSucceeds(updateDoc(app, { workerConfirmedAt: serverTimestamp() }));
+  await assertFails(updateDoc(app, { workerConfirmedAt: serverTimestamp() }));
+  await assertFails(setDoc(doc(other, 'workReferences', 'oferta_candidato'), { ...data, authorId: 'otro' }));
+  await assertFails(setDoc(ref, { ...data, visible: true }));
+  await assertSucceeds(setDoc(ref, data));
+  await assertFails(getDoc(doc(other, 'workReferences', 'oferta_candidato')));
+  await assertSucceeds(getDoc(doc(applicant, 'workReferences', 'oferta_candidato')));
+  await assertFails(updateDoc(ref, { text: 'Texto modificado sin autorización' }));
+  await assertSucceeds(updateDoc(doc(applicant, 'workReferences', 'oferta_candidato'), { visible: true }));
+  await assertSucceeds(getDoc(doc(other, 'workReferences', 'oferta_candidato')));
+  await assertSucceeds(getDocs(query(collection(other, 'workReferences'), where('workerId', '==', 'candidato'), where('visible', '==', true))));
+  await assertSucceeds(updateDoc(doc(applicant, 'workReferences', 'oferta_candidato'), { visible: false }));
+  const dispute = { referenceId: 'oferta_candidato', workerId: 'candidato', details: 'La descripción no coincide con lo ocurrido', status: 'open', createdAt: serverTimestamp() };
+  await assertFails(setDoc(doc(other, 'referenceDisputes', 'oferta_candidato'), { ...dispute, workerId: 'otro' }));
+  await assertSucceeds(setDoc(doc(applicant, 'referenceDisputes', 'oferta_candidato'), dispute));
+  await assertFails(updateDoc(doc(applicant, 'referenceDisputes', 'oferta_candidato'), { details: 'cambiado' }));
+  await env.withSecurityRulesDisabled(async context => {
+    await updateDoc(doc(context.firestore(), 'referenceDisputes', 'oferta_candidato'), { status: 'resolved', resolution: 'hide' });
+  });
+  await assertFails(updateDoc(doc(applicant, 'workReferences', 'oferta_candidato'), { visible: true }));
+});
+
+test('recorrido completo de postulación, confirmación y referencia compartida', async () => {
+  const worker = user('candidato');
+  const owner = user('cliente');
+  const job = doc(owner, 'opportunities', 'oferta');
+  const appOwner = doc(owner, 'opportunities', 'oferta', 'applications', 'candidato');
+  const appWorker = doc(worker, 'opportunities', 'oferta', 'applications', 'candidato');
+  await assertSucceeds(setDoc(appWorker, application('candidato')));
+  await assertSucceeds(runTransaction(owner, async tx => {
+    await tx.get(job);
+    await tx.get(appOwner);
+    tx.update(job, { selectedCount: 1, lastSelectedApplicantId: 'candidato' });
+    tx.update(appOwner, { status: 'selected', selectedAt: serverTimestamp() });
+  }));
+  await assertSucceeds(updateDoc(appOwner, { status: 'completed', completedAt: serverTimestamp() }));
+  await assertSucceeds(updateDoc(appWorker, { workerConfirmedAt: serverTimestamp() }));
+  await assertSucceeds(setDoc(doc(owner, 'workReferences', 'oferta_candidato'), {
+    opportunityId: 'oferta', workerId: 'candidato', authorId: 'cliente', authorName: 'Perfil cliente',
+    title: 'Ayudante de fotografía', text: 'Cumplió con las tareas acordadas', visible: false, createdAt: serverTimestamp(),
+  }));
+  await assertSucceeds(updateDoc(doc(worker, 'workReferences', 'oferta_candidato'), { visible: true }));
+  await assertSucceeds(getDoc(doc(user('otro'), 'workReferences', 'oferta_candidato')));
+});
+
 test('acepta documentos extranjeros válidos sin compartirlos en la postulación', async () => {
   const db = user('candidato');
   const own = doc(db, 'users', 'candidato');

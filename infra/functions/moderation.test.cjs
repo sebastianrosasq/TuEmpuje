@@ -2,7 +2,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const { initializeApp } = require('firebase-admin/app');
 const { getFirestore } = require('firebase-admin/firestore');
-const { listOpenReports, resolveReport } = require('./moderation.cjs');
+const { listOpenReports, resolveReport, listOpenDisputes, resolveDispute } = require('./moderation.cjs');
 
 initializeApp({ projectId: 'demo-tuempuje' });
 const db = getFirestore();
@@ -30,4 +30,16 @@ test('un reporte sin oportunidad no se resuelve parcialmente', async () => {
   await db.collection('reports').doc('moderacion-faltante').set({ status: 'open', opportunityId: 'no-existe' });
   await assert.rejects(resolveReport(db, 'moderacion-faltante', 'remove', 'Equipo'));
   assert.equal((await db.collection('reports').doc('moderacion-faltante').get()).get('status'), 'open');
+});
+
+test('se puede revisar una referencia y ocultarla con registro de la decisión', async () => {
+  await db.collection('workReferences').doc('referencia').set({ visible: true });
+  await db.collection('referenceDisputes').doc('referencia').set({ status: 'open' });
+  assert.ok((await listOpenDisputes(db)).some(report => report.id === 'referencia'));
+  assert.equal(await resolveDispute(db, 'referencia', 'hide', 'Equipo'), 'hide');
+  assert.equal((await db.collection('workReferences').doc('referencia').get()).get('visible'), false);
+  assert.equal((await db.collection('workReferences').doc('referencia').get()).get('moderationHidden'), true);
+  assert.equal((await db.collection('referenceDisputes').doc('referencia').get()).get('status'), 'resolved');
+  assert.equal((await db.collection('moderationActions').where('referenceId', '==', 'referencia').get()).size, 1);
+  await assert.rejects(resolveDispute(db, 'referencia', 'keep', 'Equipo'));
 });

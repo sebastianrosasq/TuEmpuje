@@ -31,6 +31,11 @@ test("la eliminación requiere autenticación y elimina datos asociados sin afec
   await other.collection("applications").doc(uid).collection("messages").doc("mensaje").set({ senderId: uid, text: "Hola" });
   await db.collection("reports").doc("reporte-propio").set({ reporterId: uid, opportunityId: "ajena" });
   await db.collection("reports").doc("reporte-ajeno").set({ reporterId: "otra-persona", opportunityId: "propia" });
+  await db.collection("workReferences").doc("propia_otra-persona").set({ opportunityId: "propia", workerId: "otra-persona", authorId: uid });
+  await db.collection("referenceDisputes").doc("propia_otra-persona").set({ workerId: "otra-persona" });
+  await db.collection("workReferences").doc(`ajena_${uid}`).set({ opportunityId: "ajena", workerId: uid, authorId: "otra-persona" });
+  await db.collection("referenceDisputes").doc(`ajena_${uid}`).set({ workerId: uid });
+  await db.collection("workReferences").doc("tercero_conservado").set({ opportunityId: "tercero", workerId: "otra-persona", authorId: "tercero" });
   const response = await call(account.idToken);
   assert.equal(response.status, 200, await response.text());
   assert.equal((await db.collection("users").doc(uid).get()).exists, false);
@@ -40,6 +45,8 @@ test("la eliminación requiere autenticación y elimina datos asociados sin afec
   assert.equal((await other.collection("applications").doc(uid).get()).exists, false);
   assert.equal((await other.collection("applications").doc(uid).collection("messages").get()).empty, true);
   assert.equal((await db.collection("reports").get()).empty, true);
+  assert.equal((await db.collection("workReferences").get()).size, 1);
+  assert.equal((await db.collection("referenceDisputes").get()).empty, true);
   assert.ok((await db.collection("deletionJobs").doc(uid).get()).get("expireAt"));
   await assert.rejects(getAuth().getUser(uid), { code: "auth/user-not-found" });
 });

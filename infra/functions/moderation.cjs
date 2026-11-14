@@ -6,6 +6,30 @@ async function listOpenReports(db) {
   return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 }
 
+async function listOpenDisputes(db) {
+  const snapshot = await db.collection('referenceDisputes').where('status', '==', 'open').limit(50).get();
+  return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+}
+
+async function resolveDispute(db, referenceId, action, operator) {
+  if (!referenceId || referenceId.includes('/') || !['keep', 'hide'].includes(action) || !operator?.trim()) {
+    throw new Error('Indica una referencia, una acción válida y el nombre de quien revisa');
+  }
+  const disputeRef = db.collection('referenceDisputes').doc(referenceId);
+  const referenceRef = db.collection('workReferences').doc(referenceId);
+  const auditRef = db.collection('moderationActions').doc();
+  return db.runTransaction(async transaction => {
+    const dispute = await transaction.get(disputeRef);
+    if (!dispute.exists || dispute.get('status') !== 'open') throw new Error('El reporte no existe o ya fue atendido');
+    const reference = await transaction.get(referenceRef);
+    if (!reference.exists) throw new Error('La referencia ya no existe');
+    if (action === 'hide') transaction.update(referenceRef, { visible: false, moderationHidden: true });
+    transaction.update(disputeRef, { status: 'resolved', resolution: action, resolvedAt: FieldValue.serverTimestamp() });
+    transaction.create(auditRef, { type: 'reference', referenceId, action, operator: operator.trim().slice(0, 100), createdAt: FieldValue.serverTimestamp() });
+    return action;
+  });
+}
+
 async function resolveReport(db, reportId, action, operator) {
   if (!reportId || reportId.includes('/') || !['keep', 'remove'].includes(action) || !operator?.trim()) {
     throw new Error('Indica un reporte, una acción válida y el nombre de quien revisa');
@@ -42,14 +66,16 @@ async function main(args) {
   const db = getFirestore();
   if (args[0] === 'list') {
     console.log(JSON.stringify(await listOpenReports(db), null, 2));
-  } else if (args[0] === 'resolve') {
+  } else if (args[0] === 'list-disputes') {
+    console.log(JSON.stringify(await listOpenDisputes(db), null, 2));
+  } else if (args[0] === 'resolve' || args[0] === 'resolve-dispute') {
     const operatorIndex = args.indexOf('--operator');
     if (!args.includes('--confirm') || operatorIndex < 0) throw new Error('La resolución requiere --operator y --confirm');
-    console.log(await resolveReport(db, args[1], args[2], args[operatorIndex + 1]));
+    console.log(await (args[0] === 'resolve' ? resolveReport : resolveDispute)(db, args[1], args[2], args[operatorIndex + 1]));
   } else {
     throw new Error('Usa list o resolve');
   }
 }
 
 if (require.main === module) main(process.argv.slice(2)).catch(error => { console.error(error.message); process.exitCode = 1; });
-module.exports = { listOpenReports, resolveReport };
+module.exports = { listOpenReports, resolveReport, listOpenDisputes, resolveDispute };

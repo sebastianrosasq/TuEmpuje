@@ -69,13 +69,14 @@ service cloud.firestore {
         ])
         && data.keys().hasOnly([
           'ownerId', 'title', 'description', 'location', 'pay', 'duration',
-          'vacancies', 'status', 'createdAt', 'ownerName', 'category', 'requirements', 'selectedCount'
+          'vacancies', 'status', 'createdAt', 'ownerName', 'category', 'requirements', 'selectedCount', 'noExperienceRequired'
         ])
         && data.ownerId == request.auth.uid
         && data.ownerName == get(/databases/$(database)/documents/users/$(request.auth.uid)).data.displayName
         && textWithin(data.ownerName, 2, 80)
         && textWithin(data.category, 2, 40)
         && textWithin(data.requirements, 2, 1500)
+        && (!('noExperienceRequired' in data) || data.noExperienceRequired is bool)
         && textWithin(data.title, 3, 120)
         && textWithin(data.description, 10, 3000)
         && textWithin(data.location, 2, 120)
@@ -109,7 +110,8 @@ service cloud.firestore {
       allow update: if signedIn() && active(request.auth.uid)
         && resource.data.ownerId == request.auth.uid && resource.data.status == 'published'
         && resource.data.selectedCount == 0
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['title', 'description', 'location', 'pay', 'duration', 'requirements', 'category', 'vacancies', 'updatedAt'])
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['title', 'description', 'location', 'pay', 'duration', 'requirements', 'category', 'vacancies', 'updatedAt', 'noExperienceRequired'])
+        && (!('noExperienceRequired' in request.resource.data) || request.resource.data.noExperienceRequired is bool)
         && textWithin(request.resource.data.title, 3, 120)
         && textWithin(request.resource.data.description, 10, 3000)
         && textWithin(request.resource.data.location, 2, 120)
@@ -182,6 +184,11 @@ service cloud.firestore {
               && request.resource.data.completedAt == request.time)
           );
         allow update: if signedIn() && active(request.auth.uid) && request.auth.uid == applicantId
+          && resource.data.status == 'completed'
+          && !('workerConfirmedAt' in resource.data)
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['workerConfirmedAt'])
+          && request.resource.data.workerConfirmedAt == request.time;
+        allow update: if signedIn() && active(request.auth.uid) && request.auth.uid == applicantId
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'withdrawnAt'])
           && request.resource.data.status == 'withdrawn' && request.resource.data.withdrawnAt == request.time
           && (resource.data.status == 'pending' || (resource.data.status == 'selected'
@@ -234,6 +241,53 @@ service cloud.firestore {
 
     match /{path=**}/applications/{applicantId} {
       allow list: if signedIn() && resource.data.applicantId == request.auth.uid;
+    }
+
+    match /workReferences/{referenceId} {
+      function refOpportunity() {
+        return /databases/$(database)/documents/opportunities/$(request.resource.data.opportunityId);
+      }
+      function refApplication() {
+        return /databases/$(database)/documents/opportunities/$(request.resource.data.opportunityId)/applications/$(request.resource.data.workerId);
+      }
+      allow get: if signedIn() && (!exists(/databases/$(database)/documents/workReferences/$(referenceId))
+        || resource.data.visible == true || resource.data.workerId == request.auth.uid || resource.data.authorId == request.auth.uid);
+      allow list: if signedIn() && resource.data.visible == true;
+      allow create: if signedIn() && active(request.auth.uid)
+        && request.resource.data.keys().hasOnly(['opportunityId', 'workerId', 'authorId', 'authorName', 'title', 'text', 'visible', 'createdAt'])
+        && request.resource.data.keys().hasAll(['opportunityId', 'workerId', 'authorId', 'authorName', 'title', 'text', 'visible', 'createdAt'])
+        && request.resource.data.opportunityId is string && request.resource.data.workerId is string
+        && referenceId == request.resource.data.opportunityId + '_' + request.resource.data.workerId
+        && request.resource.data.workerId != request.auth.uid && active(request.resource.data.workerId)
+        && request.resource.data.authorId == request.auth.uid
+        && exists(refOpportunity()) && get(refOpportunity()).data.ownerId == request.auth.uid
+        && request.resource.data.authorName == get(refOpportunity()).data.ownerName
+        && request.resource.data.title == get(refOpportunity()).data.title
+        && exists(refApplication()) && get(refApplication()).data.status == 'completed'
+        && get(refApplication()).data.workerConfirmedAt is timestamp
+        && textWithin(request.resource.data.text, 10, 500)
+        && request.resource.data.text.matches('(?s).*\\S.*')
+        && request.resource.data.visible == false && request.resource.data.createdAt == request.time;
+      allow update: if signedIn() && active(request.auth.uid) && resource.data.workerId == request.auth.uid
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['visible'])
+        && request.resource.data.visible is bool
+        && (request.resource.data.visible == false
+          || !exists(/databases/$(database)/documents/referenceDisputes/$(referenceId))
+          || get(/databases/$(database)/documents/referenceDisputes/$(referenceId)).data.get('resolution', '') != 'hide');
+      allow delete: if false;
+    }
+
+    match /referenceDisputes/{referenceId} {
+      allow create: if signedIn() && active(request.auth.uid)
+        && exists(/databases/$(database)/documents/workReferences/$(referenceId))
+        && get(/databases/$(database)/documents/workReferences/$(referenceId)).data.workerId == request.auth.uid
+        && request.resource.data.keys().hasOnly(['referenceId', 'workerId', 'details', 'status', 'createdAt'])
+        && request.resource.data.keys().hasAll(['referenceId', 'workerId', 'details', 'status', 'createdAt'])
+        && request.resource.data.referenceId == referenceId && request.resource.data.workerId == request.auth.uid
+        && textWithin(request.resource.data.details, 10, 500) && request.resource.data.details.matches('(?s).*\\S.*')
+        && request.resource.data.status == 'open' && request.resource.data.createdAt == request.time;
+      allow get: if signedIn() && resource.data.workerId == request.auth.uid;
+      allow list, update, delete: if false;
     }
 
     match /reports/{reportId} {

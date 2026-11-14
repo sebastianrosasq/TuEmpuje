@@ -19,7 +19,7 @@ import pe.tuempuje.app.ui.components.AppPrimaryButton
 import pe.tuempuje.app.ui.components.Empu
 import pe.tuempuje.app.ui.components.EmpuMood
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun EditOpportunityScreen(opportunity: Opportunity?, model: OpportunityViewModel, onBack: () -> Unit) {
     if (opportunity == null || !opportunity.own || opportunity.status != "published") {
@@ -33,6 +33,7 @@ fun EditOpportunityScreen(opportunity: Opportunity?, model: OpportunityViewModel
     var requirements by rememberSaveable(opportunity.id) { mutableStateOf(opportunity.requirements) }
     var vacancies by rememberSaveable(opportunity.id) { mutableStateOf(opportunity.vacancies.toString()) }
     var category by rememberSaveable(opportunity.id) { mutableStateOf(opportunity.category) }
+    var noExperience by rememberSaveable(opportunity.id) { mutableStateOf(opportunity.noExperienceRequired) }
     val initialPay = remember(opportunity.id) { Regex("^S/\\s*([0-9]+(?:[.,][0-9]{1,2})?)\\s*·\\s*(Por hora|Por día|Por tarea|Por mes)$").matchEntire(opportunity.pay) }
     val initialAmount = initialPay?.groupValues?.get(1).orEmpty()
     val initialUnit = initialPay?.groupValues?.get(2) ?: "Por tarea"
@@ -47,7 +48,7 @@ fun EditOpportunityScreen(opportunity: Opportunity?, model: OpportunityViewModel
         requirements.trim().length in 2..1500 && schedule.trim().length in 2..120 && vacancies.toIntOrNull() in 1..99 && payment != null
     val changed = title != opportunity.title || description != opportunity.description || location != opportunity.location ||
         schedule != opportunity.duration || requirements != opportunity.requirements || vacancies != opportunity.vacancies.toString() ||
-        category != opportunity.category || amount != initialAmount || unit != initialUnit
+        category != opportunity.category || amount != initialAmount || unit != initialUnit || noExperience != opportunity.noExperienceRequired
     val leave = { if (changed) discard = true else onBack() }
     BackHandler { leave() }
     if (discard) AlertDialog(onDismissRequest = { discard = false }, title = { Text("¿Descartar los cambios?") },
@@ -56,7 +57,7 @@ fun EditOpportunityScreen(opportunity: Opportunity?, model: OpportunityViewModel
     if (confirm) AlertDialog(onDismissRequest = { confirm = false }, icon = { Empu(EmpuMood.THINKING, Modifier.size(100.dp)) },
         title = { Text("Guardar cambios") }, text = { Text("Las nuevas condiciones serán visibles para quienes consulten la oportunidad") },
         confirmButton = { TextButton(enabled = !model.busy, onClick = {
-            model.editOpportunity(opportunity.id, title, description, location, payment.orEmpty(), schedule, requirements, vacancies.toIntOrNull() ?: 0, category) { confirm = false; onBack() }
+            model.editOpportunity(opportunity.id, title, description, location, payment.orEmpty(), schedule, requirements, vacancies.toIntOrNull() ?: 0, category, noExperience) { confirm = false; onBack() }
         }) { Text("Guardar") } }, dismissButton = { TextButton(onClick = { confirm = false }) { Text("Revisar") } })
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(22.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
         TextButton(onClick = leave) { Text("Volver") }
@@ -67,6 +68,11 @@ fun EditOpportunityScreen(opportunity: Opportunity?, model: OpportunityViewModel
         OutlinedTextField(title, { title = it.take(120) }, label = { Text("Título") }, modifier = Modifier.fillMaxWidth(), isError = attempted && title.trim().length !in 3..120)
         OutlinedTextField(description, { description = it.take(3000) }, label = { Text("Tareas") }, minLines = 3, modifier = Modifier.fillMaxWidth(), isError = attempted && description.trim().length !in 10..3000)
         OutlinedTextField(requirements, { requirements = it.take(1500) }, label = { Text("Conocimientos y requisitos") }, minLines = 2, modifier = Modifier.fillMaxWidth())
+        Text("¿Necesita experiencia previa?", style = MaterialTheme.typography.titleMedium)
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            FilterChip(selected = noExperience == true, onClick = { noExperience = true }, label = { Text("No es necesaria") })
+            FilterChip(selected = noExperience == false, onClick = { noExperience = false }, label = { Text("Sí es necesaria") })
+        }
         Text("Tipo de trabajo", style = MaterialTheme.typography.titleMedium)
         androidx.compose.foundation.lazy.LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             items(workInterests.size) { index -> val item = workInterests[index]; FilterChip(selected = category == item, onClick = { category = item }, label = { Text(item) }) }

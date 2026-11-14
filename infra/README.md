@@ -111,6 +111,12 @@ node functions/moderation.cjs resolve ID_DEL_REPORTE keep --project ID_DEL_PROYE
 
 La resolución y el registro en `moderationActions` se guardan en una transacción, el nombre del responsable es una etiqueta ingresada por quien ejecuta la herramienta y no una verificación independiente de identidad, el acceso se controla mediante las credenciales administrativas y sus permisos
 
+Los reportes de referencias se consultan con `node functions/moderation.cjs list-disputes --project ID_DEL_PROYECTO` y se resuelven con `resolve-dispute ID_DE_REFERENCIA keep|hide --project ID_DEL_PROYECTO --operator "Nombre" --confirm`, la acción `hide` impide volver a compartir la referencia mientras se mantenga esa resolución
+
+La referencia solo puede crearla quien publicó la oportunidad después de que el trabajo figure como finalizado y el postulante lo confirme, inicialmente es privada entre las partes y el postulante puede compartirla, ocultarla o solicitar revisión, los perfiles autenticados pueden consultar únicamente las referencias compartidas
+
+Las reglas incluyen un índice para consultar referencias compartidas por postulante, las publicaciones antiguas sin indicador de experiencia no se clasifican automáticamente, la función de eliminación preparada para el emulador también elimina referencias y reportes asociados a la cuenta
+
 Las pruebas locales se ejecutan con `npm run test:moderation` y el emulador de Firestore, esta herramienta no reemplaza una interfaz ni un sistema completo de auditoría para producción
 
 Solo un perfil con el objetivo de ofrecer trabajo puede crear oportunidades, la persona puede cambiar su objetivo desde la aplicación y las reglas vuelven a comprobarlo al publicar

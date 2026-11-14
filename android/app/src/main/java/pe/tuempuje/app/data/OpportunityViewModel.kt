@@ -35,14 +35,24 @@ data class Opportunity(
     val own: Boolean,
     val status: String = "published",
     val createdAtSeconds: Long = 0,
+    val noExperienceRequired: Boolean? = null,
 )
 
-data class Candidate(val id: String, val name: String, val status: String, val skills: String = "", val experience: String = "", val availability: String = "", val district: String = "", val education: String = "", val portfolio: String = "")
+data class Candidate(val id: String, val name: String, val status: String, val skills: String = "", val experience: String = "", val availability: String = "", val district: String = "", val education: String = "", val portfolio: String = "", val confirmed: Boolean = false)
+data class WorkReference(val id: String, val workerId: String, val authorName: String, val title: String, val text: String, val visible: Boolean, val moderationHidden: Boolean)
 
 class OpportunityViewModel(private val services: FirebaseServices?) : ViewModel() {
     val opportunities = mutableStateListOf<Opportunity>()
     val applications = mutableStateMapOf<String, String>()
+    val confirmedWork = mutableStateMapOf<String, Boolean>()
     val candidates = mutableStateListOf<Candidate>()
+    val publicReferences = mutableStateListOf<WorkReference>()
+    var currentReference by mutableStateOf<WorkReference?>(null)
+        private set
+    var referencesLoading by mutableStateOf(false)
+        private set
+    var referencesError by mutableStateOf<String?>(null)
+        private set
     var userId by mutableStateOf<String?>(null)
         private set
     var profileReady by mutableStateOf(false)
@@ -83,6 +93,7 @@ class OpportunityViewModel(private val services: FirebaseServices?) : ViewModel(
     private var opportunityListener: ListenerRegistration? = null
     private var applicationListener: ListenerRegistration? = null
     private var candidateListener: ListenerRegistration? = null
+    private var referenceListener: ListenerRegistration? = null
     private val authListener = FirebaseAuth.AuthStateListener { source -> observeUser(source.currentUser?.uid) }
 
     init {
@@ -95,6 +106,7 @@ class OpportunityViewModel(private val services: FirebaseServices?) : ViewModel(
         opportunityListener?.remove()
         applicationListener?.remove()
         candidateListener?.remove()
+        stopObservingReferences()
         profileListener?.remove()
         ownListener?.remove()
         personalListeners.values.forEach { it.remove() }
@@ -107,6 +119,7 @@ class OpportunityViewModel(private val services: FirebaseServices?) : ViewModel(
         userId = uid
         opportunities.clear()
         applications.clear()
+        confirmedWork.clear()
         candidates.clear()
         error = null
         feedError = null
@@ -172,9 +185,11 @@ class OpportunityViewModel(private val services: FirebaseServices?) : ViewModel(
                 }
                 applicationsError = null
                 applications.clear()
+                confirmedWork.clear()
                 snapshot?.documents.orEmpty().filterNot { it.metadata.hasPendingWrites() }.forEach { doc ->
                     val opportunityId = doc.reference.parent.parent?.id ?: return@forEach
                     applications[opportunityId] = doc.getString("status").orEmpty()
+                    confirmedWork[opportunityId] = doc.getTimestamp("workerConfirmedAt") != null
                 }
                 syncHistoryListeners(uid)
                 refreshItems()
@@ -210,6 +225,7 @@ class OpportunityViewModel(private val services: FirebaseServices?) : ViewModel(
             duration = doc.getString("duration").orEmpty(), description = doc.getString("description").orEmpty(),
             requirements = doc.getString("requirements").orEmpty(), vacancies = (doc.getLong("vacancies") ?: 1).toInt(),
             selectedCount = (doc.getLong("selectedCount") ?: 0).toInt(), own = owner == uid, status = doc.getString("status").orEmpty(), createdAtSeconds = doc.getTimestamp("createdAt")?.seconds ?: 0,
+            noExperienceRequired = doc.getBoolean("noExperienceRequired"),
         ) to (doc.getTimestamp("createdAt")?.seconds ?: 0L)
     }
 
@@ -238,7 +254,7 @@ class OpportunityViewModel(private val services: FirebaseServices?) : ViewModel(
 
     fun find(id: String): Opportunity? = opportunities.find { it.id == id }
 
-    fun publish(title: String, description: String, location: String, pay: String, duration: String, requirements: String, vacancies: Int, category: String, onSuccess: () -> Unit) {
+    fun publish(title: String, description: String, location: String, pay: String, duration: String, requirements: String, vacancies: Int, category: String, noExperienceRequired: Boolean, onSuccess: () -> Unit) {
         if (profileRole != "employer") { error = "Cambia a la opción de ofrecer trabajo antes de publicar"; return }
         val uid = userId ?: run { error = "Inicia sesión para publicar"; return }
         val db = services?.firestore ?: return
@@ -253,7 +269,7 @@ class OpportunityViewModel(private val services: FirebaseServices?) : ViewModel(
             db.collection("opportunities").document().set(mapOf(
                 "ownerId" to uid, "ownerName" to name, "title" to title.trim(),
                 "description" to description.trim(), "location" to location.trim(), "pay" to pay.trim(),
-                "duration" to duration.trim(), "requirements" to requirements.trim(), "category" to category,
+                "duration" to duration.trim(), "requirements" to requirements.trim(), "category" to category, "noExperienceRequired" to noExperienceRequired,
                 "vacancies" to vacancies, "selectedCount" to 0, "status" to "published", "createdAt" to FieldValue.serverTimestamp(),
             )).await()
             onSuccess()
@@ -307,7 +323,7 @@ class OpportunityViewModel(private val services: FirebaseServices?) : ViewModel(
                 }
                 candidates.clear()
                 snapshot?.documents.orEmpty().filterNot { it.metadata.hasPendingWrites() }.forEach { doc ->
-                    candidates.add(Candidate(doc.id, doc.getString("applicantName").orEmpty(), doc.getString("status").orEmpty(), doc.getString("applicantSkills").orEmpty(), doc.getString("applicantExperience").orEmpty(), doc.getString("applicantAvailability").orEmpty(), doc.getString("applicantDistrict").orEmpty(), doc.getString("applicantEducation").orEmpty(), doc.getString("applicantPortfolio").orEmpty()))
+                    candidates.add(Candidate(doc.id, doc.getString("applicantName").orEmpty(), doc.getString("status").orEmpty(), doc.getString("applicantSkills").orEmpty(), doc.getString("applicantExperience").orEmpty(), doc.getString("applicantAvailability").orEmpty(), doc.getString("applicantDistrict").orEmpty(), doc.getString("applicantEducation").orEmpty(), doc.getString("applicantPortfolio").orEmpty(), doc.getTimestamp("workerConfirmedAt") != null))
                 }
             }
     }
@@ -366,7 +382,7 @@ class OpportunityViewModel(private val services: FirebaseServices?) : ViewModel(
     }
 
     fun editOpportunity(id: String, title: String, description: String, location: String, pay: String, duration: String,
-        requirements: String, vacancies: Int, category: String, onSuccess: () -> Unit) {
+        requirements: String, vacancies: Int, category: String, noExperienceRequired: Boolean?, onSuccess: () -> Unit) {
         val db = services?.firestore ?: return
         if (find(id)?.own != true) return
         operation("No se confirmó el cambio, revisa la publicación antes de reintentar") {
@@ -374,7 +390,7 @@ class OpportunityViewModel(private val services: FirebaseServices?) : ViewModel(
                 "title" to title.trim(), "description" to description.trim(), "location" to location.trim(), "pay" to pay.trim(),
                 "duration" to duration.trim(), "requirements" to requirements.trim(), "vacancies" to vacancies,
                 "category" to category, "updatedAt" to FieldValue.serverTimestamp(),
-            )).await()
+            ) + if (noExperienceRequired != null) mapOf("noExperienceRequired" to noExperienceRequired) else emptyMap()).await()
             onSuccess()
         }
     }
@@ -389,6 +405,89 @@ class OpportunityViewModel(private val services: FirebaseServices?) : ViewModel(
                 check(current.getString("status") == "selected")
                 transaction.update(application, mapOf("status" to "completed", "completedAt" to FieldValue.serverTimestamp()))
             }.await()
+        }
+    }
+
+    fun confirmCompletedWork(opportunityId: String) {
+        val uid = userId ?: return
+        val db = services?.firestore ?: return
+        if (applications[opportunityId] != "completed" || confirmedWork[opportunityId] == true) return
+        operation("No se confirmó la experiencia, revisa tu actividad antes de reintentar") {
+            db.collection("opportunities").document(opportunityId).collection("applications").document(uid)
+                .update("workerConfirmedAt", FieldValue.serverTimestamp()).await()
+        }
+    }
+
+    private fun parseReference(doc: com.google.firebase.firestore.DocumentSnapshot): WorkReference = WorkReference(
+        doc.id, doc.getString("workerId").orEmpty(), doc.getString("authorName").orEmpty(),
+        doc.getString("title").orEmpty(), doc.getString("text").orEmpty(), doc.getBoolean("visible") == true, doc.getBoolean("moderationHidden") == true,
+    )
+
+    fun observeReference(opportunityId: String, applicantId: String) {
+        stopObservingReferences()
+        val db = services?.firestore ?: return
+        referencesLoading = true
+        referenceListener = db.collection("workReferences").document("${opportunityId}_${applicantId}").addSnapshotListener(MetadataChanges.INCLUDE) { doc, exception ->
+            referencesLoading = false
+            referencesError = if (exception != null) "No se pudo cargar la referencia" else null
+            if (exception != null) currentReference = null
+            else if (doc?.metadata?.hasPendingWrites() != true) currentReference = if (doc?.exists() == true) parseReference(doc) else null
+        }
+    }
+
+    fun observePublicReferences(applicantId: String) {
+        stopObservingReferences()
+        val db = services?.firestore ?: return
+        referencesLoading = true
+        referenceListener = db.collection("workReferences").whereEqualTo("workerId", applicantId).whereEqualTo("visible", true)
+            .addSnapshotListener(MetadataChanges.INCLUDE) { snapshot, exception ->
+                referencesLoading = false
+                referencesError = if (exception != null) "No se pudieron cargar las referencias" else null
+                publicReferences.clear()
+                if (exception == null) snapshot?.documents?.filterNot { it.metadata.hasPendingWrites() }?.mapTo(publicReferences, ::parseReference)
+            }
+    }
+
+    fun stopObservingReferences() {
+        referenceListener?.remove(); referenceListener = null
+        currentReference = null; publicReferences.clear(); referencesError = null; referencesLoading = false
+    }
+
+    fun writeReference(opportunity: Opportunity, applicantId: String, text: String, onSuccess: () -> Unit) {
+        val uid = userId ?: return
+        val db = services?.firestore ?: return
+        val clean = text.trim()
+        if (!opportunity.own || clean.length !in 10..500) { error = "Escribe una referencia de 10 a 500 caracteres"; return }
+        operation("No se confirmó el envío de la referencia, revisa antes de reintentar") {
+            db.collection("workReferences").document("${opportunity.id}_${applicantId}").set(mapOf(
+                "opportunityId" to opportunity.id, "workerId" to applicantId, "authorId" to uid,
+                "authorName" to opportunity.organization, "title" to opportunity.title, "text" to clean,
+                "visible" to false, "createdAt" to FieldValue.serverTimestamp(),
+            )).await()
+            onSuccess()
+        }
+    }
+
+    fun setReferenceVisibility(reference: WorkReference, visible: Boolean) {
+        val uid = userId ?: return
+        val db = services?.firestore ?: return
+        if (reference.workerId != uid) return
+        operation("No se confirmó el cambio de visibilidad") {
+            db.collection("workReferences").document(reference.id).update("visible", visible).await()
+        }
+    }
+
+    fun disputeReference(reference: WorkReference, details: String, onSuccess: () -> Unit) {
+        val uid = userId ?: return
+        val db = services?.firestore ?: return
+        val clean = details.trim()
+        if (reference.workerId != uid || clean.length !in 10..500) { error = "Describe el problema con entre 10 y 500 caracteres"; return }
+        operation("No se confirmó el reporte de la referencia") {
+            db.collection("referenceDisputes").document(reference.id).set(mapOf(
+                "referenceId" to reference.id, "workerId" to uid, "details" to clean,
+                "status" to "open", "createdAt" to FieldValue.serverTimestamp(),
+            )).await()
+            onSuccess()
         }
     }
 
@@ -429,6 +528,7 @@ class OpportunityViewModel(private val services: FirebaseServices?) : ViewModel(
     }
 
     override fun onCleared() {
+        stopObservingReferences()
         services?.auth?.removeAuthStateListener(authListener)
         opportunityListener?.remove()
         applicationListener?.remove()

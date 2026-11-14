@@ -9,6 +9,8 @@ import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Room
 import androidx.room.RoomDatabase
+import androidx.room.migration.Migration
+import androidx.sqlite.db.SupportSQLiteDatabase
 import kotlinx.coroutines.flow.Flow
 
 @Entity(tableName = "saved_opportunities", primaryKeys = ["account", "id"])
@@ -26,10 +28,11 @@ data class SavedOpportunity(
     val requirements: String = "",
     val vacancies: Int = 0,
     val selectedCount: Int = 0,
+    val noExperienceRequired: Boolean? = null,
 ) {
     fun asOpportunity(): Opportunity? = if (title.isBlank()) null else Opportunity(
         id, ownerId, title, organization, category, location, pay, duration,
-        description, requirements, vacancies, selectedCount, ownerId == account,
+        description, requirements, vacancies, selectedCount, ownerId == account, noExperienceRequired = noExperienceRequired,
     )
 
     companion object {
@@ -37,7 +40,7 @@ data class SavedOpportunity(
             account, opportunity.id, opportunity.ownerId, opportunity.title,
             opportunity.organization, opportunity.category, opportunity.location,
             opportunity.pay, opportunity.duration, opportunity.description,
-            opportunity.requirements, opportunity.vacancies, opportunity.selectedCount,
+            opportunity.requirements, opportunity.vacancies, opportunity.selectedCount, opportunity.noExperienceRequired,
         )
     }
 }
@@ -63,15 +66,21 @@ interface SavedOpportunityDao {
     suspend fun remove(account: String, id: String)
 }
 
-@Database(entities = [SavedOpportunity::class], version = 1, exportSchema = false)
+@Database(entities = [SavedOpportunity::class], version = 2, exportSchema = false)
 abstract class SavedDatabase : RoomDatabase() {
     abstract fun saved(): SavedOpportunityDao
 
     companion object {
+        private val migration1To2 = object : Migration(1, 2) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE saved_opportunities ADD COLUMN noExperienceRequired INTEGER")
+            }
+        }
         @Volatile private var instance: SavedDatabase? = null
 
         fun get(context: Context): SavedDatabase = instance ?: synchronized(this) {
             instance ?: Room.databaseBuilder(context.applicationContext, SavedDatabase::class.java, "tuempuje-guardados.db")
+                .addMigrations(migration1To2)
                 .build().also { instance = it }
         }
     }

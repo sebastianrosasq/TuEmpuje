@@ -101,6 +101,14 @@ import java.util.Locale
 
 private data class Destination(val route: String, val label: String, val icon: ImageVector, val selectedIcon: ImageVector)
 
+private data class WorkTemplate(val label: String, val title: String, val description: String, val requirements: String, val category: String)
+private val workTemplates = listOf(
+    WorkTemplate("Campaña", "Apoyo en campaña", "Apoyar en la preparación y atención durante una campaña, según las tareas que coordinemos", "Comunicación y puntualidad", "Eventos"),
+    WorkTemplate("Contenido digital", "Edición de contenido", "Preparar y editar piezas de contenido con los materiales y pautas que proporcionaremos", "Conocimientos básicos de edición", "Diseño y edición"),
+    WorkTemplate("Ayudantía", "Asistente para proyecto", "Apoyar al responsable del proyecto con la organización de materiales y las tareas acordadas", "Organización y disposición para aprender", "Ayudantía"),
+    WorkTemplate("Apoyo en negocio", "Apoyo en atención", "Apoyar con la atención y organización de productos durante el horario acordado", "Trato cordial y responsabilidad", "Ventas y atención"),
+)
+
 private val destinations = listOf(
     Destination("explorar", "Explorar", Icons.Outlined.ExploreOutline, Icons.Rounded.Explore),
     Destination("publicar", "Publicar", Icons.Outlined.AddOutline, Icons.Rounded.AddCircle),
@@ -283,6 +291,7 @@ private fun ExploreScreen(model: OpportunityViewModel, onSaved: () -> Unit, onSe
     var locationFilter by rememberSaveable { mutableStateOf("") }
     var remoteOnly by rememberSaveable { mutableStateOf(false) }
     var availableOnly by rememberSaveable { mutableStateOf(false) }
+    var noExperienceOnly by rememberSaveable { mutableStateOf(false) }
     var showFilters by rememberSaveable { mutableStateOf(false) }
     val categories = listOf("Todas") + model.opportunities.map { it.category }.distinct().sorted()
     val interests = LocalAppPreferences.current?.interests.orEmpty()
@@ -291,6 +300,7 @@ private fun ExploreScreen(model: OpportunityViewModel, onSaved: () -> Unit, onSe
             (locationFilter.isBlank() || it.location.contains(locationFilter.trim(), ignoreCase = true)) &&
             (!remoteOnly || it.location.contains("remoto", ignoreCase = true)) &&
             (!availableOnly || it.selectedCount < it.vacancies) &&
+            (!noExperienceOnly || it.noExperienceRequired == true) &&
             (query.isBlank() || listOf(it.title, it.organization, it.category, it.location)
                 .any { field -> field.contains(query.trim(), ignoreCase = true) })
     }.sortedByDescending { it.category in interests }
@@ -331,6 +341,8 @@ private fun ExploreScreen(model: OpportunityViewModel, onSaved: () -> Unit, onSe
                         FilterChip(selected = remoteOnly, onClick = { remoteOnly = !remoteOnly }, label = { Text("Remoto") })
                         FilterChip(selected = availableOnly, onClick = { availableOnly = !availableOnly }, label = { Text("Con vacantes") })
                     }
+                    FilterChip(selected = noExperienceOnly, onClick = { noExperienceOnly = !noExperienceOnly }, label = { Text("Sin experiencia requerida") })
+                    if (noExperienceOnly) Text("Solo se incluyen publicaciones donde se indicó que no hace falta experiencia", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
         }
@@ -501,6 +513,7 @@ private fun OpportunityCard(opportunity: Opportunity, status: String? = null, mo
             }
             Text(opportunity.title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
             Text(opportunity.organization, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            if (opportunity.noExperienceRequired == true) Text("Sin experiencia requerida", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
             if (status != null) {
                 val selected = status == "Seleccionada"
                 Surface(shape = MaterialTheme.shapes.small, color = if (selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.secondaryContainer) {
@@ -550,6 +563,18 @@ private fun DetailScreen(opportunity: Opportunity?, model: OpportunityViewModel,
     var reportReason by rememberSaveable(opportunity?.id) { mutableStateOf("Información engañosa") }
     var reportDetails by rememberSaveable(opportunity?.id) { mutableStateOf("") }
     var reportSent by rememberSaveable(opportunity?.id) { mutableStateOf(false) }
+    var showReference by rememberSaveable(opportunity?.id) { mutableStateOf(false) }
+    if (showReference && opportunity != null && model.userId != null) {
+        ReferenceDialog(model, opportunity, model.userId!!, canWrite = false, onDismiss = { showReference = false })
+    }
+    var confirmExperience by rememberSaveable(opportunity?.id) { mutableStateOf(false) }
+    if (confirmExperience && opportunity != null) AlertDialog(
+        onDismissRequest = { confirmExperience = false },
+        title = { Text("Confirmar experiencia") },
+        text = { Text("Confirma que realizaste este trabajo, esta acción no confirma el pago ni constituye un certificado") },
+        confirmButton = { TextButton(enabled = !model.busy, onClick = { model.confirmCompletedWork(opportunity.id); confirmExperience = false }) { Text("Confirmar") } },
+        dismissButton = { TextButton(onClick = { confirmExperience = false }) { Text("Cancelar") } },
+    )
     if (showReport && opportunity != null) {
         AlertDialog(
             onDismissRequest = { showReport = false },
@@ -616,6 +641,7 @@ private fun DetailScreen(opportunity: Opportunity?, model: OpportunityViewModel,
             Text("Sobre esta oportunidad", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
             Text(opportunity.description, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Text("Conocimientos y requisitos", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+            opportunity.noExperienceRequired?.let { Text(if (it) "No requiere experiencia previa" else "Requiere experiencia previa", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary) }
             Text(opportunity.requirements, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
             if (opportunity.status != "published") AppNotice("Esta publicación fue retirada, su información se conserva en el historial")
             if (!opportunity.own) {
@@ -630,6 +656,16 @@ private fun DetailScreen(opportunity: Opportunity?, model: OpportunityViewModel,
                 }
                 if (applied) {
                     AppNotice(when (status) { "selected" -> "Fuiste seleccionado"; "completed" -> "Trabajo finalizado"; else -> "Postulación enviada" })
+                    if (status == "completed") {
+                        if (model.confirmedWork[opportunity.id] == true) {
+                            AppNotice("Experiencia confirmada por ambas partes")
+                            OutlinedButton(onClick = { showReference = true }, modifier = Modifier.fillMaxWidth()) { Text("Mi referencia") }
+                        }
+                        else {
+                            Text("La persona que publicó indicó que el trabajo terminó, confirma si también lo finalizaste", style = MaterialTheme.typography.bodyMedium)
+                            OutlinedButton(onClick = { confirmExperience = true }, enabled = !model.busy, modifier = Modifier.fillMaxWidth()) { Text("Confirmar mi experiencia") }
+                        }
+                    }
                     if (status == "pending" || status == "selected") OutlinedButton(onClick = { confirmWithdraw = true }, enabled = !model.busy, modifier = Modifier.fillMaxWidth()) { Text("Retirar postulación") }
                 }
                 if (status != null) model.userId?.let { applicant ->
@@ -639,7 +675,7 @@ private fun DetailScreen(opportunity: Opportunity?, model: OpportunityViewModel,
                 }
                 if (model.busy) AppLoadingState("Procesando solicitud")
                 if (opportunity.status == "published") {
-                    if (reportSent) AppNotice("Reporte guardado, la revisión aún no está habilitada")
+                    if (reportSent) AppNotice("Reporte enviado para revisión")
                     else TextButton(onClick = { showReport = true }) { Text("Reportar oportunidad") }
                 }
             } else {
@@ -659,6 +695,10 @@ private fun DetailScreen(opportunity: Opportunity?, model: OpportunityViewModel,
 private fun CandidatesScreen(opportunity: Opportunity?, model: OpportunityViewModel, onBack: () -> Unit, onChat: (String, String) -> Unit) {
     var selected by remember { mutableStateOf<pe.tuempuje.app.data.Candidate?>(null) }
     var completing by remember { mutableStateOf<pe.tuempuje.app.data.Candidate?>(null) }
+    var referenceCandidate by remember { mutableStateOf<pe.tuempuje.app.data.Candidate?>(null) }
+    var publicCandidate by remember { mutableStateOf<pe.tuempuje.app.data.Candidate?>(null) }
+    referenceCandidate?.let { candidate -> opportunity?.let { job -> ReferenceDialog(model, job, candidate.id, canWrite = true, onDismiss = { referenceCandidate = null }) } }
+    publicCandidate?.let { candidate -> PublicReferencesDialog(model, candidate.id, candidate.name, onDismiss = { publicCandidate = null }) }
     completing?.let { candidate ->
         AlertDialog(
             onDismissRequest = { completing = null },
@@ -702,14 +742,14 @@ private fun CandidatesScreen(opportunity: Opportunity?, model: OpportunityViewMo
                 AppEmptyState("Aún no hay postulaciones", "Cuando alguien postule aparecerá en esta sección")
             }
             model.candidates.forEach { candidate ->
-                CandidateCard(candidate, canSelect = candidate.status == "pending" && opportunity.status == "published" && opportunity.selectedCount < opportunity.vacancies && !model.busy, onSelect = { selected = candidate }, onComplete = { completing = candidate }, onChat = { onChat(opportunity.id, candidate.id) })
+                CandidateCard(candidate, canSelect = candidate.status == "pending" && opportunity.status == "published" && opportunity.selectedCount < opportunity.vacancies && !model.busy, onSelect = { selected = candidate }, onComplete = { completing = candidate }, onChat = { onChat(opportunity.id, candidate.id) }, onReference = { referenceCandidate = candidate }, onPublicReferences = { publicCandidate = candidate })
             }
         }
     }
 }
 
 @Composable
-private fun CandidateCard(candidate: pe.tuempuje.app.data.Candidate, canSelect: Boolean, onSelect: () -> Unit, onComplete: () -> Unit, onChat: () -> Unit) {
+private fun CandidateCard(candidate: pe.tuempuje.app.data.Candidate, canSelect: Boolean, onSelect: () -> Unit, onComplete: () -> Unit, onChat: () -> Unit, onReference: () -> Unit, onPublicReferences: () -> Unit) {
     Surface(shape = MaterialTheme.shapes.large, color = MaterialTheme.colorScheme.surface, border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant), modifier = Modifier.fillMaxWidth()) {
         Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -718,7 +758,7 @@ private fun CandidateCard(candidate: pe.tuempuje.app.data.Candidate, canSelect: 
                 }
                 Column {
                     Text(candidate.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                    Text(when (candidate.status) { "selected" -> "Seleccionado"; "completed" -> "Trabajo finalizado"; "withdrawn" -> "Postulación retirada"; else -> "Postulación recibida" }, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(when (candidate.status) { "selected" -> "Seleccionado"; "completed" -> if (candidate.confirmed) "Experiencia confirmada por ambas partes" else "Finalizado · falta confirmación"; "withdrawn" -> "Postulación retirada"; else -> "Postulación recibida" }, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
             if (candidate.skills.isNotBlank()) DetailRow("Habilidades", candidate.skills)
@@ -727,11 +767,84 @@ private fun CandidateCard(candidate: pe.tuempuje.app.data.Candidate, canSelect: 
             if (candidate.district.isNotBlank()) DetailRow("Distrito", candidate.district)
             if (candidate.education.isNotBlank()) DetailRow("Estudios o formación", candidate.education)
             if (candidate.portfolio.isNotBlank()) DetailRow("Portafolio o proyectos", candidate.portfolio)
+            TextButton(onClick = onPublicReferences) { Text("Ver referencias compartidas") }
             OutlinedButton(onClick = onChat, modifier = Modifier.fillMaxWidth()) { Text("Conversar") }
             if (candidate.status == "pending") OutlinedButton(onClick = onSelect, enabled = canSelect, modifier = Modifier.fillMaxWidth()) { Text(if (canSelect) "Seleccionar" else "Vacantes cubiertas") }
             if (candidate.status == "selected") OutlinedButton(onClick = onComplete, modifier = Modifier.fillMaxWidth()) { Text("Finalizar trabajo") }
+            if (candidate.status == "completed" && candidate.confirmed) OutlinedButton(onClick = onReference, modifier = Modifier.fillMaxWidth()) { Text("Referencia de este trabajo") }
         }
     }
+}
+
+@Composable
+private fun ReferenceDialog(model: OpportunityViewModel, opportunity: Opportunity, workerId: String, canWrite: Boolean, onDismiss: () -> Unit) {
+    var text by rememberSaveable(opportunity.id, workerId) { mutableStateOf("") }
+    var dispute by rememberSaveable(opportunity.id, workerId) { mutableStateOf(false) }
+    var sent by rememberSaveable(opportunity.id, workerId) { mutableStateOf(false) }
+    DisposableEffect(opportunity.id, workerId) {
+        model.observeReference(opportunity.id, workerId)
+        onDispose { model.stopObservingReferences() }
+    }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Referencia del trabajo") },
+        text = {
+            Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                if (model.referencesLoading) AppLoadingState("Cargando referencia")
+                model.referencesError?.let { AppNotice(it, isError = true) }
+                model.error?.let { AppNotice(it, isError = true) }
+                val ref = model.currentReference
+                if (!model.referencesLoading && model.referencesError == null) {
+                    if (ref == null && canWrite) {
+                        Text("Describe la colaboración. La persona decidirá si comparte esta referencia")
+                        OutlinedTextField(value = text, onValueChange = { text = it.take(500) }, label = { Text("Referencia") }, supportingText = { Text("Entre 10 y 500 caracteres") }, minLines = 3)
+                    } else if (ref == null) Text("Aún no se ha escrito una referencia para este trabajo")
+                    else {
+                        Text(ref.text, style = MaterialTheme.typography.bodyLarge)
+                        Text("${ref.authorName} · ${ref.title}", style = MaterialTheme.typography.bodySmall)
+                        Text(if (ref.moderationHidden) "Oculta después de la revisión" else if (ref.visible) "Visible para otras personas de TuEmpuje" else "Solo visible para las partes", style = MaterialTheme.typography.bodySmall)
+                        if (!canWrite) {
+                            if (!ref.moderationHidden) OutlinedButton(enabled = !model.busy, onClick = { model.setReferenceVisibility(ref, !ref.visible) }) { Text(if (ref.visible) "Dejar de compartir" else "Compartir referencia") }
+                            if (sent) AppNotice("Reporte enviado para revisión")
+                            else if (!dispute) TextButton(onClick = { dispute = true; text = "" }) { Text("Reportar esta referencia") }
+                            else {
+                                OutlinedTextField(value = text, onValueChange = { text = it.take(500) }, label = { Text("¿Qué información es incorrecta?") }, minLines = 2)
+                                TextButton(enabled = !model.busy, onClick = { model.disputeReference(ref, text) { sent = true; dispute = false } }) { Text("Enviar reporte") }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            if (canWrite && model.currentReference == null && !model.referencesLoading && model.referencesError == null) {
+                TextButton(enabled = !model.busy && text.trim().length >= 10, onClick = { model.writeReference(opportunity, workerId, text) { text = "" } }) { Text("Enviar referencia") }
+            } else TextButton(onClick = onDismiss) { Text("Cerrar") }
+        },
+        dismissButton = if (canWrite && model.currentReference == null) ({ TextButton(onClick = onDismiss) { Text("Cancelar") } }) else null,
+    )
+}
+
+@Composable
+private fun PublicReferencesDialog(model: OpportunityViewModel, workerId: String, name: String, onDismiss: () -> Unit) {
+    DisposableEffect(workerId) {
+        model.observePublicReferences(workerId)
+        onDispose { model.stopObservingReferences() }
+    }
+    AlertDialog(onDismissRequest = onDismiss, title = { Text("Referencias de $name") },
+        text = {
+            Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                if (model.referencesLoading) AppLoadingState("Cargando referencias")
+                model.referencesError?.let { AppNotice(it, isError = true) }
+                if (!model.referencesLoading && model.referencesError == null && model.publicReferences.isEmpty()) Text("Aún no comparte referencias")
+                model.publicReferences.forEach { reference ->
+                    Text(reference.text, style = MaterialTheme.typography.bodyMedium)
+                    Text("${reference.authorName} · ${reference.title}", style = MaterialTheme.typography.labelMedium)
+                    HorizontalDivider()
+                }
+                Text("Las referencias reflejan lo declarado por quienes colaboraron, no verifican identidad ni pagos", style = MaterialTheme.typography.bodySmall)
+            }
+        }, confirmButton = { TextButton(onClick = onDismiss) { Text("Cerrar") } })
 }
 
 @Composable
@@ -742,7 +855,7 @@ private fun DetailRow(label: String, value: String) {
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 private fun PublishScreen(model: OpportunityViewModel, onBack: () -> Unit, onAccount: () -> Unit, onPublished: () -> Unit) {
     var title by rememberSaveable { mutableStateOf("") }
@@ -757,6 +870,8 @@ private fun PublishScreen(model: OpportunityViewModel, onBack: () -> Unit, onAcc
     var requirements by rememberSaveable { mutableStateOf("") }
     var vacancies by rememberSaveable { mutableStateOf("1") }
     var category by rememberSaveable { mutableStateOf("Ayudantía") }
+    var noExperience by rememberSaveable { mutableStateOf<Boolean?>(null) }
+    var pendingTemplate by remember { mutableStateOf<WorkTemplate?>(null) }
     var showError by rememberSaveable { mutableStateOf(false) }
     var step by rememberSaveable { mutableIntStateOf(0) }
     var confirmDiscard by rememberSaveable { mutableStateOf(false) }
@@ -775,6 +890,7 @@ private fun PublishScreen(model: OpportunityViewModel, onBack: () -> Unit, onAcc
         title.trim().length !in 3..120,
         description.trim().length !in 10..3000,
         requirements.trim().length !in 2..1500,
+        noExperience == null,
     ).count { it }
     val conditionErrors = listOf(
         location.trim().length !in 2..120,
@@ -783,7 +899,21 @@ private fun PublishScreen(model: OpportunityViewModel, onBack: () -> Unit, onAcc
         invalidVacancies,
     ).count { it }
     val invalidCount = if (step == 0) workErrors else conditionErrors
-    val hasDraft = listOf(title, description, location, payAmount, duration, requirements).any { it.isNotBlank() } || selectedDate != null || flexibleDate || vacancies != "1" || category != "Ayudantía" || payUnit != "Por tarea"
+    val hasDraft = listOf(title, description, location, payAmount, duration, requirements).any { it.isNotBlank() } || selectedDate != null || flexibleDate || vacancies != "1" || category != "Ayudantía" || payUnit != "Por tarea" || noExperience != null
+
+    fun applyTemplate(template: WorkTemplate) {
+        title = template.title
+        description = template.description
+        requirements = template.requirements
+        category = template.category
+    }
+
+    pendingTemplate?.let { template ->
+        AlertDialog(onDismissRequest = { pendingTemplate = null }, title = { Text("¿Usar esta plantilla?") },
+            text = { Text("Se reemplazarán el título, las tareas, los requisitos y la categoría que escribiste") },
+            confirmButton = { TextButton(onClick = { applyTemplate(template); pendingTemplate = null }) { Text("Usar plantilla") } },
+            dismissButton = { TextButton(onClick = { pendingTemplate = null }) { Text("Conservar") } })
+    }
 
     BackHandler(enabled = hasDraft || step > 0) {
         if (step > 0) { step--; showError = false } else confirmDiscard = true
@@ -819,9 +949,9 @@ private fun PublishScreen(model: OpportunityViewModel, onBack: () -> Unit, onAcc
             text = { Text("Se mostrará a las personas de TuEmpuje con las condiciones que acabas de revisar") },
             confirmButton = {
                 TextButton(enabled = !model.busy, onClick = {
-                    model.publish(title, description, location, payment.orEmpty(), schedule, requirements, vacancies.toIntOrNull() ?: 0, category) {
+                    model.publish(title, description, location, payment.orEmpty(), schedule, requirements, vacancies.toIntOrNull() ?: 0, category, noExperience == true) {
                         title = ""; description = ""; location = ""; payAmount = ""; payUnit = "Por tarea"; duration = ""; selectedDate = null; flexibleDate = false; requirements = ""; vacancies = "1"; category = "Ayudantía"
-                        showError = false; confirmPublish = false; step = 0
+                        noExperience = null; showError = false; confirmPublish = false; step = 0
                         onPublished()
                     }
                     confirmPublish = false
@@ -888,6 +1018,15 @@ private fun PublishScreen(model: OpportunityViewModel, onBack: () -> Unit, onAcc
         if (step == 0) {
             FormSectionHeading("01", "Trabajo", "Describe el apoyo que necesitas")
             OutlinedButton(onClick = { showAiInfo = true }, modifier = Modifier.fillMaxWidth()) { Text("Ayuda de IA · Próximamente") }
+            Text("Empezar con una plantilla", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+            Text("Úsala como punto de partida y adapta las tareas a lo que necesitas", style = MaterialTheme.typography.bodySmall)
+            LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                items(workTemplates) { template ->
+                    AssistChip(onClick = {
+                        if (listOf(title, description, requirements).any { it.isNotBlank() } || category != "Ayudantía") pendingTemplate = template else applyTemplate(template)
+                    }, label = { Text(template.label) })
+                }
+            }
             Text("Tipo de trabajo", style = MaterialTheme.typography.labelLarge)
             LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 items(workInterests) { item ->
@@ -897,6 +1036,12 @@ private fun PublishScreen(model: OpportunityViewModel, onBack: () -> Unit, onAcc
             DraftField(title, { title = it }, "Título de la oportunidad", "Escribe entre 3 y 120 caracteres", showError, minLength = 3, maxLength = 120)
             DraftField(description, { description = it }, "Tareas a realizar", "Escribe entre 10 y 3000 caracteres", showError, multiline = true, minLength = 10, maxLength = 3000)
             DraftField(requirements, { requirements = it }, "Conocimientos o requisitos", "Escribe entre 2 y 1500 caracteres", showError, multiline = true, minLength = 2, maxLength = 1500)
+            Text("¿Necesita experiencia previa?", style = MaterialTheme.typography.titleMedium)
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                FilterChip(selected = noExperience == true, onClick = { noExperience = true }, label = { Text("No es necesaria") })
+                FilterChip(selected = noExperience == false, onClick = { noExperience = false }, label = { Text("Sí es necesaria") })
+            }
+            if (showError && noExperience == null) Text("Selecciona una opción", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
         } else if (step == 1) {
             FormSectionHeading("02", "Condiciones", "Aclara el tiempo, el lugar y el pago")
             DraftField(location, { location = it }, "Ubicación o remoto", "Escribe entre 2 y 120 caracteres", showError, minLength = 2, maxLength = 120)
@@ -961,6 +1106,7 @@ private fun PublishScreen(model: OpportunityViewModel, onBack: () -> Unit, onAcc
                     DetailRow("Título", title.trim())
                     DetailRow("Tareas", description.trim())
                     DetailRow("Conocimientos", requirements.trim())
+                    DetailRow("Experiencia previa", if (noExperience == true) "No es necesaria" else "Es necesaria")
                     DetailRow("Ubicación", location.trim())
                     DetailRow("Pago", payment.orEmpty())
                     DetailRow("Fecha y duración", schedule)
@@ -1031,6 +1177,7 @@ private fun ActivityScreen(model: OpportunityViewModel, activityRevision: Int, o
     val reduceMotion = LocalAppPreferences.current?.reduceMotion == true
     val myPosts = model.opportunities.filter { it.own }
     val myApplications = model.opportunities.filter { it.id in model.applications }
+    val myExperiences = myApplications.filter { model.applications[it.id] == "completed" && model.confirmedWork[it.id] == true }
     val purpose = LocalAppPreferences.current?.purpose
     var section by rememberSaveable(activityRevision) { mutableStateOf(if (purpose == "worker") "Postulaciones" else "Publicaciones") }
     LazyColumn(contentPadding = PaddingValues(22.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
@@ -1052,13 +1199,17 @@ private fun ActivityScreen(model: OpportunityViewModel, activityRevision: Int, o
             LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 if (purpose == "employer" || myPosts.isNotEmpty()) item { FilterChip(selected = section == "Publicaciones", onClick = { section = "Publicaciones" }, label = { Text("Publicaciones (${myPosts.size})") }) }
                 item { FilterChip(selected = section == "Postulaciones", onClick = { section = "Postulaciones" }, label = { Text("Postulaciones (${myApplications.size})") }) }
+                item { FilterChip(selected = section == "Experiencias", onClick = { section = "Experiencias" }, label = { Text("Experiencias (${myExperiences.size})") }) }
             }
         }
         if (model.userId != null) item {
-            Text(if (section == "Publicaciones") "Oportunidades que publicaste" else "Oportunidades a las que postulaste", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+            Text(when (section) { "Publicaciones" -> "Oportunidades que publicaste"; "Experiencias" -> "Trabajos confirmados por ambas partes"; else -> "Oportunidades a las que postulaste" }, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
         }
         if (model.userId == null || model.loading || model.applicationsLoading || model.error != null || model.feedError != null || model.applicationsError != null || model.ownError != null) {
             Unit
+        } else if (section == "Experiencias") {
+            if (myExperiences.isEmpty()) item { AppEmptyState("Aún no hay experiencias confirmadas", "Cuando ambas partes confirmen un trabajo aparecerá aquí") }
+            items(myExperiences, key = { "experience-${it.id}" }) { item -> OpportunityCard(item, "Experiencia confirmada", if (reduceMotion) Modifier else Modifier.animateItem(), availabilityConfirmed = !model.feedFromCache) { open(item.id) } }
         } else if (myPosts.isEmpty() && myApplications.isEmpty()) {
             item {
                 AnimatedContent(

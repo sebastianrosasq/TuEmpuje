@@ -16,6 +16,19 @@ async function deleteQuery(query) {
   }
 }
 
+async function deleteReferences(query) {
+  while (true) {
+    const page = await query.limit(100).get();
+    if (page.empty) return;
+    const batch = db.batch();
+    page.docs.forEach(doc => {
+      batch.delete(db.collection("referenceDisputes").doc(doc.id));
+      batch.delete(doc.ref);
+    });
+    await batch.commit();
+  }
+}
+
 exports.deleteAccount = onCall({ region: "us-central1", timeoutSeconds: 540 }, async request => {
   const uid = request.auth?.uid;
   const authTime = request.auth?.token?.auth_time;
@@ -33,6 +46,7 @@ exports.deleteAccount = onCall({ region: "us-central1", timeoutSeconds: 540 }, a
     if (owned.empty) break;
     for (const doc of owned.docs) {
       await deleteQuery(db.collection("reports").where("opportunityId", "==", doc.id));
+      await deleteReferences(db.collection("workReferences").where("opportunityId", "==", doc.id));
       await db.recursiveDelete(doc.ref);
     }
   }
@@ -53,6 +67,8 @@ exports.deleteAccount = onCall({ region: "us-central1", timeoutSeconds: 540 }, a
       });
     }
   }
+  await deleteReferences(db.collection("workReferences").where("workerId", "==", uid));
+  await deleteReferences(db.collection("workReferences").where("authorId", "==", uid));
   await deleteQuery(db.collection("reports").where("reporterId", "==", uid));
   await db.collection("users").doc(uid).delete();
   try {

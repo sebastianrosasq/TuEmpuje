@@ -79,6 +79,12 @@ La búsqueda puede filtrarse por categoría, ubicación, modalidad remota y vaca
 
 Las personas pueden completar sus habilidades y disponibilidad antes de postular, retirar una candidatura, editar o retirar una publicación sin seleccionados y consultar el historial
 
+Las nuevas publicaciones indican si requieren experiencia previa, la búsqueda permite filtrar las oportunidades que no la requieren y el formulario ofrece plantillas editables
+
+El empleador marca un trabajo como finalizado y la persona seleccionada confirma su experiencia, los trabajos confirmados aparecen en Actividad y pueden recibir una referencia que su titular decide compartir o reportar
+
+Las confirmaciones y referencias registran lo declarado por las partes, no verifican identidad ni acreditan pagos, las publicaciones anteriores que no indican experiencia requerida permanecen sin clasificar
+
 El perfil permite guardar un CV en PDF con los datos registrados, el archivo se guarda en el dispositivo y no se adjunta automáticamente a las postulaciones
 
 Gemini Developer API está habilitada en el proyecto de desarrollo, la asistencia para preparar CV y redactar oportunidades se implementará y verificará en una etapa posterior
