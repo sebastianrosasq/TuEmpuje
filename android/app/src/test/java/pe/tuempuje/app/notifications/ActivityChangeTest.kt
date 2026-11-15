@@ -24,4 +24,10 @@ class ActivityChangeTest {
         assertTrue(hasRelevantActivity(true, null, null, "pending", "new", "other", "me", false))
         assertFalse(hasRelevantActivity(true, null, null, "pending", "new", "me", "me", false))
     }
+    @Test fun candidateReceivesDecisionUpdates() {
+        for (status in listOf("reviewing", "rejected", "cancelled", "completed")) {
+            assertTrue(hasRelevantActivity(true, "pending", "", status, null, null, "me", false))
+            assertFalse(hasRelevantActivity(true, "pending", "", status, null, null, "me", true))
+        }
+    }
 }

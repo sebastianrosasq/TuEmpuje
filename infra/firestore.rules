@@ -115,14 +115,14 @@ service cloud.firestore {
         && validOpportunity(request.resource.data);
       allow update: if signedIn() && active(request.auth.uid)
         && resource.data.ownerId == request.auth.uid
-        && resource.data.status == 'published'
+        && resource.data.status in ['published', 'closed']
         && active(request.resource.data.lastSelectedApplicantId)
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['selectedCount', 'lastSelectedApplicantId'])
         && request.resource.data.selectedCount == resource.data.selectedCount + 1
         && request.resource.data.selectedCount <= resource.data.vacancies
         && request.resource.data.lastSelectedApplicantId is string
         && exists(/databases/$(database)/documents/opportunities/$(opportunityId)/applications/$(request.resource.data.lastSelectedApplicantId))
-        && get(/databases/$(database)/documents/opportunities/$(opportunityId)/applications/$(request.resource.data.lastSelectedApplicantId)).data.status == 'pending'
+        && get(/databases/$(database)/documents/opportunities/$(opportunityId)/applications/$(request.resource.data.lastSelectedApplicantId)).data.status in ['pending', 'reviewing']
         && getAfter(/databases/$(database)/documents/opportunities/$(opportunityId)/applications/$(request.resource.data.lastSelectedApplicantId)).data.status == 'selected';
       allow update: if signedIn() && active(request.auth.uid)
         && resource.data.ownerId == request.auth.uid && resource.data.status == 'published'
@@ -140,6 +140,20 @@ service cloud.firestore {
         && textWithin(request.resource.data.category, 2, 40)
         && request.resource.data.vacancies is int && request.resource.data.vacancies >= 1 && request.resource.data.vacancies <= 99
         && request.resource.data.updatedAt == request.time;
+      allow update: if signedIn() && active(request.auth.uid)
+        && resource.data.ownerId == request.auth.uid
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'statusChangedAt'])
+        && request.resource.data.statusChangedAt == request.time
+        && ((resource.data.status == 'published' && request.resource.data.status == 'closed')
+          || (resource.data.status == 'closed' && request.resource.data.status == 'published' && resource.data.selectedCount < resource.data.vacancies));
+      allow update: if signedIn() && active(request.auth.uid)
+        && resource.data.ownerId == request.auth.uid && resource.data.status in ['published', 'closed']
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['selectedCount', 'lastCancelledApplicantId'])
+        && request.resource.data.lastCancelledApplicantId is string
+        && active(request.resource.data.lastCancelledApplicantId)
+        && resource.data.selectedCount > 0 && request.resource.data.selectedCount == resource.data.selectedCount - 1
+        && get(/databases/$(database)/documents/opportunities/$(opportunityId)/applications/$(request.resource.data.lastCancelledApplicantId)).data.status == 'selected'
+        && getAfter(/databases/$(database)/documents/opportunities/$(opportunityId)/applications/$(request.resource.data.lastCancelledApplicantId)).data.status == 'cancelled';
       allow update: if signedIn() && active(request.auth.uid)
         && resource.data.ownerId == request.auth.uid
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['publicBusinessName', 'publicBusinessSector', 'publicBusinessDescription', 'updatedAt'])
@@ -196,12 +210,23 @@ service cloud.firestore {
           && opportunity().data.ownerId == request.auth.uid
           && active(applicantId)
           && (
-            (resource.data.status == 'pending'
+            (resource.data.status in ['pending', 'reviewing']
               && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'selectedAt'])
               && request.resource.data.status == 'selected'
               && request.resource.data.selectedAt == request.time
               && getAfter(opportunityPath(opportunityId)).data.selectedCount == opportunity().data.selectedCount + 1
               && getAfter(opportunityPath(opportunityId)).data.lastSelectedApplicantId == applicantId)
+            || (resource.data.status == 'pending'
+              && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'reviewedAt'])
+              && request.resource.data.status == 'reviewing' && request.resource.data.reviewedAt == request.time)
+            || (resource.data.status in ['pending', 'reviewing']
+              && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'decisionAt'])
+              && request.resource.data.status == 'rejected' && request.resource.data.decisionAt == request.time)
+            || (resource.data.status == 'selected'
+              && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'decisionAt'])
+              && request.resource.data.status == 'cancelled' && request.resource.data.decisionAt == request.time
+              && getAfter(opportunityPath(opportunityId)).data.selectedCount == opportunity().data.selectedCount - 1
+              && getAfter(opportunityPath(opportunityId)).data.lastCancelledApplicantId == applicantId)
             || (resource.data.status == 'selected'
               && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'completedAt'])
               && request.resource.data.status == 'completed'
@@ -215,19 +240,19 @@ service cloud.firestore {
         allow update: if signedIn() && active(request.auth.uid) && request.auth.uid == applicantId
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'withdrawnAt'])
           && request.resource.data.status == 'withdrawn' && request.resource.data.withdrawnAt == request.time
-          && (resource.data.status == 'pending' || (resource.data.status == 'selected'
+          && (resource.data.status in ['pending', 'reviewing'] || (resource.data.status == 'selected'
             && getAfter(opportunityPath(opportunityId)).data.selectedCount == opportunity().data.selectedCount - 1
             && getAfter(opportunityPath(opportunityId)).data.lastWithdrawnApplicantId == applicantId));
         allow update: if signedIn() && active(request.auth.uid) && request.auth.uid == applicantId
-          && resource.data.status == 'withdrawn' && opportunity().data.status == 'published'
+          && resource.data.status in ['withdrawn', 'cancelled'] && opportunity().data.status == 'published'
           && active(opportunity().data.ownerId) && opportunity().data.selectedCount < opportunity().data.vacancies
           && validIdentity(get(/databases/$(database)/documents/users/$(request.auth.uid)).data)
           && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('phone', '').matches('9[0-9]{8}')
           && textWithin(get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('skills', ''), 2, 500)
           && textWithin(get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('availability', ''), 2, 200)
-          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'createdAt', 'withdrawnAt', 'selectedAt', 'completedAt', 'applicantName', 'applicantSkills', 'applicantAvailability', 'applicantExperience', 'applicantDistrict', 'applicantEducation', 'applicantPortfolio'])
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'createdAt', 'withdrawnAt', 'selectedAt', 'completedAt', 'reviewedAt', 'decisionAt', 'applicantName', 'applicantSkills', 'applicantAvailability', 'applicantExperience', 'applicantDistrict', 'applicantEducation', 'applicantPortfolio'])
           && request.resource.data.status == 'pending' && request.resource.data.createdAt == request.time
-          && !('withdrawnAt' in request.resource.data) && !('selectedAt' in request.resource.data) && !('completedAt' in request.resource.data)
+          && !('withdrawnAt' in request.resource.data) && !('selectedAt' in request.resource.data) && !('completedAt' in request.resource.data) && !('reviewedAt' in request.resource.data) && !('decisionAt' in request.resource.data)
           && request.resource.data.applicantName == get(/databases/$(database)/documents/users/$(request.auth.uid)).data.displayName
           && request.resource.data.applicantSkills == get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('skills', '')
           && request.resource.data.applicantAvailability == get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('availability', '')
@@ -250,8 +275,8 @@ service cloud.firestore {
           allow read: if participant();
           allow create: if participant() && active(request.auth.uid)
             && active(applicantId) && active(opportunity().data.ownerId)
-            && opportunity().data.status == 'published'
-            && get(applicationPath()).data.status in ['pending', 'selected', 'completed']
+            && opportunity().data.status in ['published', 'closed']
+            && get(applicationPath()).data.status in ['pending', 'reviewing', 'selected', 'completed']
             && request.resource.data.keys().hasOnly(['senderId', 'text', 'createdAt'])
             && request.resource.data.keys().hasAll(['senderId', 'text', 'createdAt'])
             && request.resource.data.senderId == request.auth.uid

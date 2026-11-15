@@ -23,6 +23,17 @@ import pe.tuempuje.app.ui.theme.TuEmpujeTheme
 
 class MainActivity : ComponentActivity() {
     private var resetCode by mutableStateOf<String?>(null)
+    private var notificationDestination by mutableStateOf<String?>(null)
+    private var notificationRevision by mutableStateOf(0)
+
+    private fun acceptNotification(intent: Intent?) {
+        val destination = intent?.getStringExtra("notification_destination")
+        if (destination in setOf("actividad", "mensajes")) {
+            notificationDestination = destination
+            notificationRevision++
+            intent?.removeExtra("notification_destination")
+        }
+    }
 
     private fun acceptResetLink(intent: Intent?) {
         val link = intent?.takeIf { it.action == Intent.ACTION_VIEW }?.data ?: return
@@ -35,11 +46,13 @@ class MainActivity : ComponentActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         acceptResetLink(intent)
+        acceptNotification(intent)
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         acceptResetLink(intent)
+        acceptNotification(intent)
         val services = FirebaseEnvironment.create(applicationContext)
         setContent {
             val preferences = remember { AppPreferences(applicationContext) }
@@ -57,7 +70,7 @@ class MainActivity : ComponentActivity() {
                 }
             }
             CompositionLocalProvider(LocalAppPreferences provides preferences) {
-                TuEmpujeTheme(darkTheme = darkTheme) { TuEmpujeApp(services = services, resetCode = resetCode, onResetConsumed = { resetCode = null }) }
+                TuEmpujeTheme(darkTheme = darkTheme) { TuEmpujeApp(services = services, resetCode = resetCode, onResetConsumed = { resetCode = null }, notificationDestination = notificationDestination, notificationRevision = notificationRevision) }
             }
         }
     }

@@ -34,7 +34,7 @@ internal val workInterests = listOf("Ayudantía", "Creativo", "Diseño y edició
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-fun PurposeScreen(initialRole: String?, initialInterests: Set<String>, onComplete: (String, Set<String>) -> Unit) {
+fun PurposeScreen(initialRole: String?, initialInterests: Set<String>, saving: Boolean = false, saveError: String? = null, onComplete: (String, Set<String>) -> Unit) {
     var role by rememberSaveable { mutableStateOf(initialRole) }
     var step by rememberSaveable { mutableIntStateOf(0) }
     var selected by rememberSaveable { mutableStateOf(initialInterests.toList()) }
@@ -47,16 +47,16 @@ fun PurposeScreen(initialRole: String?, initialInterests: Set<String>, onComplet
                 Column(Modifier.fillMaxWidth().navigationBarsPadding().padding(horizontal = 22.dp, vertical = 12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Button(
                         onClick = { if (step == 0 && role == "worker") step = 1 else onComplete(role ?: return@Button, selected.toSet()) },
-                        enabled = if (step == 0) role != null else selected.isNotEmpty(),
+                        enabled = !saving && if (step == 0) role != null else selected.isNotEmpty(),
                         modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
                         shape = MaterialTheme.shapes.large,
                     ) {
-                        Text(if (step == 1) "Ver oportunidades" else "Continuar")
+                        Text(if (saving) "Guardando…" else if (step == 1) "Ver oportunidades" else "Continuar")
                         Spacer(Modifier.width(8.dp))
                         Icon(Icons.AutoMirrored.Rounded.ArrowForward, contentDescription = null, modifier = Modifier.size(20.dp))
                     }
-                    if (step == 1) TextButton(onClick = { step = 0 }, modifier = Modifier.align(Alignment.CenterHorizontally)) { Text("Volver") }
-                    if (step == 1 && selected.isEmpty()) TextButton(onClick = { onComplete("worker", emptySet()) }, modifier = Modifier.align(Alignment.CenterHorizontally)) { Text("Aún no me decido") }
+                    if (step == 1) TextButton(onClick = { step = 0 }, enabled = !saving, modifier = Modifier.align(Alignment.CenterHorizontally)) { Text("Volver") }
+                    if (step == 1 && selected.isEmpty()) TextButton(onClick = { onComplete("worker", emptySet()) }, enabled = !saving, modifier = Modifier.align(Alignment.CenterHorizontally)) { Text("Aún no me decido") }
                 }
             }
         },
@@ -72,6 +72,7 @@ fun PurposeScreen(initialRole: String?, initialInterests: Set<String>, onComplet
                 }
             }
             GuideHero(step, role)
+            saveError?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodyMedium) }
             if (step == 0) {
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Text("¿Qué quieres hacer?", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground)

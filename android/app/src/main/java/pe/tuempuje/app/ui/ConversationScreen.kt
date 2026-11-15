@@ -16,6 +16,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.platform.LocalContext
+import android.content.Context
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.MetadataChanges
 import kotlinx.coroutines.CancellationException
@@ -52,6 +54,7 @@ fun ConversationScreen(services: FirebaseServices?, opportunity: Opportunity?, a
     var previousCount by remember(opportunity.id, applicantId) { mutableIntStateOf(0) }
     val listState = rememberLazyListState()
     val scope = rememberCoroutineScope()
+    val context = LocalContext.current
     DisposableEffect(application) {
         val appListener = application.addSnapshotListener { snapshot, exception ->
             if (exception != null) error = "No se pudo consultar la postulación"
@@ -76,7 +79,13 @@ fun ConversationScreen(services: FirebaseServices?, opportunity: Opportunity?, a
         }
         previousCount = messages.size
     }
-    val canSend = opportunity.status == "published" && applicationStatus in setOf("pending", "selected", "completed")
+    LaunchedEffect(messages.lastOrNull()?.id, uid, opportunity.id, applicantId) {
+        messages.lastOrNull()?.let { message ->
+            context.getSharedPreferences("mensajes_leidos", Context.MODE_PRIVATE).edit()
+                .putString(conversationReadKey(uid, opportunity.id, applicantId), message.id).apply()
+        }
+    }
+    val canSend = opportunity.status in setOf("published", "closed") && applicationStatus in setOf("pending", "reviewing", "selected", "completed")
     Column(Modifier.fillMaxSize().padding(horizontal = 20.dp, vertical = 12.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = "Volver") }

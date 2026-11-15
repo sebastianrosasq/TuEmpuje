@@ -43,6 +43,7 @@ data class Opportunity(
 )
 
 data class Candidate(val id: String, val name: String, val status: String, val skills: String = "", val experience: String = "", val availability: String = "", val district: String = "", val education: String = "", val portfolio: String = "", val confirmed: Boolean = false)
+data class ApplicationProfile(val name: String = "", val skills: String = "", val experience: String = "", val availability: String = "", val district: String = "", val education: String = "", val portfolio: String = "")
 data class WorkReference(val id: String, val workerId: String, val authorName: String, val title: String, val text: String, val visible: Boolean, val moderationHidden: Boolean)
 
 class OpportunityViewModel(private val services: FirebaseServices?) : ViewModel() {
@@ -60,6 +61,8 @@ class OpportunityViewModel(private val services: FirebaseServices?) : ViewModel(
     var userId by mutableStateOf<String?>(null)
         private set
     var profileReady by mutableStateOf(false)
+        private set
+    var applicationProfile by mutableStateOf(ApplicationProfile())
         private set
     var profileLoaded by mutableStateOf(false)
         private set
@@ -123,6 +126,7 @@ class OpportunityViewModel(private val services: FirebaseServices?) : ViewModel(
         personalListeners.clear()
         publicItems.clear(); ownItems.clear(); personalItems.clear()
         profileReady = false; profileLoaded = false; profileRole = null; profileInterests = emptySet()
+        applicationProfile = ApplicationProfile()
         profileOrganization = ""; profileBusinessSector = ""; profileBusinessDescription = ""
         opportunityListener = null
         applicationListener = null
@@ -149,6 +153,7 @@ class OpportunityViewModel(private val services: FirebaseServices?) : ViewModel(
             if (exception != null || profile == null) { profileLoaded = false; profileReady = false; return@addSnapshotListener }
             profileLoaded = profile.exists()
             profileReady = (profile.getString("skills")?.trim()?.length ?: 0) >= 2 && (profile.getString("availability")?.trim()?.length ?: 0) >= 2 && pe.tuempuje.app.auth.identityError(profile.getString("dni").orEmpty(), profile.getString("phone").orEmpty(), profile.getString("documentType") ?: "DNI") == null
+            applicationProfile = ApplicationProfile(profile.getString("displayName").orEmpty(), profile.getString("skills").orEmpty(), profile.getString("experience").orEmpty(), profile.getString("availability").orEmpty(), profile.getString("district").orEmpty(), profile.getString("education").orEmpty(), profile.getString("portfolio").orEmpty())
             profileRole = profile.getString("role")
             profileOrganization = profile.getString("organization").orEmpty()
             profileBusinessSector = profile.getString("businessSector").orEmpty()
@@ -252,14 +257,21 @@ class OpportunityViewModel(private val services: FirebaseServices?) : ViewModel(
         opportunities.clear(); opportunities.addAll(items)
     }
 
-    fun savePurpose(role: String, interests: Set<String>) {
-        val uid = userId ?: return
-        val db = services?.firestore ?: return
-        if (!profileLoaded || role !in listOf("worker", "employer")) return
+    fun savePurpose(role: String, interests: Set<String>, onResult: (Boolean) -> Unit = {}) {
+        val uid = userId ?: run { onResult(false); return }
+        val db = services?.firestore ?: run { onResult(false); return }
+        if (!profileLoaded || role !in listOf("worker", "employer")) { onResult(false); return }
         viewModelScope.launch {
-            try { db.collection("users").document(uid).update(mapOf("role" to role, "interests" to interests.sorted())).await() }
+            try {
+                val profile = db.collection("users").document(uid)
+                db.runTransaction { transaction ->
+                    check(transaction.get(profile).exists())
+                    transaction.update(profile, mapOf("role" to role, "interests" to interests.sorted()))
+                }.await()
+                onResult(userId == uid)
+            }
             catch (exception: CancellationException) { throw exception }
-            catch (_: Exception) { error = "No se pudieron guardar tus preferencias, vuelve a intentarlo" }
+            catch (_: Exception) { error = "No se pudieron guardar tus preferencias, vuelve a intentarlo"; onResult(false) }
         }
     }
 
@@ -303,7 +315,7 @@ class OpportunityViewModel(private val services: FirebaseServices?) : ViewModel(
         val uid = userId ?: run { error = "Inicia sesión para postular"; return }
         val db = services?.firestore ?: return
         val opportunity = find(id) ?: run { error = "La oportunidad ya no está disponible"; return }
-        if (opportunity.own || (id in applications && applications[id] != "withdrawn")) return
+        if (opportunity.own || (id in applications && applications[id] !in setOf("withdrawn", "cancelled"))) return
         if (!profileReady) { error = "Completa tus habilidades y disponibilidad en tu perfil antes de postular"; return }
         if (opportunity.selectedCount >= opportunity.vacancies) {
             error = "Las vacantes de esta oportunidad ya están cubiertas"
@@ -320,9 +332,9 @@ class OpportunityViewModel(private val services: FirebaseServices?) : ViewModel(
             val education = profile.getString("education").orEmpty()
             val portfolio = profile.getString("portfolio").orEmpty()
             val ref = db.collection("opportunities").document(id).collection("applications").document(uid)
-            if (applications[id] == "withdrawn") {
+            if (applications[id] in setOf("withdrawn", "cancelled")) {
                 ref.update(mapOf("status" to "pending", "applicantName" to name, "applicantSkills" to skills, "applicantAvailability" to availability, "applicantExperience" to experience, "applicantDistrict" to district, "applicantEducation" to education, "applicantPortfolio" to portfolio, "createdAt" to FieldValue.serverTimestamp(),
-                    "withdrawnAt" to FieldValue.delete(), "selectedAt" to FieldValue.delete(), "completedAt" to FieldValue.delete())).await()
+                    "withdrawnAt" to FieldValue.delete(), "selectedAt" to FieldValue.delete(), "completedAt" to FieldValue.delete(), "reviewedAt" to FieldValue.delete(), "decisionAt" to FieldValue.delete())).await()
             } else ref.set(mapOf(
                 "applicantId" to uid, "applicantName" to name, "applicantSkills" to skills, "applicantAvailability" to availability, "applicantExperience" to experience, "applicantDistrict" to district, "applicantEducation" to education, "applicantPortfolio" to portfolio, "status" to "pending", "createdAt" to FieldValue.serverTimestamp(),
             )).await()
@@ -364,7 +376,7 @@ class OpportunityViewModel(private val services: FirebaseServices?) : ViewModel(
                 val candidate = transaction.get(application)
                 val selected = current.getLong("selectedCount") ?: 0L
                 val vacancies = current.getLong("vacancies") ?: 0L
-                check(current.getString("ownerId") == userId && selected < vacancies && candidate.getString("status") == "pending")
+                check(current.getString("ownerId") == userId && current.getString("status") in setOf("published", "closed") && selected < vacancies && candidate.getString("status") in setOf("pending", "reviewing"))
                 transaction.update(job, mapOf("selectedCount" to selected + 1, "lastSelectedApplicantId" to candidateId))
                 transaction.update(application, mapOf("status" to "selected", "selectedAt" to FieldValue.serverTimestamp()))
             }.await()
@@ -381,7 +393,7 @@ class OpportunityViewModel(private val services: FirebaseServices?) : ViewModel(
                 val current = tx.get(application)
                 val parent = tx.get(job)
                 when (current.getString("status")) {
-                    "pending" -> Unit
+                    "pending", "reviewing" -> Unit
                     "selected" -> {
                         val count = parent.getLong("selectedCount") ?: 0
                         check(count > 0)
@@ -401,6 +413,44 @@ class OpportunityViewModel(private val services: FirebaseServices?) : ViewModel(
         operation("No se confirmó la eliminación, revisa tu actividad antes de reintentar") {
             db.collection("opportunities").document(id).update(mapOf("status" to "removed", "removedAt" to FieldValue.serverTimestamp())).await()
             onSuccess()
+        }
+    }
+
+    fun changeOpportunityStatus(id: String, close: Boolean, onSuccess: () -> Unit) {
+        val db = services?.firestore ?: return
+        val job = find(id) ?: return
+        if (!job.own || job.status != (if (close) "published" else "closed")) return
+        operation("No se confirmó el cambio de estado, revisa tu publicación") {
+            db.collection("opportunities").document(id).update(mapOf(
+                "status" to if (close) "closed" else "published", "statusChangedAt" to FieldValue.serverTimestamp(),
+            )).await()
+            onSuccess()
+        }
+    }
+
+    fun updateCandidateStatus(opportunityId: String, candidateId: String, status: String) {
+        val db = services?.firestore ?: return
+        if (find(opportunityId)?.own != true || status !in setOf("reviewing", "rejected")) return
+        operation("No se confirmó el cambio de la postulación, revisa la lista") {
+            db.collection("opportunities").document(opportunityId).collection("applications").document(candidateId)
+                .update(mapOf("status" to status, (if (status == "reviewing") "reviewedAt" else "decisionAt") to FieldValue.serverTimestamp())).await()
+        }
+    }
+
+    fun cancelSelection(opportunityId: String, candidateId: String) {
+        val db = services?.firestore ?: return
+        if (find(opportunityId)?.own != true) return
+        operation("No se confirmó la cancelación, revisa las vacantes antes de reintentar") {
+            val job = db.collection("opportunities").document(opportunityId)
+            val application = job.collection("applications").document(candidateId)
+            db.runTransaction { tx ->
+                val currentJob = tx.get(job)
+                val currentApplication = tx.get(application)
+                val count = currentJob.getLong("selectedCount") ?: 0L
+                check(currentJob.getString("ownerId") == userId && currentJob.getString("status") in setOf("published", "closed") && count > 0 && currentApplication.getString("status") == "selected")
+                tx.update(job, mapOf("selectedCount" to count - 1, "lastCancelledApplicantId" to candidateId))
+                tx.update(application, mapOf("status" to "cancelled", "decisionAt" to FieldValue.serverTimestamp()))
+            }.await()
         }
     }
 

@@ -92,13 +92,19 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.withContext
 
 @Composable
-fun AccountScreen(auth: FirebaseAuth, firestore: FirebaseFirestore, onSettings: () -> Unit, onSaved: () -> Unit, onChoosePurpose: () -> Unit = {}, resetCode: String? = null, onResetConsumed: () -> Unit = {}, authGate: Boolean = false, onHelp: () -> Unit = {}) {
+fun AccountScreen(auth: FirebaseAuth, firestore: FirebaseFirestore, onSettings: () -> Unit, onSaved: () -> Unit, onChoosePurpose: () -> Unit = {}, resetCode: String? = null, onResetConsumed: () -> Unit = {}, authGate: Boolean = false, onHelp: () -> Unit = {}, openWorkProfile: Boolean = false, onWorkProfileOpened: () -> Unit = {}) {
     val factory = remember(auth, firestore) { AccountViewModelFactory(auth, firestore) }
     val account: AccountViewModel = viewModel(factory = factory)
     val state by account.state.collectAsState()
     var showExperience by rememberSaveable(state.uid) { mutableStateOf(false) }
     var showRecovery by rememberSaveable { mutableStateOf(false) }
     val isEmployer = LocalAppPreferences.current?.purpose == "employer"
+    LaunchedEffect(openWorkProfile, state.uid, state.profileLoadFailed, state.loading) {
+        if (openWorkProfile && state.uid != null && !state.profileLoadFailed && !state.loading && !isEmployer) {
+            showExperience = true
+            onWorkProfileOpened()
+        }
+    }
     val scrollState = rememberScrollState()
     val context = LocalContext.current
     val credentialManager = remember(context) { CredentialManager.create(context) }

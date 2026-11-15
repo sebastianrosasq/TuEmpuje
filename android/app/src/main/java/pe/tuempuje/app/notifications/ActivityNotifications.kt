@@ -64,13 +64,17 @@ class ActivityNotificationWorker(context: Context, parameters: WorkerParameters)
             val previous = if (stored == null) JSONObject() else JSONObject(stored)
             val current = JSONObject()
             var changed = false
+            var hasNewMessage = false
 
             suspend fun inspect(ref: DocumentReference, status: String, employer: Boolean) {
                 val last = ref.collection("messages").orderBy("createdAt", Query.Direction.DESCENDING).limit(1).get(Source.SERVER).await().documents.firstOrNull()
                 val value = JSONObject().put("status", status).put("message", last?.id.orEmpty())
                 val key = ref.path
                 val old = previous.optJSONObject(key)
-                if (hasRelevantActivity(stored != null, old?.optString("status"), old?.optString("message"), status, last?.id, last?.getString("senderId"), uid, employer)) changed = true
+                if (hasRelevantActivity(stored != null, old?.optString("status"), old?.optString("message"), status, last?.id, last?.getString("senderId"), uid, employer)) {
+                    changed = true
+                    if (last != null && last.id != old?.optString("message") && last.getString("senderId") != uid) hasNewMessage = true
+                }
                 current.put(key, value)
             }
 
@@ -84,7 +88,7 @@ class ActivityNotificationWorker(context: Context, parameters: WorkerParameters)
             }
             if (services.auth.currentUser?.uid != uid || !applicationContext.getSharedPreferences("apariencia", Context.MODE_PRIVATE).getBoolean("avisos_periodicos", false)) return Result.success()
             state.edit().putString(uid, current.toString()).apply()
-            if (changed) showNotification()
+            if (changed) showNotification(if (hasNewMessage) "mensajes" else "actividad")
             Result.success()
         } catch (exception: CancellationException) {
             throw exception
@@ -93,11 +97,12 @@ class ActivityNotificationWorker(context: Context, parameters: WorkerParameters)
         }
     }
 
-    private fun showNotification() {
+    private fun showNotification(destination: String) {
         val channel = "actividad"
         val manager = applicationContext.getSystemService(NotificationManager::class.java)
         manager.createNotificationChannel(NotificationChannel(channel, "Actividad de TuEmpuje", NotificationManager.IMPORTANCE_DEFAULT))
-        val intent = PendingIntent.getActivity(applicationContext, 0, Intent(applicationContext, MainActivity::class.java), PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+        val target = Intent(applicationContext, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP).putExtra("notification_destination", destination)
+        val intent = PendingIntent.getActivity(applicationContext, 0, target, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
         val notification = NotificationCompat.Builder(applicationContext, channel)
             .setSmallIcon(R.drawable.ic_notification)
             .setContentTitle("Tienes novedades en TuEmpuje")

@@ -62,6 +62,8 @@ Los cambios posteriores a las reglas deben comprobarse en el emulador y desplega
 
 Para preparar oportunidades y una postulación de ejemplo en el proyecto de desarrollo, ejecutar `node seed-demo.mjs` desde `infra/`, el comando identifica los avisos como ejemplos y guarda las cuentas locales en `.env.demo.local`, un archivo excluido de Git
 
+Las categorías de almacén, ventas y apoyo administrativo se inspiraron en la [demanda ocupacional de Arequipa publicada por el MTPE](https://cdn.www.gob.pe/uploads/document/file/7695295/6357236-informe-edo-al-2025-arequipa.pdf), los negocios, condiciones y montos de los ejemplos son ficticios y no corresponden a ofertas verificadas
+
 ## Dependencias de desarrollo
 
 Las herramientas de esta carpeta se utilizan para ejecutar emuladores y pruebas, no se incluyen en la aplicación Android
@@ -86,6 +88,8 @@ La consulta de oportunidades compartidas debe incluir `where('status', '==', 'pu
 Las postulaciones usan el identificador del candidato como identificador del documento para impedir duplicados, no se permite postular a una oportunidad propia, la consulta de postulaciones personales utiliza un índice de grupo sobre `applicantId`
 
 Las oportunidades y postulaciones están conectadas a Firestore en Android, los cambios de reglas deben desplegarse antes de probar funciones nuevas en la nube
+
+Una convocatoria puede cerrarse para impedir nuevas postulaciones y reabrirse si aún tiene vacantes, el empleador puede revisar, rechazar, seleccionar o cancelar una selección, la cancelación y la devolución de la vacante se aplican en una sola transacción
 
 Los avisos opcionales de actividad consultan postulaciones propias, publicaciones propias y el último mensaje de cada conversación mediante la sesión de la persona y las mismas reglas de Firestore, WorkManager ejecuta las comprobaciones aproximadamente cada hora y Android puede retrasarlas
 

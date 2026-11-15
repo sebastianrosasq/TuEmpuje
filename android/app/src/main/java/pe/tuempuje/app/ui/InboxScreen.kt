@@ -13,7 +13,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.platform.LocalContext
+import android.content.Context
+import com.google.firebase.firestore.Query
 import pe.tuempuje.app.data.FirebaseServices
 import pe.tuempuje.app.data.OpportunityViewModel
 import pe.tuempuje.app.ui.components.AppEmptyState
@@ -23,6 +27,8 @@ import pe.tuempuje.app.ui.components.Empu
 import pe.tuempuje.app.ui.components.EmpuMood
 
 private data class InboxEntry(val jobId: String, val applicantId: String, val title: String, val person: String, val readOnly: Boolean)
+
+internal fun conversationReadKey(uid: String, jobId: String, applicantId: String) = "$uid/$jobId/$applicantId"
 
 @Composable
 fun InboxScreen(services: FirebaseServices?, model: OpportunityViewModel, onOpen: (String, String) -> Unit) {
@@ -43,13 +49,13 @@ fun InboxScreen(services: FirebaseServices?, model: OpportunityViewModel, onOpen
                 pending[job.id] = false
                 if (exception != null) error = "No se pudieron cargar todas las conversaciones, revisa tu conexión"
                 else entries[job.id] = snapshot?.documents.orEmpty().filterNot { it.metadata.hasPendingWrites() }.map { doc ->
-                    InboxEntry(job.id, doc.id, job.title, doc.getString("applicantName").orEmpty().ifBlank { "Postulante" }, job.status != "published" || doc.getString("status") == "withdrawn")
+                    InboxEntry(job.id, doc.id, job.title, doc.getString("applicantName").orEmpty().ifBlank { "Postulante" }, job.status !in setOf("published", "closed") || doc.getString("status") in setOf("withdrawn", "rejected", "cancelled"))
                 }
             }
         }
         onDispose { listeners.forEach { it.remove() } }
     }
-    val workerEntries = if (uid == null) emptyList() else others.map { job -> InboxEntry(job.id, uid, job.title, job.organization, job.status != "published" || applications[job.id] == "withdrawn") }
+    val workerEntries = if (uid == null) emptyList() else others.map { job -> InboxEntry(job.id, uid, job.title, job.organization, job.status !in setOf("published", "closed") || applications[job.id] in setOf("withdrawn", "rejected", "cancelled")) }
     val allEntries = (workerEntries + entries.values.flatten()).sortedWith(compareBy({ it.title }, { it.person }))
     val modelError = model.applicationsError ?: model.ownError ?: model.feedError
     LazyColumn(contentPadding = PaddingValues(22.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
@@ -70,12 +76,41 @@ fun InboxScreen(services: FirebaseServices?, model: OpportunityViewModel, onOpen
             item { AppEmptyState("Aún no tienes conversaciones", "Cuando haya una postulación podrás coordinar los detalles aquí") }
         }
         items(allEntries, key = { "${it.jobId}/${it.applicantId}" }) { entry ->
+            val context = LocalContext.current
+            var lastMessage by remember(entry.jobId, entry.applicantId) { mutableStateOf<String?>(null) }
+            var lastMessageId by remember(entry.jobId, entry.applicantId) { mutableStateOf<String?>(null) }
+            var lastSender by remember(entry.jobId, entry.applicantId) { mutableStateOf<String?>(null) }
+            val readKey = uid?.let { conversationReadKey(it, entry.jobId, entry.applicantId) }
+            var lastRead by remember(readKey) { mutableStateOf(if (readKey == null) null else context.getSharedPreferences("mensajes_leidos", Context.MODE_PRIVATE).getString(readKey, null)) }
+            DisposableEffect(readKey) {
+                val preferences = context.getSharedPreferences("mensajes_leidos", Context.MODE_PRIVATE)
+                val listener = android.content.SharedPreferences.OnSharedPreferenceChangeListener { _, changed ->
+                    if (changed == readKey && readKey != null) lastRead = preferences.getString(readKey, null)
+                }
+                preferences.registerOnSharedPreferenceChangeListener(listener)
+                onDispose { preferences.unregisterOnSharedPreferenceChangeListener(listener) }
+            }
+            DisposableEffect(services, entry.jobId, entry.applicantId) {
+                val listener = services?.firestore?.collection("opportunities")?.document(entry.jobId)?.collection("applications")?.document(entry.applicantId)
+                    ?.collection("messages")?.orderBy("createdAt", Query.Direction.DESCENDING)?.limit(1)?.addSnapshotListener { snapshot, exception ->
+                        if (exception == null) {
+                            val message = snapshot?.documents?.firstOrNull { !it.metadata.hasPendingWrites() }
+                            lastMessage = message?.getString("text")
+                            lastMessageId = message?.id
+                            lastSender = message?.getString("senderId")
+                        }
+                    }
+                onDispose { listener?.remove() }
+            }
+            val unread = lastMessageId != null && lastMessageId != lastRead && lastSender != null && lastSender != uid
             Surface(modifier = Modifier.fillMaxWidth().clickable(role = Role.Button) { onOpen(entry.jobId, entry.applicantId) }, shape = MaterialTheme.shapes.large, color = MaterialTheme.colorScheme.surface) {
                 Row(Modifier.padding(18.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     Icon(Icons.Rounded.ChatBubbleOutline, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
                     Column(Modifier.weight(1f)) {
                         Text(entry.person, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
                         Text(entry.title, style = MaterialTheme.typography.bodyMedium)
+                        lastMessage?.let { Text(it, style = MaterialTheme.typography.bodySmall, maxLines = 1, overflow = TextOverflow.Ellipsis, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+                        if (unread) Text("Mensaje sin leer en este dispositivo", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
                         if (entry.readOnly) Text("Solo historial", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                     Icon(Icons.AutoMirrored.Rounded.ArrowForward, contentDescription = null)

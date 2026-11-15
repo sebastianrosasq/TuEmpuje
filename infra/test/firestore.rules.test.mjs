@@ -202,6 +202,45 @@ test('recorrido completo de postulación, confirmación y referencia compartida'
   await assertSucceeds(getDoc(doc(user('otro'), 'workReferences', 'oferta_candidato')));
 });
 
+test('cerrar, revisar y cancelar selección conserva el conteo de vacantes', async () => {
+  const worker = user('candidato'), owner = user('cliente'), other = user('otro');
+  const job = doc(owner, 'opportunities', 'oferta');
+  const appOwner = doc(owner, 'opportunities', 'oferta', 'applications', 'candidato');
+  const appWorker = doc(worker, 'opportunities', 'oferta', 'applications', 'candidato');
+  await assertSucceeds(setDoc(appWorker, application('candidato')));
+  await assertFails(updateDoc(doc(other, 'opportunities', 'oferta'), { status: 'closed', statusChangedAt: serverTimestamp() }));
+  await assertSucceeds(updateDoc(job, { status: 'closed', statusChangedAt: serverTimestamp() }));
+  await assertFails(setDoc(doc(other, 'opportunities', 'oferta', 'applications', 'otro'), application('otro')));
+  await assertFails(updateDoc(appWorker, { status: 'reviewing', reviewedAt: serverTimestamp() }));
+  await assertSucceeds(updateDoc(appOwner, { status: 'reviewing', reviewedAt: serverTimestamp() }));
+  await assertSucceeds(runTransaction(owner, async tx => {
+    await tx.get(job); await tx.get(appOwner);
+    tx.update(job, { selectedCount: 1, lastSelectedApplicantId: 'candidato' });
+    tx.update(appOwner, { status: 'selected', selectedAt: serverTimestamp() });
+  }));
+  await assertFails(updateDoc(job, { status: 'published', statusChangedAt: serverTimestamp() }));
+  await assertFails(updateDoc(appOwner, { status: 'cancelled', decisionAt: serverTimestamp() }));
+  await assertFails(updateDoc(job, { selectedCount: 0, lastCancelledApplicantId: 'candidato' }));
+  await assertSucceeds(runTransaction(owner, async tx => {
+    await tx.get(job); await tx.get(appOwner);
+    tx.update(job, { selectedCount: 0, lastCancelledApplicantId: 'candidato' });
+    tx.update(appOwner, { status: 'cancelled', decisionAt: serverTimestamp() });
+  }));
+  await assertFails(updateDoc(appWorker, { status: 'pending', createdAt: serverTimestamp(), selectedAt: deleteField(), reviewedAt: deleteField(), decisionAt: deleteField() }));
+  await assertSucceeds(updateDoc(job, { status: 'published', statusChangedAt: serverTimestamp() }));
+  await assertSucceeds(updateDoc(appWorker, { status: 'pending', createdAt: serverTimestamp(), selectedAt: deleteField(), reviewedAt: deleteField(), decisionAt: deleteField() }));
+});
+
+test('solo el empleador decide revisar o no seleccionar una postulación', async () => {
+  const worker = user('candidato'), owner = user('cliente');
+  const appWorker = doc(worker, 'opportunities', 'oferta', 'applications', 'candidato');
+  const appOwner = doc(owner, 'opportunities', 'oferta', 'applications', 'candidato');
+  await assertSucceeds(setDoc(appWorker, application('candidato')));
+  await assertFails(updateDoc(appWorker, { status: 'rejected', decisionAt: serverTimestamp() }));
+  await assertSucceeds(updateDoc(appOwner, { status: 'rejected', decisionAt: serverTimestamp() }));
+  await assertFails(updateDoc(appWorker, { status: 'pending', createdAt: serverTimestamp(), decisionAt: deleteField() }));
+});
+
 test('acepta documentos extranjeros válidos sin compartirlos en la postulación', async () => {
   const db = user('candidato');
   const own = doc(db, 'users', 'candidato');
