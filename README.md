@@ -91,7 +91,7 @@ Las confirmaciones y referencias registran lo declarado por las partes, no verif
 
 El perfil permite guardar un CV en PDF con los datos registrados, el archivo se guarda en el dispositivo y no se adjunta automáticamente a las postulaciones
 
-El asistente de Empu utiliza Gemini en el entorno de desarrollo para proponer borradores de oportunidades y sugerencias de CV, la persona confirma qué texto envía y revisa las propuestas antes de usarlas, el formulario manual sigue disponible
+El asistente de Empu utiliza Gemini en el entorno de desarrollo para proponer oportunidades y sugerencias de CV, al publicar permite elegir las condiciones, reutilizar los datos del negocio y revisar una vista previa editable antes de confirmar, la persona autoriza el envío de su descripción y el formulario manual sigue disponible
 
 El creador de CV ofrece seis diseños, muestra la primera página antes de exportar y permite añadir una foto opcional, guardar un borrador general o por oportunidad y generar un PDF, todavía no importa archivos existentes ni entrega el PDF al empleador
 

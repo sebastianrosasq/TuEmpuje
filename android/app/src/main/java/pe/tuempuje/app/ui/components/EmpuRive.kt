@@ -50,6 +50,7 @@ import pe.tuempuje.app.R
 import pe.tuempuje.app.ui.theme.EmpuInk
 import pe.tuempuje.app.ui.theme.EmpuLight
 import pe.tuempuje.app.ui.theme.EmpuTeal
+import kotlin.math.sin
 
 private val LocalEmpuFile = staticCompositionLocalOf<RiveResult<RiveFile>?> { null }
 
@@ -87,7 +88,7 @@ fun EmpuProvider(content: @Composable () -> Unit) {
 enum class EmpuAccessory { NONE, WORK, BUSINESS }
 
 @Composable
-fun Empu(mood: EmpuMood, modifier: Modifier = Modifier, accessory: EmpuAccessory = EmpuAccessory.NONE) {
+fun Empu(mood: EmpuMood, modifier: Modifier = Modifier, accessory: EmpuAccessory = EmpuAccessory.NONE, walkPhase: Float = 0f, wave: Float = -1f) {
     val preferences = LocalAppPreferences.current
     if (preferences?.showMascot == false) {
         Spacer(modifier.aspectRatio(1f))
@@ -96,14 +97,23 @@ fun Empu(mood: EmpuMood, modifier: Modifier = Modifier, accessory: EmpuAccessory
     BoxWithConstraints(modifier.aspectRatio(1f).clearAndSetSemantics { }) {
         Canvas(Modifier.matchParentSize()) {
             val u = size.minDimension / 240f
-            fun foot(x: Float, direction: Float) {
-                drawLine(EmpuTeal, Offset(x * u, 181 * u), Offset(x * u, 199 * u), 8 * u, cap = StrokeCap.Round)
-                drawLine(EmpuTeal, Offset(x * u, 199 * u), Offset((x + direction * 9) * u, 199 * u), 8 * u, cap = StrokeCap.Round)
+            fun foot(x: Float, direction: Float, phase: Float) {
+                val stride = sin(phase) * 11f
+                val lift = maxOf(0f, sin(phase)) * 7f
+                drawLine(EmpuTeal, Offset(x * u, 181 * u), Offset((x + stride) * u, (199 - lift) * u), 8 * u, cap = StrokeCap.Round)
+                drawLine(EmpuTeal, Offset((x + stride) * u, (199 - lift) * u), Offset((x + stride + direction * 9) * u, (199 - lift) * u), 8 * u, cap = StrokeCap.Round)
             }
-            foot(88f, -1f)
-            foot(161f, 1f)
+            foot(88f, -1f, walkPhase)
+            foot(161f, 1f, -walkPhase)
         }
         EmpuArtwork(mood, Modifier.matchParentSize())
+        if (wave >= 0f) Canvas(Modifier.matchParentSize()) {
+            val u = size.minDimension / 240f
+            val handX = 219f + 7f * sin(wave * 6.2831855f)
+            val handY = 112f + 4f * sin(wave * 6.2831855f)
+            drawLine(EmpuTeal, Offset(194 * u, 143 * u), Offset(handX * u, handY * u), 9 * u, cap = StrokeCap.Round)
+            drawCircle(EmpuTeal, 6 * u, Offset(handX * u, handY * u))
+        }
         if (accessory != EmpuAccessory.NONE) Canvas(Modifier.matchParentSize()) {
             val u = size.minDimension / 240f
             if (accessory == EmpuAccessory.WORK) {

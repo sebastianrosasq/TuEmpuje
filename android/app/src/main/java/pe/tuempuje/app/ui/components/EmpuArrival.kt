@@ -5,6 +5,7 @@ import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.keyframes
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.LinearEasing
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -41,4 +42,38 @@ fun EmpuArrival(mood: EmpuMood, modifier: Modifier = Modifier, accessory: EmpuAc
         }
         Empu(mood, Modifier.fillMaxSize().graphicsLayer { translationY = drop.value * density; translationX = swing.value * density; rotationZ = swing.value }, accessory)
     }
+}
+
+@Composable
+fun EmpuGreeting(modifier: Modifier = Modifier, accessory: EmpuAccessory = EmpuAccessory.NONE) {
+    val allowMotion = LocalAppPreferences.current?.reduceMotion != true && ValueAnimator.areAnimatorsEnabled()
+    val drop = remember { Animatable(if (allowMotion) -100f else 0f) }
+    val tilt = remember { Animatable(if (allowMotion) -65f else 0f) }
+    val wave = remember { Animatable(-1f) }
+    LaunchedEffect(allowMotion) {
+        if (!allowMotion) { drop.snapTo(0f); tilt.snapTo(0f); wave.snapTo(-1f); return@LaunchedEffect }
+        coroutineScope {
+            launch { drop.animateTo(0f, keyframes { durationMillis = 700; -100f at 0; 8f at 480; -9f at 570; 0f at 700 }) }
+            launch { tilt.animateTo(0f, keyframes { durationMillis = 700; -65f at 0; 16f at 480; -7f at 580; 0f at 700 }) }
+        }
+        wave.snapTo(0f)
+        wave.animateTo(2f, tween(700, easing = LinearEasing))
+        wave.snapTo(-1f)
+    }
+    Empu(EmpuMood.HAPPY, modifier.graphicsLayer { translationY = drop.value * density; rotationZ = tilt.value }, accessory, wave = wave.value)
+}
+
+@Composable
+fun EmpuWalkIn(mood: EmpuMood, modifier: Modifier = Modifier, accessory: EmpuAccessory = EmpuAccessory.NONE) {
+    val allowMotion = LocalAppPreferences.current?.reduceMotion != true && ValueAnimator.areAnimatorsEnabled()
+    val distance = remember { Animatable(if (allowMotion) 28f else 0f) }
+    val stride = remember { Animatable(0f) }
+    LaunchedEffect(allowMotion) {
+        if (!allowMotion) { distance.snapTo(0f); stride.snapTo(0f); return@LaunchedEffect }
+        coroutineScope {
+            launch { distance.animateTo(0f, tween(700, easing = FastOutSlowInEasing)) }
+            launch { stride.animateTo(12.56637f, tween(700, easing = LinearEasing)); stride.snapTo(0f) }
+        }
+    }
+    Empu(mood, modifier.graphicsLayer { translationX = distance.value * density }, accessory, walkPhase = stride.value)
 }

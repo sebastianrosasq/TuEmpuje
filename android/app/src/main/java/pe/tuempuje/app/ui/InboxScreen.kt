@@ -25,6 +25,7 @@ import pe.tuempuje.app.ui.components.AppLoadingState
 import pe.tuempuje.app.ui.components.AppNotice
 import pe.tuempuje.app.ui.components.Empu
 import pe.tuempuje.app.ui.components.EmpuMood
+import pe.tuempuje.app.ui.components.EmpuWalkIn
 
 private data class InboxEntry(val jobId: String, val applicantId: String, val title: String, val person: String, val readOnly: Boolean)
 
@@ -65,7 +66,7 @@ fun InboxScreen(services: FirebaseServices?, model: OpportunityViewModel, onOpen
                     Text("Mensajes", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
                     Text("Conversaciones de tus oportunidades", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
-                if (LocalAppPreferences.current?.showMascot != false) Empu(EmpuMood.HAPPY, Modifier.size(104.dp))
+                if (LocalAppPreferences.current?.showMascot != false) EmpuWalkIn(EmpuMood.HAPPY, Modifier.size(104.dp))
             }
         }
         item { Text("Puedes conversar con las personas vinculadas a una postulación", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }

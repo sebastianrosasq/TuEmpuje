@@ -96,6 +96,8 @@ import pe.tuempuje.app.ui.components.OpportunityLoadingState
 import pe.tuempuje.app.ui.components.Empu
 import pe.tuempuje.app.ui.components.EmpuAccessory
 import pe.tuempuje.app.ui.components.EmpuArrival
+import pe.tuempuje.app.ui.components.EmpuGreeting
+import pe.tuempuje.app.ui.components.EmpuWalkIn
 import pe.tuempuje.app.ui.components.EmpuMood
 import pe.tuempuje.app.ui.components.EmpuProvider
 import pe.tuempuje.app.ui.components.EmptyIllustration
@@ -484,7 +486,7 @@ private fun Hero() {
             }
             if (LocalConfiguration.current.fontScale < 1.3f && LocalAppPreferences.current?.showMascot != false) {
                 Spacer(Modifier.width(10.dp))
-                EmpuArrival(EmpuMood.HAPPY, Modifier.size(112.dp), accessory = accessory)
+                EmpuGreeting(Modifier.size(112.dp), accessory = accessory)
             }
         }
     }
@@ -987,7 +989,7 @@ private fun PublishScreen(services: FirebaseServices?, model: OpportunityViewMod
     var confirmPublish by rememberSaveable { mutableStateOf(false) }
     var showCalendar by rememberSaveable { mutableStateOf(false) }
     var showAiInfo by rememberSaveable { mutableStateOf(false) }
-    var pendingAiDraft by remember { mutableStateOf<OpportunityDraft?>(null) }
+    var pendingAiDraft by remember { mutableStateOf<AssistantOpportunity?>(null) }
     val scrollState = rememberScrollState()
     val scope = rememberCoroutineScope()
     val today = LocalDate.now()
@@ -1044,19 +1046,27 @@ private fun PublishScreen(services: FirebaseServices?, model: OpportunityViewMod
             },
         )
     }
-    if (showAiInfo) OpportunityAssistantDialog(services, onDismiss = { showAiInfo = false }, onUse = { draft ->
+    fun applyAssistant(result: AssistantOpportunity) {
+        title = result.draft.title; description = result.draft.tasks; requirements = result.draft.requirements
+        category = result.category; noExperience = result.noExperience; workMode = result.mode
+        location = result.location; payAmount = result.amount; payUnit = result.payUnit
+        includeBusiness = result.includeBusiness; vacancies = "1"; duration = ""
+        flexibleDate = result.dateChoice == "Por coordinar"
+        selectedDate = when (result.dateChoice) { "Hoy" -> todayMillis; "Mañana" -> dateAsUtcMillis(today.plusDays(1)); else -> null }
+        showError = false; step = 2
+        scope.launch { scrollState.animateScrollTo(0) }
+    }
+    if (showAiInfo) OpportunityAssistantDialog(services, model.profileOrganization, model.applicationProfile.district, onDismiss = { showAiInfo = false }, onUse = { result ->
         showAiInfo = false
-        pendingAiDraft = draft
+        if (hasDraft) pendingAiDraft = result else applyAssistant(result)
     })
     pendingAiDraft?.let { draft ->
         AlertDialog(onDismissRequest = { pendingAiDraft = null }, title = { Text("¿Usar este borrador?") },
-            text = { Text("Los campos propuestos reemplazarán el texto actual. Los datos que falten deberán completarse manualmente") },
+            text = { Text("La publicación creada con Empu reemplazará los datos que ya escribiste") },
             confirmButton = { TextButton(onClick = {
-                if (draft.title.isNotBlank()) title = draft.title
-                if (draft.tasks.isNotBlank()) description = draft.tasks
-                if (draft.requirements.isNotBlank()) requirements = draft.requirements
+                applyAssistant(draft)
                 pendingAiDraft = null
-            }) { Text("Usar y revisar") } },
+            }) { Text("Usar publicación") } },
             dismissButton = { TextButton(onClick = { pendingAiDraft = null }) { Text("Conservar texto") } })
     }
     if (confirmPublish) {
@@ -1263,6 +1273,10 @@ private fun PublishScreen(services: FirebaseServices?, model: OpportunityViewMod
                 }
             }
             Text("La publicación mostrará el nombre de tu cuenta", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedButton(onClick = { step = 0; showError = false; scope.launch { scrollState.animateScrollTo(0) } }) { Text("Editar trabajo") }
+                OutlinedButton(onClick = { step = 1; showError = false; scope.launch { scrollState.animateScrollTo(0) } }) { Text("Editar condiciones") }
+            }
         }
         if (step < 2) {
             AppPrimaryButton("Continuar", enabled = !model.busy, onClick = {
@@ -1337,7 +1351,7 @@ private fun ActivityScreen(model: OpportunityViewModel, activityRevision: Int, o
                         Text("Tu actividad", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSecondaryContainer)
                         Text("Revisa tus publicaciones y postulaciones", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSecondaryContainer)
                     }
-                    if (LocalConfiguration.current.fontScale < 1.3f && LocalAppPreferences.current?.showMascot != false) Empu(EmpuMood.IDLE, Modifier.size(90.dp), accessory = if (purpose == "employer") EmpuAccessory.BUSINESS else EmpuAccessory.WORK)
+                    if (LocalConfiguration.current.fontScale < 1.3f && LocalAppPreferences.current?.showMascot != false) EmpuWalkIn(EmpuMood.IDLE, Modifier.size(90.dp), accessory = if (purpose == "employer") EmpuAccessory.BUSINESS else EmpuAccessory.WORK)
                 }
             }
         }

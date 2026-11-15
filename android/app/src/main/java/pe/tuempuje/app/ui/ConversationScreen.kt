@@ -31,6 +31,7 @@ import pe.tuempuje.app.ui.components.AppLoadingState
 import pe.tuempuje.app.ui.components.AppNotice
 import pe.tuempuje.app.ui.components.Empu
 import pe.tuempuje.app.ui.components.EmpuMood
+import pe.tuempuje.app.ui.components.EmpuWalkIn
 import java.text.DateFormat
 import java.util.Date
 
@@ -93,7 +94,7 @@ fun ConversationScreen(services: FirebaseServices?, opportunity: Opportunity?, a
                 Text("Conversación", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
                 Text(opportunity.title, style = MaterialTheme.typography.bodySmall, maxLines = 2)
             }
-            Empu(EmpuMood.HAPPY, Modifier.size(48.dp))
+            EmpuWalkIn(EmpuMood.HAPPY, Modifier.size(48.dp))
         }
         error?.let { AppNotice(it, isError = true) }
         if (loading) AppLoadingState("Cargando mensajes")
