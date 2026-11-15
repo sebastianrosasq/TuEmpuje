@@ -131,6 +131,25 @@ fun Empu(mood: EmpuMood, modifier: Modifier = Modifier, accessory: EmpuAccessory
                 Icons.Rounded.WaterDrop, contentDescription = null, tint = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.align(Alignment.TopEnd).padding(end = maxWidth * .08f, top = maxWidth * .13f).size(maxWidth * .16f),
             )
+            EmpuMood.SUCCESS -> Canvas(Modifier.matchParentSize()) {
+                val u = size.minDimension / 240f
+                val tint = EmpuTeal
+                fun sparkle(x: Float, y: Float, radius: Float) {
+                    drawLine(tint, Offset(x * u, (y - radius) * u), Offset(x * u, (y + radius) * u), 4 * u, cap = StrokeCap.Round)
+                    drawLine(tint, Offset((x - radius) * u, y * u), Offset((x + radius) * u, y * u), 4 * u, cap = StrokeCap.Round)
+                }
+                sparkle(213f, 72f, 9f)
+                sparkle(34f, 94f, 6f)
+            }
+            EmpuMood.HAPPY -> Canvas(Modifier.matchParentSize()) {
+                val u = size.minDimension / 240f
+                drawLine(EmpuTeal, Offset(24 * u, 99 * u), Offset(17 * u, 91 * u), 4 * u, cap = StrokeCap.Round)
+                drawLine(EmpuTeal, Offset(28 * u, 87 * u), Offset(26 * u, 77 * u), 4 * u, cap = StrokeCap.Round)
+            }
+            EmpuMood.LOADING -> Canvas(Modifier.matchParentSize()) {
+                val u = size.minDimension / 240f
+                listOf(180f, 194f, 208f).forEach { x -> drawCircle(EmpuTeal, 3.5f * u, Offset(x * u, 45 * u)) }
+            }
             else -> Unit
         }
     }

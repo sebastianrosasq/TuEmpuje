@@ -24,6 +24,13 @@ val EmpuTeal = Color(0xFF187F76)
 val EmpuLight = Color(0xFFE9F1F4)
 val EmpuInk = Color(0xFF101A23)
 
+object AppSpacing {
+    val small = 8.dp
+    val medium = 12.dp
+    val large = 18.dp
+    val screen = 22.dp
+}
+
 private val LightColors = lightColorScheme(
     primary = EmpuTeal,
     onPrimary = Color.White,

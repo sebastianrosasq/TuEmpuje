@@ -15,6 +15,12 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.background
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.ErrorOutline
 import androidx.compose.material.icons.rounded.Info
@@ -32,7 +38,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -40,9 +45,11 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import pe.tuempuje.app.ui.theme.EmpuTeal
+import pe.tuempuje.app.ui.theme.AppSpacing
 import pe.tuempuje.app.ui.LocalAppPreferences
 
 @Composable
@@ -73,6 +80,24 @@ fun AppLoadingState(message: String) {
     }
 }
 
+@Composable
+fun OpportunityLoadingState() {
+    val placeholder = MaterialTheme.colorScheme.surfaceVariant
+    Column(Modifier.fillMaxWidth().semantics { liveRegion = LiveRegionMode.Polite; contentDescription = "Cargando oportunidades" }, verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        repeat(2) {
+            Surface(shape = MaterialTheme.shapes.large, color = MaterialTheme.colorScheme.surface, modifier = Modifier.fillMaxWidth().clearAndSetSemantics {}) {
+                Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Box(Modifier.width(112.dp).height(20.dp).background(placeholder, RoundedCornerShape(8.dp)))
+                    Box(Modifier.fillMaxWidth(.78f).height(24.dp).background(placeholder, RoundedCornerShape(8.dp)))
+                    Box(Modifier.fillMaxWidth(.52f).height(14.dp).background(placeholder, RoundedCornerShape(8.dp)))
+                    Spacer(Modifier.height(4.dp))
+                    Box(Modifier.fillMaxWidth().height(48.dp).background(placeholder, RoundedCornerShape(12.dp)))
+                }
+            }
+        }
+    }
+}
+
 enum class EmptyIllustration { General, Search, Posts, Applications }
 
 @Composable
@@ -83,11 +108,10 @@ fun AppEmptyState(title: String, message: String, action: String? = null, illust
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
         modifier = Modifier.fillMaxWidth(),
     ) {
-        Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                if (showMascot) Empu(EmpuMood.EMPTY, Modifier.size(64.dp))
-                EmptyOpportunityIllustration(illustration, Modifier.size(70.dp))
-            }
+        Column(Modifier.padding(AppSpacing.large), verticalArrangement = Arrangement.spacedBy(AppSpacing.small)) {
+            if (showMascot && LocalAppPreferences.current?.showMascot != false) {
+                Empu(EmpuMood.EMPTY, Modifier.size(96.dp))
+            } else EmptyOpportunityIllustration(illustration, Modifier.size(70.dp))
             Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
             Text(message, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             if (action != null && onAction != null) TextButton(onClick = onAction) { Text(action) }
@@ -142,7 +166,7 @@ fun AppPrimaryButton(label: String, onClick: () -> Unit, enabled: Boolean = true
         onClick = onClick,
         enabled = enabled,
         interactionSource = interaction,
-        colors = ButtonDefaults.buttonColors(containerColor = EmpuTeal, contentColor = Color.White),
+        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary, contentColor = MaterialTheme.colorScheme.onPrimary),
         shape = MaterialTheme.shapes.medium,
         modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp).graphicsLayer { scaleX = scale; scaleY = scale },
     ) { Text(label) }

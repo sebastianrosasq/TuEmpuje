@@ -43,6 +43,7 @@ import androidx.compose.material.icons.rounded.Groups
 import androidx.compose.material.icons.rounded.Bookmark
 import androidx.compose.material.icons.rounded.BookmarkBorder
 import androidx.compose.material.icons.rounded.Settings
+import androidx.compose.material.icons.rounded.Tune
 import androidx.compose.material.icons.outlined.Explore as ExploreOutline
 import androidx.compose.material.icons.outlined.AddCircleOutline as AddOutline
 import androidx.compose.material.icons.outlined.BusinessCenter as BusinessOutline
@@ -67,6 +68,7 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -89,6 +91,7 @@ import pe.tuempuje.app.ui.components.AppEmptyState
 import pe.tuempuje.app.ui.components.AppNotice
 import pe.tuempuje.app.ui.components.AppPrimaryButton
 import pe.tuempuje.app.ui.components.AppLoadingState
+import pe.tuempuje.app.ui.components.OpportunityLoadingState
 import pe.tuempuje.app.ui.components.Empu
 import pe.tuempuje.app.ui.components.EmpuAccessory
 import pe.tuempuje.app.ui.components.EmpuMood
@@ -96,6 +99,7 @@ import pe.tuempuje.app.ui.components.EmpuProvider
 import pe.tuempuje.app.ui.components.EmptyIllustration
 import pe.tuempuje.app.ui.components.WelcomeIntro
 import pe.tuempuje.app.ui.theme.EmpuLight
+import pe.tuempuje.app.ui.theme.AppSpacing
 import kotlinx.coroutines.launch
 import java.time.LocalDate
 import java.time.Instant
@@ -326,11 +330,12 @@ private fun ExploreScreen(model: OpportunityViewModel, onSaved: () -> Unit, onSe
     }
     val categories = listOf("Todas") + model.opportunities.map { it.category }.distinct().sorted()
     val interests = LocalAppPreferences.current?.interests.orEmpty()
+    val activeFilters = listOf(selectedCategory != "Todas", locationFilter.isNotBlank(), modeFilter.isNotBlank(), availableOnly, noExperienceOnly, recentDays != 0).count { it }
     val opportunities = searchOpportunities(model.opportunities, OpportunityFilters(
         query, selectedCategory, locationFilter, modeFilter, availableOnly, noExperienceOnly, recentDays, prioritizeInterests,
     ), interests, Instant.now().epochSecond)
     LazyColumn(
-        contentPadding = PaddingValues(start = 22.dp, end = 22.dp, top = 20.dp, bottom = 26.dp),
+        contentPadding = PaddingValues(start = AppSpacing.screen, end = AppSpacing.screen, top = 20.dp, bottom = 26.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
         item { BrandHeader(onSaved, onSettings) }
@@ -358,7 +363,11 @@ private fun ExploreScreen(model: OpportunityViewModel, onSaved: () -> Unit, onSe
             }
         }
         item {
-            TextButton(onClick = { showFilters = !showFilters }) { Text(if (showFilters) "Ocultar filtros" else "Más filtros") }
+            OutlinedButton(onClick = { showFilters = !showFilters }) {
+                Icon(Icons.Rounded.Tune, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(8.dp))
+                Text(if (showFilters) "Ocultar filtros" else if (activeFilters > 0) "Filtros ($activeFilters)" else "Filtrar")
+            }
             AnimatedVisibility(visible = showFilters) {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     OutlinedTextField(value = locationFilter, onValueChange = { locationFilter = it.take(100) }, label = { Text("Distrito o ubicación") }, singleLine = true, modifier = Modifier.fillMaxWidth())
@@ -389,15 +398,15 @@ private fun ExploreScreen(model: OpportunityViewModel, onSaved: () -> Unit, onSe
         if (model.userId == null) {
             item { AppEmptyState("Encuentra tu próxima oportunidad", "Inicia sesión para consultar publicaciones y participar", "Ir a mi cuenta", EmptyIllustration.Search, showMascot = false, onAction = onAccount) }
         }
-        if (model.loading) item { AppLoadingState("Cargando oportunidades") }
         (model.feedError ?: model.error)?.let { message -> item { AppNotice(message, isError = true); TextButton(onClick = model::retry) { Text("Reintentar") } } }
-        if (interests.isNotEmpty() && prioritizeInterests) item { Text("Primero verás las categorías que elegiste", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+        if (interests.isNotEmpty() && prioritizeInterests && !model.loading) item { Text("Primero verás las categorías que elegiste", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
         item {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Text("Oportunidades", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
-                if (model.userId != null) Text("${opportunities.size} resultados", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                if (model.userId != null && !model.loading) Text("${opportunities.size} ${if (opportunities.size == 1) "resultado" else "resultados"}", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
+        if (model.loading && opportunities.isEmpty()) item { OpportunityLoadingState() }
         if (model.userId != null && !model.loading && model.feedError == null && opportunities.isEmpty()) {
             item {
                 if (model.opportunities.isEmpty()) AppEmptyState("Aún no hay oportunidades", "Cuando alguien publique una oportunidad aparecerá aquí")
@@ -464,13 +473,13 @@ private fun Hero() {
         val colors = MaterialTheme.colorScheme
         Row(Modifier.background(Brush.linearGradient(listOf(colors.primaryContainer, colors.secondaryContainer))).padding(start = 20.dp, end = 6.dp, top = 12.dp, bottom = 12.dp), verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text("TU PRÓXIMO PASO", style = MaterialTheme.typography.labelSmall, letterSpacing = 1.2.sp, color = colors.onPrimaryContainer)
-                Text("Encuentra tu oportunidad", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = colors.onPrimaryContainer)
-                Text("Conecta tus habilidades con personas y proyectos", style = MaterialTheme.typography.bodyMedium, color = colors.onPrimaryContainer)
+                Text("HOLA, SOY EMPU", style = MaterialTheme.typography.labelSmall, letterSpacing = 1.sp, color = colors.onPrimaryContainer)
+                Text("Tu próximo paso empieza aquí", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = colors.onPrimaryContainer)
+                Text("Encuentra oportunidades para ti", style = MaterialTheme.typography.bodyMedium, color = colors.onPrimaryContainer)
             }
-            if (LocalConfiguration.current.fontScale < 1.3f) {
+            if (LocalConfiguration.current.fontScale < 1.3f && LocalAppPreferences.current?.showMascot != false) {
                 Spacer(Modifier.width(10.dp))
-                Empu(EmpuMood.HAPPY, Modifier.size(104.dp), accessory = accessory)
+                Empu(EmpuMood.HAPPY, Modifier.size(112.dp), accessory = accessory)
             }
         }
     }
@@ -521,25 +530,14 @@ private fun OpportunityCard(opportunity: Opportunity, status: String? = null, mo
         color = MaterialTheme.colorScheme.surface,
         border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
     ) {
-        Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Surface(shape = MaterialTheme.shapes.small, color = MaterialTheme.colorScheme.secondaryContainer) {
-                    Icon(
-                        when (opportunity.category.lowercase()) {
-                            "creativo" -> Icons.Rounded.Palette
-                            "eventos" -> Icons.Rounded.Groups
-                            else -> Icons.Rounded.WorkOutline
-                        },
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSecondaryContainer,
-                        modifier = Modifier.padding(8.dp).size(20.dp),
-                    )
+        Column(Modifier.padding(AppSpacing.large), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Row(verticalAlignment = Alignment.Top) {
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                    Text(opportunity.category.uppercase(Locale.forLanguageTag("es-PE")), style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                    Text(opportunity.title, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                    Text(opportunity.publicBusinessName.ifBlank { opportunity.organization }, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    if (opportunity.publicBusinessName.isNotBlank()) Text("Publicado por ${opportunity.organization}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
-                Spacer(Modifier.width(8.dp))
-                Surface(shape = RoundedCornerShape(10.dp), color = MaterialTheme.colorScheme.primaryContainer) {
-                    Text(opportunity.category.uppercase(), modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onPrimaryContainer, maxLines = 1)
-                }
-                Spacer(Modifier.weight(1f))
                 if (preferences != null) {
                     IconButton(onClick = { preferences.toggleSaved(opportunity) }) {
                         Icon(
@@ -549,12 +547,11 @@ private fun OpportunityCard(opportunity: Opportunity, status: String? = null, mo
                         )
                     }
                 }
-                if (onClick != null) Icon(Icons.AutoMirrored.Rounded.ArrowForward, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(18.dp))
             }
-            Text(opportunity.title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-            Text(opportunity.publicBusinessName.ifBlank { opportunity.organization }, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            if (opportunity.publicBusinessName.isNotBlank()) Text("Publicado por ${opportunity.organization}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            opportunity.workMode?.let { Text(it, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary) }
+            Row(verticalAlignment = Alignment.Top, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                Icon(Icons.Rounded.Place, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 2.dp).size(17.dp))
+                Text(listOfNotNull(opportunity.location, opportunity.workMode).joinToString(" · "), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
             if (opportunity.noExperienceRequired == true) Text("Sin experiencia requerida", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
             if (status != null) {
                 val selected = status == "Seleccionada"
@@ -562,17 +559,14 @@ private fun OpportunityCard(opportunity: Opportunity, status: String? = null, mo
                     Text(status, modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp), style = MaterialTheme.typography.labelMedium, color = if (selected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSecondaryContainer)
                 }
             }
-            Spacer(Modifier.height(2.dp))
-            HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
-            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-                Icon(Icons.Rounded.Place, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(16.dp))
-                Spacer(Modifier.width(4.dp))
-                Text(opportunity.location, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Surface(shape = MaterialTheme.shapes.medium, color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = .55f), modifier = Modifier.fillMaxWidth()) {
+                Column(Modifier.padding(horizontal = 14.dp, vertical = 12.dp), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                    Text(opportunity.pay, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
+                    Text(opportunity.duration, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    val remaining = (opportunity.vacancies - opportunity.selectedCount).coerceAtLeast(0)
+                    Text(when { opportunity.status == "closed" -> "Convocatoria cerrada"; opportunity.status != "published" -> "Publicación retirada"; !availabilityConfirmed -> "Vacantes por confirmar"; remaining == 1 -> "1 vacante disponible"; else -> "$remaining vacantes disponibles" }, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
+                }
             }
-            Text(opportunity.pay, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
-            Text(opportunity.duration, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            val remaining = (opportunity.vacancies - opportunity.selectedCount).coerceAtLeast(0)
-            Text(when { opportunity.status == "closed" -> "Convocatoria cerrada"; opportunity.status != "published" -> "Publicación retirada"; !availabilityConfirmed -> "Vacantes por confirmar"; remaining == 1 -> "1 vacante disponible"; else -> "$remaining vacantes disponibles" }, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
             if (opportunity.createdAtSeconds > 0) {
                 val date = remember(opportunity.createdAtSeconds) { Instant.ofEpochSecond(opportunity.createdAtSeconds).atZone(ZoneId.systemDefault()).toLocalDate().format(DateTimeFormatter.ofPattern("d MMM yyyy", Locale.forLanguageTag("es-PE"))) }
                 Text("Publicado el $date", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -1112,7 +1106,7 @@ private fun PublishScreen(model: OpportunityViewModel, onBack: () -> Unit, onAcc
                     Text("Publicar", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSecondaryContainer)
                     Text("Cuéntanos qué apoyo necesitas y define las condiciones", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSecondaryContainer)
                 }
-                if (LocalConfiguration.current.fontScale < 1.3f) Empu(EmpuMood.THINKING, Modifier.size(100.dp), accessory = EmpuAccessory.BUSINESS)
+                if (LocalConfiguration.current.fontScale < 1.3f && LocalAppPreferences.current?.showMascot != false) Empu(EmpuMood.THINKING, Modifier.size(100.dp), accessory = EmpuAccessory.BUSINESS)
             }
         }
         if (model.userId == null) {
@@ -1329,7 +1323,7 @@ private fun ActivityScreen(model: OpportunityViewModel, activityRevision: Int, o
                         Text("Tu actividad", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSecondaryContainer)
                         Text("Revisa tus publicaciones y postulaciones", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSecondaryContainer)
                     }
-                    if (LocalConfiguration.current.fontScale < 1.3f) Empu(EmpuMood.IDLE, Modifier.size(90.dp), accessory = if (purpose == "employer") EmpuAccessory.BUSINESS else EmpuAccessory.WORK)
+                    if (LocalConfiguration.current.fontScale < 1.3f && LocalAppPreferences.current?.showMascot != false) Empu(EmpuMood.IDLE, Modifier.size(90.dp), accessory = if (purpose == "employer") EmpuAccessory.BUSINESS else EmpuAccessory.WORK)
                 }
             }
         }

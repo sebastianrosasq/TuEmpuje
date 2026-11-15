@@ -65,7 +65,7 @@ fun InboxScreen(services: FirebaseServices?, model: OpportunityViewModel, onOpen
                     Text("Mensajes", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
                     Text("Conversaciones de tus oportunidades", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
-                Empu(EmpuMood.HAPPY, Modifier.size(82.dp))
+                if (LocalAppPreferences.current?.showMascot != false) Empu(EmpuMood.HAPPY, Modifier.size(104.dp))
             }
         }
         item { Text("Puedes conversar con las personas vinculadas a una postulación", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }

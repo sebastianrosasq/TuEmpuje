@@ -124,7 +124,7 @@ private fun GuideHero(step: Int, role: String?) {
                 Text(if (step == 0) "Cada oportunidad empieza contigo" else "Encontraremos tu camino", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = colors.onPrimaryContainer)
                 Text(if (step == 0) "Te acompaño en cada paso" else "Cuéntame qué te gustaría hacer", style = MaterialTheme.typography.bodySmall, color = colors.onPrimaryContainer)
             }
-            Empu(if (step == 0) EmpuMood.HAPPY else EmpuMood.THINKING, Modifier.size(136.dp), accessory = if (role == "employer") EmpuAccessory.BUSINESS else EmpuAccessory.WORK)
+            if (LocalAppPreferences.current?.showMascot != false) Empu(if (step == 0) EmpuMood.HAPPY else EmpuMood.THINKING, Modifier.size(136.dp), accessory = if (role == "employer") EmpuAccessory.BUSINESS else EmpuAccessory.WORK)
         }
     }
 }

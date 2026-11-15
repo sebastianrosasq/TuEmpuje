@@ -63,7 +63,7 @@ fun SettingsScreen(preferences: AppPreferences, onBack: () -> Unit) {
         }
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Text("Personaliza tu espacio", modifier = Modifier.weight(1f), style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
-            Empu(EmpuMood.HAPPY, Modifier.size(80.dp))
+            if (preferences.showMascot) Empu(EmpuMood.HAPPY, Modifier.size(104.dp))
         }
         Text("Elige cómo quieres usar TuEmpuje en este dispositivo", style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Surface(shape = MaterialTheme.shapes.large, color = MaterialTheme.colorScheme.surface, modifier = Modifier.fillMaxWidth()) {

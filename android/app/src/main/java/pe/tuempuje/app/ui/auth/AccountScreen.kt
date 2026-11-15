@@ -251,6 +251,8 @@ fun AccountScreen(auth: FirebaseAuth, firestore: FirebaseFirestore, onSettings: 
         state.error?.let { AccountError(it) }
         state.message?.let { AppNotice(it) }
         when {
+            state.uid == null && auth.currentUser != null -> Unit
+            state.uid != null && state.loading && state.displayName.isBlank() -> Unit
             state.uid == null -> AuthForm(account, state.loading, state.error != null, onRecover = { account.clearFeedback(); showRecovery = true })
             state.profileLoadFailed -> ProfileUnavailable(account, state.loading) { confirmSignOut = true }
             else -> ProfileForm(state, account, isEmployer, onShowExperience = { showExperience = true }, onSignOut = { confirmSignOut = true })
@@ -304,7 +306,7 @@ private fun AuthForm(account: AccountViewModel, loading: Boolean, hasError: Bool
 
     Surface(color = MaterialTheme.colorScheme.surface, shape = MaterialTheme.shapes.large) {
         Column(Modifier.fillMaxWidth().padding(20.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-            Empu(mood, Modifier.align(Alignment.CenterHorizontally).size(96.dp))
+            Empu(mood, Modifier.align(Alignment.CenterHorizontally).size(120.dp))
             Text(
                 if (register) "Crear cuenta" else "Iniciar sesión",
                 style = MaterialTheme.typography.titleLarge,
@@ -529,7 +531,7 @@ private fun ProfileForm(state: AccountUiState, account: AccountViewModel, isEmpl
                     fontWeight = FontWeight.SemiBold,
                     modifier = Modifier.weight(1f),
                 )
-                Empu(EmpuMood.HAPPY, Modifier.size(54.dp))
+                if (preferences?.showMascot != false) Empu(EmpuMood.HAPPY, Modifier.size(88.dp))
             }
             if (editing) {
                 OutlinedTextField(
