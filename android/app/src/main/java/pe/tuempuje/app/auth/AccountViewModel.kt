@@ -38,6 +38,9 @@ data class AccountUiState(
     val availability: String = "",
     val district: String = "",
     val organization: String = "",
+    val businessType: String = "",
+    val businessSector: String = "",
+    val businessDescription: String = "",
     val education: String = "",
     val portfolio: String = "",
     val needsProfile: Boolean = false,
@@ -245,11 +248,46 @@ class AccountViewModel(
         }
     }
 
+    fun saveBusinessProfile(type: String, organization: String, district: String, sector: String, description: String) {
+        val cleanOrganization = organization.trim()
+        val cleanDistrict = district.trim()
+        val cleanSector = sector.trim()
+        val cleanDescription = description.trim()
+        val validation = when {
+            type !in listOf("PERSONA", "PROFESIONAL", "NEGOCIO") -> "Selecciona cómo ofreces oportunidades"
+            type == "NEGOCIO" && cleanOrganization.length !in 2..100 -> "Ingresa el nombre del negocio"
+            cleanOrganization.length > 100 -> "El nombre del negocio es demasiado largo"
+            cleanDistrict.length !in 2..100 -> "Ingresa tu distrito"
+            cleanSector.length > 80 || cleanDescription.length > 500 -> "Revisa la longitud de los datos"
+            else -> null
+        }
+        if (validation != null) { mutableState.value = mutableState.value.copy(error = validation); return }
+        val user = auth.currentUser ?: return
+        val previous = mutableState.value
+        runOperation {
+            try {
+                withTimeout(12_000) {
+                    firestore.collection("users").document(user.uid).update(mapOf(
+                        "businessType" to type, "organization" to cleanOrganization, "district" to cleanDistrict,
+                        "businessSector" to cleanSector, "businessDescription" to cleanDescription,
+                    )).await()
+                }
+                mutableState.value = previous.copy(loading = false, businessType = type, organization = cleanOrganization,
+                    district = cleanDistrict, businessSector = cleanSector, businessDescription = cleanDescription, error = null)
+            } catch (exception: TimeoutCancellationException) {
+                mutableState.value = previous.copy(loading = false, error = unconfirmedProfileMessage)
+            } catch (exception: CancellationException) { throw exception
+            } catch (_: Exception) {
+                mutableState.value = previous.copy(loading = false, error = "No se pudieron guardar los datos, revisa tu conexión")
+            }
+        }
+    }
+
     fun saveProfile(name: String, dni: String, phone: String, nationality: String, role: String?, interests: Set<String>, district: String, organization: String, documentType: String = "DNI") {
         val cleanName = name.trim()
         val cleanDni = dni.trim()
         val cleanPhone = phone.trim()
-        val validation = validateName(cleanName) ?: identityError(cleanDni, cleanPhone, documentType) ?: (if (nationality.trim().length !in 2..80) "Ingresa tu nacionalidad" else null) ?: if (role == "employer" && district.trim().length !in 2..100) "Ingresa tu distrito" else null
+        val validation = validateName(cleanName) ?: identityError(cleanDni, cleanPhone, documentType) ?: (if (nationality.trim().length !in 2..80) "Ingresa tu nacionalidad" else null) ?: (if (role == "employer" && district.trim().length !in 2..100) "Ingresa tu distrito" else null) ?: if (mutableState.value.businessType == "NEGOCIO" && organization.trim().length !in 2..100) "Ingresa el nombre del negocio" else null
         if (validation != null) {
             mutableState.value = mutableState.value.copy(error = validation)
             return
@@ -420,6 +458,9 @@ class AccountViewModel(
         availability = profile.getString("availability").orEmpty(),
         district = profile.getString("district").orEmpty(),
         organization = profile.getString("organization").orEmpty(),
+        businessType = profile.getString("businessType").orEmpty(),
+        businessSector = profile.getString("businessSector").orEmpty(),
+        businessDescription = profile.getString("businessDescription").orEmpty(),
         education = profile.getString("education").orEmpty(),
         portfolio = profile.getString("portfolio").orEmpty(),
     )

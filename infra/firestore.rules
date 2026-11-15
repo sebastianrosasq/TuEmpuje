@@ -24,7 +24,7 @@ service cloud.firestore {
 
     function validProfile(data, uid) {
       return data.keys().hasAll(['uid', 'displayName', 'email'])
-        && data.keys().hasOnly(['uid', 'displayName', 'email', 'dni', 'documentType', 'phone', 'nationality', 'skills', 'experience', 'availability', 'role', 'interests', 'district', 'organization', 'education', 'portfolio'])
+        && data.keys().hasOnly(['uid', 'displayName', 'email', 'dni', 'documentType', 'phone', 'nationality', 'skills', 'experience', 'availability', 'role', 'interests', 'district', 'organization', 'education', 'portfolio', 'businessType', 'businessSector', 'businessDescription'])
         && data.uid == uid
         && textWithin(data.displayName, 2, 80)
         && data.displayName.matches('(?s).*\\S.*')
@@ -39,6 +39,10 @@ service cloud.firestore {
         && (!('interests' in data) || (data.interests is list && data.interests.size() <= 11 && data.interests.hasOnly(['Ayudantía', 'Creativo', 'Diseño y edición', 'Programación', 'Ventas y atención', 'Administración', 'Eventos', 'Logística', 'Educación', 'Servicios', 'Otro'])))
         && (!('district' in data) || textWithin(data.district, 0, 100))
         && (!('organization' in data) || textWithin(data.organization, 0, 100))
+        && (!('businessType' in data) || data.businessType in ['PERSONA', 'PROFESIONAL', 'NEGOCIO'])
+        && (!('businessType' in data) || data.businessType != 'NEGOCIO' || (textWithin(data.get('organization', ''), 2, 100) && data.organization.matches('(?s).*\\S.*')))
+        && (!('businessSector' in data) || textWithin(data.businessSector, 0, 80))
+        && (!('businessDescription' in data) || textWithin(data.businessDescription, 0, 500))
         && (!('education' in data) || textWithin(data.education, 0, 500))
         && (!('portfolio' in data) || textWithin(data.portfolio, 0, 500));
     }
@@ -54,12 +58,22 @@ service cloud.firestore {
       allow update: if signedIn() && active(request.auth.uid)
         && request.auth.uid == uid
         && validProfile(request.resource.data, uid)
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['displayName', 'dni', 'documentType', 'phone', 'nationality', 'skills', 'experience', 'availability', 'role', 'interests', 'district', 'organization', 'education', 'portfolio']);
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['displayName', 'dni', 'documentType', 'phone', 'nationality', 'skills', 'experience', 'availability', 'role', 'interests', 'district', 'organization', 'education', 'portfolio', 'businessType', 'businessSector', 'businessDescription']);
       allow delete: if false;
     }
 
     function opportunityPath(opportunityId) {
       return /databases/$(database)/documents/opportunities/$(opportunityId);
+    }
+
+    function validBusinessSnapshot(data) {
+      let fields = ['publicBusinessName', 'publicBusinessSector', 'publicBusinessDescription'];
+      let profile = get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+      return !data.keys().hasAny(fields) || (data.keys().hasAll(fields)
+        && textWithin(data.publicBusinessName, 2, 100)
+        && data.publicBusinessName == profile.get('organization', '')
+        && data.publicBusinessSector == profile.get('businessSector', '')
+        && data.publicBusinessDescription == profile.get('businessDescription', ''));
     }
 
     function validOpportunity(data) {
@@ -69,7 +83,8 @@ service cloud.firestore {
         ])
         && data.keys().hasOnly([
           'ownerId', 'title', 'description', 'location', 'pay', 'duration',
-          'vacancies', 'status', 'createdAt', 'ownerName', 'category', 'requirements', 'selectedCount', 'noExperienceRequired'
+          'vacancies', 'status', 'createdAt', 'ownerName', 'category', 'requirements', 'selectedCount', 'noExperienceRequired', 'workMode',
+          'publicBusinessName', 'publicBusinessSector', 'publicBusinessDescription'
         ])
         && data.ownerId == request.auth.uid
         && data.ownerName == get(/databases/$(database)/documents/users/$(request.auth.uid)).data.displayName
@@ -77,6 +92,8 @@ service cloud.firestore {
         && textWithin(data.category, 2, 40)
         && textWithin(data.requirements, 2, 1500)
         && (!('noExperienceRequired' in data) || data.noExperienceRequired is bool)
+        && (!('workMode' in data) || data.workMode in ['Presencial', 'Híbrido', 'Remoto'])
+        && validBusinessSnapshot(data)
         && textWithin(data.title, 3, 120)
         && textWithin(data.description, 10, 3000)
         && textWithin(data.location, 2, 120)
@@ -110,8 +127,10 @@ service cloud.firestore {
       allow update: if signedIn() && active(request.auth.uid)
         && resource.data.ownerId == request.auth.uid && resource.data.status == 'published'
         && resource.data.selectedCount == 0
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['title', 'description', 'location', 'pay', 'duration', 'requirements', 'category', 'vacancies', 'updatedAt', 'noExperienceRequired'])
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['title', 'description', 'location', 'pay', 'duration', 'requirements', 'category', 'vacancies', 'updatedAt', 'noExperienceRequired', 'workMode', 'publicBusinessName', 'publicBusinessSector', 'publicBusinessDescription'])
         && (!('noExperienceRequired' in request.resource.data) || request.resource.data.noExperienceRequired is bool)
+        && (!('workMode' in request.resource.data) || request.resource.data.workMode in ['Presencial', 'Híbrido', 'Remoto'])
+        && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['publicBusinessName', 'publicBusinessSector', 'publicBusinessDescription']) || validBusinessSnapshot(request.resource.data))
         && textWithin(request.resource.data.title, 3, 120)
         && textWithin(request.resource.data.description, 10, 3000)
         && textWithin(request.resource.data.location, 2, 120)
@@ -120,6 +139,11 @@ service cloud.firestore {
         && textWithin(request.resource.data.requirements, 2, 1500)
         && textWithin(request.resource.data.category, 2, 40)
         && request.resource.data.vacancies is int && request.resource.data.vacancies >= 1 && request.resource.data.vacancies <= 99
+        && request.resource.data.updatedAt == request.time;
+      allow update: if signedIn() && active(request.auth.uid)
+        && resource.data.ownerId == request.auth.uid
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['publicBusinessName', 'publicBusinessSector', 'publicBusinessDescription', 'updatedAt'])
+        && !request.resource.data.keys().hasAny(['publicBusinessName', 'publicBusinessSector', 'publicBusinessDescription'])
         && request.resource.data.updatedAt == request.time;
       allow update: if signedIn() && active(request.auth.uid)
         && resource.data.ownerId == request.auth.uid && resource.data.status == 'published'

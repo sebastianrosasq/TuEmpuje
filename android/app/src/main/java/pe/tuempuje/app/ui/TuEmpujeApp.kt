@@ -23,6 +23,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
@@ -77,6 +78,8 @@ import pe.tuempuje.app.R
 import pe.tuempuje.app.BuildConfig
 import pe.tuempuje.app.data.Opportunity
 import pe.tuempuje.app.data.OpportunityViewModel
+import pe.tuempuje.app.data.OpportunityFilters
+import pe.tuempuje.app.data.searchOpportunities
 import pe.tuempuje.app.data.OpportunityViewModelFactory
 import pe.tuempuje.app.data.FirebaseServices
 import pe.tuempuje.app.notifications.NotificationScheduler
@@ -140,9 +143,13 @@ fun TuEmpujeApp(services: FirebaseServices?, resetCode: String? = null, onResetC
                     model.savePurpose(role, interests)
                     choosePurpose = false
                 } else if (services != null && (model.userId == null || !model.profileLoaded)) {
-                    AccountScreen(services.auth, services.firestore, onSettings = {}, onSaved = {}, onChoosePurpose = { choosePurpose = true }, resetCode = resetCode, onResetConsumed = onResetConsumed, authGate = true)
+                    Box(Modifier.fillMaxSize().safeDrawingPadding().imePadding(), contentAlignment = Alignment.TopCenter) {
+                        Box(Modifier.widthIn(max = 600.dp).fillMaxWidth()) {
+                            AccountScreen(services.auth, services.firestore, onSettings = {}, onSaved = {}, onChoosePurpose = { choosePurpose = true }, resetCode = resetCode, onResetConsumed = onResetConsumed, authGate = true)
+                        }
+                    }
                 } else if (services != null) TuEmpujeContent(services, model, resetCode, onResetConsumed, onChoosePurpose = { choosePurpose = true })
-                else AppNotice("No se pudo conectar con el servicio de cuentas")
+                else Box(Modifier.safeDrawingPadding().padding(22.dp)) { AppNotice("No se pudo conectar con el servicio de cuentas") }
                 if (showIntro) WelcomeIntro { showIntro = false }
             }
         }
@@ -210,7 +217,7 @@ private fun TuEmpujeContent(services: FirebaseServices?, model: OpportunityViewM
             }
         },
     ) { padding ->
-        Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.TopCenter) {
+        Box(Modifier.fillMaxSize().padding(padding).consumeWindowInsets(padding).imePadding(), contentAlignment = Alignment.TopCenter) {
             NavHost(
                 navController = nav,
                 startDestination = if (preferences?.purpose == "employer") "publicar" else "explorar",
@@ -289,21 +296,21 @@ private fun ExploreScreen(model: OpportunityViewModel, onSaved: () -> Unit, onSe
     var query by rememberSaveable { mutableStateOf("") }
     var selectedCategory by rememberSaveable { mutableStateOf("Todas") }
     var locationFilter by rememberSaveable { mutableStateOf("") }
-    var remoteOnly by rememberSaveable { mutableStateOf(false) }
+    var modeFilter by rememberSaveable { mutableStateOf("") }
     var availableOnly by rememberSaveable { mutableStateOf(false) }
     var noExperienceOnly by rememberSaveable { mutableStateOf(false) }
+    var recentDays by rememberSaveable { mutableIntStateOf(0) }
+    var prioritizeInterests by rememberSaveable { mutableStateOf(true) }
     var showFilters by rememberSaveable { mutableStateOf(false) }
+    fun clearFilters() {
+        query = ""; selectedCategory = "Todas"; locationFilter = ""; modeFilter = ""
+        availableOnly = false; noExperienceOnly = false; recentDays = 0; prioritizeInterests = true
+    }
     val categories = listOf("Todas") + model.opportunities.map { it.category }.distinct().sorted()
     val interests = LocalAppPreferences.current?.interests.orEmpty()
-    val opportunities = model.opportunities.filter {
-        it.status == "published" && (selectedCategory == "Todas" || it.category == selectedCategory) &&
-            (locationFilter.isBlank() || it.location.contains(locationFilter.trim(), ignoreCase = true)) &&
-            (!remoteOnly || it.location.contains("remoto", ignoreCase = true)) &&
-            (!availableOnly || it.selectedCount < it.vacancies) &&
-            (!noExperienceOnly || it.noExperienceRequired == true) &&
-            (query.isBlank() || listOf(it.title, it.organization, it.category, it.location)
-                .any { field -> field.contains(query.trim(), ignoreCase = true) })
-    }.sortedByDescending { it.category in interests }
+    val opportunities = searchOpportunities(model.opportunities, OpportunityFilters(
+        query, selectedCategory, locationFilter, modeFilter, availableOnly, noExperienceOnly, recentDays, prioritizeInterests,
+    ), interests, Instant.now().epochSecond)
     LazyColumn(
         contentPadding = PaddingValues(start = 22.dp, end = 22.dp, top = 20.dp, bottom = 26.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp),
@@ -337,12 +344,27 @@ private fun ExploreScreen(model: OpportunityViewModel, onSaved: () -> Unit, onSe
             AnimatedVisibility(visible = showFilters) {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     OutlinedTextField(value = locationFilter, onValueChange = { locationFilter = it.take(100) }, label = { Text("Distrito o ubicación") }, singleLine = true, modifier = Modifier.fillMaxWidth())
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        FilterChip(selected = remoteOnly, onClick = { remoteOnly = !remoteOnly }, label = { Text("Remoto") })
-                        FilterChip(selected = availableOnly, onClick = { availableOnly = !availableOnly }, label = { Text("Con vacantes") })
+                    Text("Modalidad", style = MaterialTheme.typography.labelLarge)
+                    LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        listOf("Presencial", "Híbrido", "Remoto").forEach { mode ->
+                            item { FilterChip(selected = modeFilter == mode, onClick = { modeFilter = if (modeFilter == mode) "" else mode }, label = { Text(mode) }) }
+                        }
                     }
+                    FilterChip(selected = availableOnly, onClick = { availableOnly = !availableOnly }, label = { Text("Con vacantes") })
                     FilterChip(selected = noExperienceOnly, onClick = { noExperienceOnly = !noExperienceOnly }, label = { Text("Sin experiencia requerida") })
                     if (noExperienceOnly) Text("Solo se incluyen publicaciones donde se indicó que no hace falta experiencia", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text("Fecha de publicación", style = MaterialTheme.typography.labelLarge)
+                    LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        listOf(0 to "Cualquiera", 1 to "Últimas 24 horas", 7 to "Últimos 7 días", 30 to "Últimos 30 días").forEach { (days, label) ->
+                            item { FilterChip(selected = recentDays == days, onClick = { recentDays = days }, label = { Text(label) }) }
+                        }
+                    }
+                    Text("Ordenar por", style = MaterialTheme.typography.labelLarge)
+                    LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        item { FilterChip(selected = prioritizeInterests, onClick = { prioritizeInterests = true }, label = { Text("Mis intereses") }) }
+                        item { FilterChip(selected = !prioritizeInterests, onClick = { prioritizeInterests = false }, label = { Text("Más recientes") }) }
+                    }
+                    TextButton(onClick = ::clearFilters) { Text("Limpiar búsqueda y filtros") }
                 }
             }
         }
@@ -351,7 +373,7 @@ private fun ExploreScreen(model: OpportunityViewModel, onSaved: () -> Unit, onSe
         }
         if (model.loading) item { AppLoadingState("Cargando oportunidades") }
         (model.feedError ?: model.error)?.let { message -> item { AppNotice(message, isError = true); TextButton(onClick = model::retry) { Text("Reintentar") } } }
-        if (interests.isNotEmpty()) item { Text("Primero verás las categorías que elegiste", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+        if (interests.isNotEmpty() && prioritizeInterests) item { Text("Primero verás las categorías que elegiste", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
         item {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Text("Oportunidades", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
@@ -361,7 +383,7 @@ private fun ExploreScreen(model: OpportunityViewModel, onSaved: () -> Unit, onSe
         if (model.userId != null && !model.loading && model.feedError == null && opportunities.isEmpty()) {
             item {
                 if (model.opportunities.isEmpty()) AppEmptyState("Aún no hay oportunidades", "Cuando alguien publique una oportunidad aparecerá aquí")
-                else AppEmptyState("No encontramos coincidencias", "Prueba con otra palabra o cambia los filtros", "Limpiar filtros", EmptyIllustration.Search) { query = ""; selectedCategory = "Todas"; locationFilter = ""; remoteOnly = false; availableOnly = false }
+                else AppEmptyState("No encontramos coincidencias", "Prueba con otra palabra o cambia los filtros", "Limpiar filtros", EmptyIllustration.Search) { clearFilters() }
             }
         }
         items(opportunities, key = { it.id }) { opportunity ->
@@ -512,7 +534,9 @@ private fun OpportunityCard(opportunity: Opportunity, status: String? = null, mo
                 if (onClick != null) Icon(Icons.AutoMirrored.Rounded.ArrowForward, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(18.dp))
             }
             Text(opportunity.title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-            Text(opportunity.organization, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(opportunity.publicBusinessName.ifBlank { opportunity.organization }, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            if (opportunity.publicBusinessName.isNotBlank()) Text("Publicado por ${opportunity.organization}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            opportunity.workMode?.let { Text(it, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary) }
             if (opportunity.noExperienceRequired == true) Text("Sin experiencia requerida", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
             if (status != null) {
                 val selected = status == "Seleccionada"
@@ -563,6 +587,13 @@ private fun DetailScreen(opportunity: Opportunity?, model: OpportunityViewModel,
     var reportReason by rememberSaveable(opportunity?.id) { mutableStateOf("Información engañosa") }
     var reportDetails by rememberSaveable(opportunity?.id) { mutableStateOf("") }
     var reportSent by rememberSaveable(opportunity?.id) { mutableStateOf(false) }
+    var confirmHideBusiness by rememberSaveable(opportunity?.id) { mutableStateOf(false) }
+    if (confirmHideBusiness && opportunity != null) AlertDialog(
+        onDismissRequest = { confirmHideBusiness = false }, title = { Text("Dejar de mostrar datos del negocio") },
+        text = { Text("El nombre, el rubro y la descripción del negocio se retirarán de esta publicación") },
+        confirmButton = { TextButton(enabled = !model.busy, onClick = { model.removePublicBusiness(opportunity.id) { confirmHideBusiness = false } }) { Text("Dejar de mostrar") } },
+        dismissButton = { TextButton(onClick = { confirmHideBusiness = false }) { Text("Cancelar") } },
+    )
     var showReference by rememberSaveable(opportunity?.id) { mutableStateOf(false) }
     if (showReference && opportunity != null && model.userId != null) {
         ReferenceDialog(model, opportunity, model.userId!!, canWrite = false, onDismiss = { showReference = false })
@@ -616,11 +647,13 @@ private fun DetailScreen(opportunity: Opportunity?, model: OpportunityViewModel,
         } else {
             Text(opportunity.category.uppercase(), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Text(opportunity.title, style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
-            Text(opportunity.organization, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(opportunity.publicBusinessName.ifBlank { opportunity.organization }, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            if (opportunity.publicBusinessName.isNotBlank()) Text("Publicado por ${opportunity.organization}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Surface(shape = MaterialTheme.shapes.large, color = MaterialTheme.colorScheme.secondaryContainer, modifier = Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     DetailRow("Ubicación", opportunity.location)
-                    if (opportunity.location.trim().lowercase(Locale.ROOT) !in setOf("remoto", "virtual", "en línea", "online")) {
+                    opportunity.workMode?.let { DetailRow("Modalidad", it) }
+                    if (opportunity.workMode != "Remoto" && opportunity.location.trim().lowercase(Locale.ROOT) !in setOf("remoto", "virtual", "en línea", "online")) {
                         TextButton(onClick = {
                             try {
                                 val query = Uri.encode(opportunity.location)
@@ -643,6 +676,12 @@ private fun DetailScreen(opportunity: Opportunity?, model: OpportunityViewModel,
             Text("Conocimientos y requisitos", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
             opportunity.noExperienceRequired?.let { Text(if (it) "No requiere experiencia previa" else "Requiere experiencia previa", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary) }
             Text(opportunity.requirements, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            if (opportunity.publicBusinessName.isNotBlank()) {
+                Text("Sobre el negocio", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                if (opportunity.publicBusinessSector.isNotBlank()) DetailRow("Rubro", opportunity.publicBusinessSector)
+                if (opportunity.publicBusinessDescription.isNotBlank()) Text(opportunity.publicBusinessDescription, style = MaterialTheme.typography.bodyLarge)
+                if (opportunity.publicBusinessSector.isBlank() && opportunity.publicBusinessDescription.isBlank()) Text(opportunity.publicBusinessName, style = MaterialTheme.typography.bodyLarge)
+            }
             if (opportunity.status != "published") AppNotice("Esta publicación fue retirada, su información se conserva en el historial")
             if (!opportunity.own) {
                 val status = model.applications[opportunity.id]
@@ -681,6 +720,7 @@ private fun DetailScreen(opportunity: Opportunity?, model: OpportunityViewModel,
             } else {
                 Text("Es tu oportunidad · ${opportunity.selectedCount} de ${opportunity.vacancies} vacantes seleccionadas", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 FilledTonalButton(onClick = { onCandidates(opportunity.id) }, modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp)) { Text("Ver postulaciones") }
+                if (opportunity.publicBusinessName.isNotBlank()) TextButton(enabled = !model.busy, onClick = { confirmHideBusiness = true }) { Text("Dejar de mostrar datos del negocio") }
                 if (opportunity.status == "published") {
                     OutlinedButton(onClick = { onEdit(opportunity.id) }, enabled = opportunity.selectedCount == 0 && !model.busy, modifier = Modifier.fillMaxWidth()) { Text("Editar publicación") }
                     TextButton(onClick = { confirmRemove = true }, enabled = opportunity.selectedCount == 0 && !model.busy) { Text("Eliminar publicación") }
@@ -871,6 +911,8 @@ private fun PublishScreen(model: OpportunityViewModel, onBack: () -> Unit, onAcc
     var vacancies by rememberSaveable { mutableStateOf("1") }
     var category by rememberSaveable { mutableStateOf("Ayudantía") }
     var noExperience by rememberSaveable { mutableStateOf<Boolean?>(null) }
+    var workMode by rememberSaveable { mutableStateOf<String?>(null) }
+    var includeBusiness by rememberSaveable { mutableStateOf(false) }
     var pendingTemplate by remember { mutableStateOf<WorkTemplate?>(null) }
     var showError by rememberSaveable { mutableStateOf(false) }
     var step by rememberSaveable { mutableIntStateOf(0) }
@@ -891,15 +933,17 @@ private fun PublishScreen(model: OpportunityViewModel, onBack: () -> Unit, onAcc
         description.trim().length !in 10..3000,
         requirements.trim().length !in 2..1500,
         noExperience == null,
+        includeBusiness && model.profileOrganization.trim().length < 2,
     ).count { it }
     val conditionErrors = listOf(
         location.trim().length !in 2..120,
         payment == null,
         schedule.length !in 2..120 || (selectedDate != null && selectedDate!! < todayMillis),
         invalidVacancies,
+        workMode == null,
     ).count { it }
     val invalidCount = if (step == 0) workErrors else conditionErrors
-    val hasDraft = listOf(title, description, location, payAmount, duration, requirements).any { it.isNotBlank() } || selectedDate != null || flexibleDate || vacancies != "1" || category != "Ayudantía" || payUnit != "Por tarea" || noExperience != null
+    val hasDraft = listOf(title, description, location, payAmount, duration, requirements).any { it.isNotBlank() } || selectedDate != null || flexibleDate || vacancies != "1" || category != "Ayudantía" || payUnit != "Por tarea" || noExperience != null || workMode != null || includeBusiness
 
     fun applyTemplate(template: WorkTemplate) {
         title = template.title
@@ -949,9 +993,9 @@ private fun PublishScreen(model: OpportunityViewModel, onBack: () -> Unit, onAcc
             text = { Text("Se mostrará a las personas de TuEmpuje con las condiciones que acabas de revisar") },
             confirmButton = {
                 TextButton(enabled = !model.busy, onClick = {
-                    model.publish(title, description, location, payment.orEmpty(), schedule, requirements, vacancies.toIntOrNull() ?: 0, category, noExperience == true) {
+                    model.publish(title, description, location, payment.orEmpty(), schedule, requirements, vacancies.toIntOrNull() ?: 0, category, noExperience == true, workMode.orEmpty(), includeBusiness) {
                         title = ""; description = ""; location = ""; payAmount = ""; payUnit = "Por tarea"; duration = ""; selectedDate = null; flexibleDate = false; requirements = ""; vacancies = "1"; category = "Ayudantía"
-                        noExperience = null; showError = false; confirmPublish = false; step = 0
+                        noExperience = null; workMode = null; includeBusiness = false; showError = false; confirmPublish = false; step = 0
                         onPublished()
                     }
                     confirmPublish = false
@@ -1042,8 +1086,33 @@ private fun PublishScreen(model: OpportunityViewModel, onBack: () -> Unit, onAcc
                 FilterChip(selected = noExperience == false, onClick = { noExperience = false }, label = { Text("Sí es necesaria") })
             }
             if (showError && noExperience == null) Text("Selecciona una opción", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+            Text("¿Quién ofrece esta oportunidad?", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+            if (model.profileOrganization.trim().length >= 2 || includeBusiness) {
+                Row(Modifier.fillMaxWidth().toggleable(value = includeBusiness, role = Role.Checkbox, onValueChange = { includeBusiness = it }), verticalAlignment = Alignment.CenterVertically) {
+                    Checkbox(checked = includeBusiness, onCheckedChange = null)
+                    Column(Modifier.weight(1f)) {
+                        Text(if (model.profileOrganization.isBlank()) "Mostrar datos del negocio" else "Mostrar ${model.profileOrganization}", style = MaterialTheme.typography.bodyLarge)
+                        Text("También se mostrará el rubro y la descripción guardados en tu perfil", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
+                if (includeBusiness && model.profileOrganization.trim().length < 2) Text("Completa el nombre del negocio o desactiva esta opción", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+            } else {
+                Text("Puedes publicar como persona o agregar datos de un negocio desde tu perfil", style = MaterialTheme.typography.bodySmall)
+                TextButton(onClick = onAccount) { Text("Ir a datos de mi perfil") }
+            }
         } else if (step == 1) {
             FormSectionHeading("02", "Condiciones", "Aclara el tiempo, el lugar y el pago")
+            Text("Modalidad de trabajo", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                listOf("Presencial", "Híbrido", "Remoto").forEach { mode ->
+                    FilterChip(selected = workMode == mode, onClick = {
+                        if (mode == "Remoto" && location.isBlank()) location = "Remoto"
+                        else if (mode != "Remoto" && location.equals("Remoto", ignoreCase = true)) location = ""
+                        workMode = mode
+                    }, label = { Text(mode) })
+                }
+            }
+            if (showError && workMode == null) Text("Selecciona una modalidad", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
             DraftField(location, { location = it }, "Ubicación o remoto", "Escribe entre 2 y 120 caracteres", showError, minLength = 2, maxLength = 120)
             OutlinedTextField(
                 value = payAmount,
@@ -1107,7 +1176,13 @@ private fun PublishScreen(model: OpportunityViewModel, onBack: () -> Unit, onAcc
                     DetailRow("Tareas", description.trim())
                     DetailRow("Conocimientos", requirements.trim())
                     DetailRow("Experiencia previa", if (noExperience == true) "No es necesaria" else "Es necesaria")
+                    if (includeBusiness) {
+                        DetailRow("Negocio", model.profileOrganization)
+                        if (model.profileBusinessSector.isNotBlank()) DetailRow("Rubro", model.profileBusinessSector)
+                        if (model.profileBusinessDescription.isNotBlank()) DetailRow("Descripción del negocio", model.profileBusinessDescription)
+                    }
                     DetailRow("Ubicación", location.trim())
+                    DetailRow("Modalidad", workMode.orEmpty())
                     DetailRow("Pago", payment.orEmpty())
                     DetailRow("Fecha y duración", schedule)
                     DetailRow("Vacantes", vacancies)

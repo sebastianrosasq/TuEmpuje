@@ -93,6 +93,12 @@ La primera consulta guarda una referencia local por cuenta sin generar avisos, l
 
 Los perfiles son privados y no exponen el documento, el celular, la nacionalidad ni el correo a otras cuentas, la postulación comparte el nombre, habilidades, experiencia, disponibilidad, distrito, estudios y portafolio confirmados contra su perfil
 
+Los datos de quien publica incluyen una categoría de persona, profesional o negocio, junto con nombre, distrito, rubro y descripción cuando corresponda, permanecen privados hasta que la persona decida compartir el nombre, el rubro y la descripción en una oportunidad
+
+Cada oportunidad conserva una copia de los datos compartidos al momento de publicar o editar, las reglas comprueban que coincidan con el perfil del autor, estos datos pueden retirarse por separado incluso cuando existan personas seleccionadas
+
+La modalidad declarada puede ser presencial, híbrida o remota, las oportunidades anteriores sin ese campo conservan su estado original y el filtro remoto también considera el texto de ubicación de los avisos anteriores
+
 ## Revisión de reportes
 
 La herramienta `functions/moderation.cjs` está destinada al equipo administrador, usa Firebase Admin y no forma parte de la aplicación Android, requiere permisos de Firestore para el proyecto indicado y credenciales locales de aplicación predeterminadas, nunca se deben guardar claves de servicio en el repositorio

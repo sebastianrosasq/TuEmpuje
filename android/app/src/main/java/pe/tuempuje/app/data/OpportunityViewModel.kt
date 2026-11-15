@@ -36,6 +36,10 @@ data class Opportunity(
     val status: String = "published",
     val createdAtSeconds: Long = 0,
     val noExperienceRequired: Boolean? = null,
+    val workMode: String? = null,
+    val publicBusinessName: String = "",
+    val publicBusinessSector: String = "",
+    val publicBusinessDescription: String = "",
 )
 
 data class Candidate(val id: String, val name: String, val status: String, val skills: String = "", val experience: String = "", val availability: String = "", val district: String = "", val education: String = "", val portfolio: String = "", val confirmed: Boolean = false)
@@ -62,6 +66,12 @@ class OpportunityViewModel(private val services: FirebaseServices?) : ViewModel(
     var profileRole by mutableStateOf<String?>(null)
         private set
     var profileInterests by mutableStateOf<Set<String>>(emptySet())
+        private set
+    var profileOrganization by mutableStateOf("")
+        private set
+    var profileBusinessSector by mutableStateOf("")
+        private set
+    var profileBusinessDescription by mutableStateOf("")
         private set
     private var profileListener: ListenerRegistration? = null
     private var ownListener: ListenerRegistration? = null
@@ -113,6 +123,7 @@ class OpportunityViewModel(private val services: FirebaseServices?) : ViewModel(
         personalListeners.clear()
         publicItems.clear(); ownItems.clear(); personalItems.clear()
         profileReady = false; profileLoaded = false; profileRole = null; profileInterests = emptySet()
+        profileOrganization = ""; profileBusinessSector = ""; profileBusinessDescription = ""
         opportunityListener = null
         applicationListener = null
         candidateListener = null
@@ -139,6 +150,9 @@ class OpportunityViewModel(private val services: FirebaseServices?) : ViewModel(
             profileLoaded = profile.exists()
             profileReady = (profile.getString("skills")?.trim()?.length ?: 0) >= 2 && (profile.getString("availability")?.trim()?.length ?: 0) >= 2 && pe.tuempuje.app.auth.identityError(profile.getString("dni").orEmpty(), profile.getString("phone").orEmpty(), profile.getString("documentType") ?: "DNI") == null
             profileRole = profile.getString("role")
+            profileOrganization = profile.getString("organization").orEmpty()
+            profileBusinessSector = profile.getString("businessSector").orEmpty()
+            profileBusinessDescription = profile.getString("businessDescription").orEmpty()
             profileInterests = (profile.get("interests") as? List<*>)?.filterIsInstance<String>()?.toSet().orEmpty()
         }
         ownListener = services.firestore.collection("opportunities").whereEqualTo("ownerId", uid)
@@ -226,6 +240,10 @@ class OpportunityViewModel(private val services: FirebaseServices?) : ViewModel(
             requirements = doc.getString("requirements").orEmpty(), vacancies = (doc.getLong("vacancies") ?: 1).toInt(),
             selectedCount = (doc.getLong("selectedCount") ?: 0).toInt(), own = owner == uid, status = doc.getString("status").orEmpty(), createdAtSeconds = doc.getTimestamp("createdAt")?.seconds ?: 0,
             noExperienceRequired = doc.getBoolean("noExperienceRequired"),
+            workMode = doc.getString("workMode"),
+            publicBusinessName = doc.getString("publicBusinessName").orEmpty(),
+            publicBusinessSector = doc.getString("publicBusinessSector").orEmpty(),
+            publicBusinessDescription = doc.getString("publicBusinessDescription").orEmpty(),
         ) to (doc.getTimestamp("createdAt")?.seconds ?: 0L)
     }
 
@@ -254,11 +272,11 @@ class OpportunityViewModel(private val services: FirebaseServices?) : ViewModel(
 
     fun find(id: String): Opportunity? = opportunities.find { it.id == id }
 
-    fun publish(title: String, description: String, location: String, pay: String, duration: String, requirements: String, vacancies: Int, category: String, noExperienceRequired: Boolean, onSuccess: () -> Unit) {
+    fun publish(title: String, description: String, location: String, pay: String, duration: String, requirements: String, vacancies: Int, category: String, noExperienceRequired: Boolean, workMode: String, includeBusiness: Boolean, onSuccess: () -> Unit) {
         if (profileRole != "employer") { error = "Cambia a la opción de ofrecer trabajo antes de publicar"; return }
         val uid = userId ?: run { error = "Inicia sesión para publicar"; return }
         val db = services?.firestore ?: return
-        if (listOf(title, description, location, pay, duration, requirements, category).any { it.isBlank() } || vacancies !in 1..99) {
+        if (listOf(title, description, location, pay, duration, requirements, category).any { it.isBlank() } || vacancies !in 1..99 || workMode !in listOf("Presencial", "Híbrido", "Remoto")) {
             error = "Revisa los campos de la oportunidad"
             return
         }
@@ -266,12 +284,17 @@ class OpportunityViewModel(private val services: FirebaseServices?) : ViewModel(
             val profile = db.collection("users").document(uid).get(Source.SERVER).await()
             val name = profile.getString("displayName") ?: throw IllegalStateException("Completa tu perfil antes de publicar")
             check(services.auth.currentUser?.uid == uid)
+            val business = if (includeBusiness) {
+                check(profileOrganization.length in 2..100 && profile.getString("organization").orEmpty() == profileOrganization &&
+                    profile.getString("businessSector").orEmpty() == profileBusinessSector && profile.getString("businessDescription").orEmpty() == profileBusinessDescription)
+                mapOf("publicBusinessName" to profileOrganization, "publicBusinessSector" to profileBusinessSector, "publicBusinessDescription" to profileBusinessDescription)
+            } else emptyMap()
             db.collection("opportunities").document().set(mapOf(
                 "ownerId" to uid, "ownerName" to name, "title" to title.trim(),
                 "description" to description.trim(), "location" to location.trim(), "pay" to pay.trim(),
-                "duration" to duration.trim(), "requirements" to requirements.trim(), "category" to category, "noExperienceRequired" to noExperienceRequired,
+                "duration" to duration.trim(), "requirements" to requirements.trim(), "category" to category, "noExperienceRequired" to noExperienceRequired, "workMode" to workMode,
                 "vacancies" to vacancies, "selectedCount" to 0, "status" to "published", "createdAt" to FieldValue.serverTimestamp(),
-            )).await()
+            ) + business).await()
             onSuccess()
         }
     }
@@ -381,16 +404,33 @@ class OpportunityViewModel(private val services: FirebaseServices?) : ViewModel(
         }
     }
 
-    fun editOpportunity(id: String, title: String, description: String, location: String, pay: String, duration: String,
-        requirements: String, vacancies: Int, category: String, noExperienceRequired: Boolean?, onSuccess: () -> Unit) {
+    fun removePublicBusiness(id: String, onSuccess: () -> Unit) {
         val db = services?.firestore ?: return
         if (find(id)?.own != true) return
         operation("No se confirmó el cambio, revisa la publicación antes de reintentar") {
             db.collection("opportunities").document(id).update(mapOf(
+                "publicBusinessName" to FieldValue.delete(), "publicBusinessSector" to FieldValue.delete(),
+                "publicBusinessDescription" to FieldValue.delete(), "updatedAt" to FieldValue.serverTimestamp(),
+            )).await()
+            onSuccess()
+        }
+    }
+
+    fun editOpportunity(id: String, title: String, description: String, location: String, pay: String, duration: String,
+        requirements: String, vacancies: Int, category: String, noExperienceRequired: Boolean?, workMode: String?, includeBusiness: Boolean, onSuccess: () -> Unit) {
+        val db = services?.firestore ?: return
+        if (find(id)?.own != true) return
+        operation("No se confirmó el cambio, revisa la publicación antes de reintentar") {
+            val business = if (includeBusiness) {
+                check(profileOrganization.length in 2..100)
+                mapOf("publicBusinessName" to profileOrganization, "publicBusinessSector" to profileBusinessSector, "publicBusinessDescription" to profileBusinessDescription)
+            } else mapOf("publicBusinessName" to FieldValue.delete(), "publicBusinessSector" to FieldValue.delete(), "publicBusinessDescription" to FieldValue.delete())
+            db.collection("opportunities").document(id).update(mapOf(
                 "title" to title.trim(), "description" to description.trim(), "location" to location.trim(), "pay" to pay.trim(),
                 "duration" to duration.trim(), "requirements" to requirements.trim(), "vacancies" to vacancies,
                 "category" to category, "updatedAt" to FieldValue.serverTimestamp(),
-            ) + if (noExperienceRequired != null) mapOf("noExperienceRequired" to noExperienceRequired) else emptyMap()).await()
+            ) + (if (noExperienceRequired != null) mapOf("noExperienceRequired" to noExperienceRequired) else emptyMap()) +
+                (if (workMode != null) mapOf("workMode" to workMode) else emptyMap()) + business).await()
             onSuccess()
         }
     }

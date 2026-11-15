@@ -7,6 +7,8 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
@@ -27,6 +29,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -218,7 +221,8 @@ fun AccountScreen(auth: FirebaseAuth, firestore: FirebaseFirestore, onSettings: 
         return
     }
     if (showExperience && state.uid != null) {
-        ExperienceEditor(state, account, isEmployer, onBack = { showExperience = false })
+        if (isEmployer) BusinessEditor(state, account, onBack = { showExperience = false })
+        else ExperienceEditor(state, account, onBack = { showExperience = false })
         return
     }
 
@@ -281,6 +285,8 @@ private fun AuthForm(account: AccountViewModel, loading: Boolean, hasError: Bool
     val preferences = LocalAppPreferences.current
     var email by rememberSaveable { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
+    var confirmPassword by remember { mutableStateOf("") }
+    var attempted by rememberSaveable { mutableStateOf(false) }
     var passwordVisible by rememberSaveable { mutableStateOf(false) }
     var emailFocused by remember { mutableStateOf(false) }
     var passwordFocused by remember { mutableStateOf(false) }
@@ -301,21 +307,31 @@ private fun AuthForm(account: AccountViewModel, loading: Boolean, hasError: Bool
             if (register) {
                 OutlinedTextField(
                     value = name,
-                    onValueChange = { name = it },
-                    label = { Text("Nombre") },
+                    onValueChange = { name = it.take(80) },
+                    label = { Text("Nombre y apellido") },
                     enabled = !loading,
                     singleLine = true,
+                    isError = attempted && name.trim().length !in 2..80,
+                    supportingText = if (attempted && name.trim().length !in 2..80) { { Text("Ingresa tu nombre completo") } } else null,
                     modifier = Modifier.fillMaxWidth(),
                 )
-                DocumentField(documentType, dni, !loading, onTypeChange = { documentType = it; dni = "" }, onValueChange = { dni = it })
+                DocumentField(documentType, dni, !loading, onTypeChange = { documentType = it; dni = "" }, onValueChange = { dni = it }, showError = attempted)
                 OutlinedTextField(
                     value = phone, onValueChange = { phone = it.filter(Char::isDigit).take(9) },
                     label = { Text("Celular") }, enabled = !loading, singleLine = true,
+                    isError = attempted && !phone.matches(Regex("9[0-9]{8}")),
+                    supportingText = if (attempted && !phone.matches(Regex("9[0-9]{8}"))) { { Text("Ingresa un celular peruano de 9 dígitos") } } else null,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone), modifier = Modifier.fillMaxWidth(),
                 )
-                OutlinedTextField(value = nationality, onValueChange = { nationality = it.take(80) }, label = { Text("Nacionalidad") }, enabled = !loading, singleLine = true, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(value = nationality, onValueChange = { nationality = it.take(80) }, label = { Text("Nacionalidad") }, enabled = !loading, singleLine = true,
+                    isError = attempted && nationality.trim().length !in 2..80,
+                    supportingText = if (attempted && nationality.trim().length !in 2..80) { { Text("Ingresa tu nacionalidad") } } else null,
+                    modifier = Modifier.fillMaxWidth())
                 if (preferences?.purpose == "employer") {
-                    OutlinedTextField(value = district, onValueChange = { district = it.take(100) }, label = { Text("Distrito donde necesitas apoyo") }, enabled = !loading, singleLine = true, modifier = Modifier.fillMaxWidth())
+                    OutlinedTextField(value = district, onValueChange = { district = it.take(100) }, label = { Text("Distrito donde necesitas apoyo") }, enabled = !loading, singleLine = true,
+                        isError = attempted && district.trim().length !in 2..100,
+                        supportingText = if (attempted && district.trim().length !in 2..100) { { Text("Ingresa tu distrito") } } else null,
+                        modifier = Modifier.fillMaxWidth())
                     OutlinedTextField(value = organization, onValueChange = { organization = it.take(100) }, label = { Text("Negocio u organización, opcional") }, enabled = !loading, singleLine = true, modifier = Modifier.fillMaxWidth())
                 }
                 Text("Tu documento y celular se guardan en tu perfil privado, su formato no verifica tu identidad", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -327,6 +343,8 @@ private fun AuthForm(account: AccountViewModel, loading: Boolean, hasError: Bool
                 enabled = !loading,
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
+                isError = attempted && !android.util.Patterns.EMAIL_ADDRESS.matcher(email.trim()).matches(),
+                supportingText = if (attempted && !android.util.Patterns.EMAIL_ADDRESS.matcher(email.trim()).matches()) { { Text("Ingresa un correo válido") } } else null,
                 modifier = Modifier.fillMaxWidth().onFocusChanged { emailFocused = it.isFocused },
             )
             OutlinedTextField(
@@ -336,6 +354,8 @@ private fun AuthForm(account: AccountViewModel, loading: Boolean, hasError: Bool
                 enabled = !loading,
                 singleLine = true,
                 visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                isError = attempted && password.length < 6,
+                supportingText = if (attempted && password.length < 6) { { Text("Debe tener al menos 6 caracteres") } } else null,
                 trailingIcon = {
                     IconButton(onClick = { passwordVisible = !passwordVisible }) {
                         Icon(
@@ -347,11 +367,21 @@ private fun AuthForm(account: AccountViewModel, loading: Boolean, hasError: Bool
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
                 modifier = Modifier.fillMaxWidth().onFocusChanged { passwordFocused = it.isFocused },
             )
+            if (register) {
+                OutlinedTextField(value = confirmPassword, onValueChange = { confirmPassword = it }, enabled = !loading,
+                    label = { Text("Confirmar contraseña") }, singleLine = true,
+                    visualTransformation = PasswordVisualTransformation(), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                    isError = attempted && (confirmPassword.isEmpty() || confirmPassword != password),
+                    supportingText = if (attempted && (confirmPassword.isEmpty() || confirmPassword != password)) { { Text("Las contraseñas deben coincidir") } } else null,
+                    modifier = Modifier.fillMaxWidth())
+            }
             AppPrimaryButton(
                 label = if (register) "Crear cuenta" else "Entrar",
                 onClick = {
-                    if (register) account.register(name, email, password, dni, phone, nationality, preferences?.purpose, preferences?.interests.orEmpty(), district, organization, documentType)
-                    else account.signIn(email, password)
+                    attempted = true
+                    if (register) {
+                        if (confirmPassword.isNotEmpty() && confirmPassword == password) account.register(name, email, password, dni, phone, nationality, preferences?.purpose, preferences?.interests.orEmpty(), district, organization, documentType)
+                    } else account.signIn(email, password)
                 },
                 enabled = !loading,
             )
@@ -392,7 +422,7 @@ private fun AuthForm(account: AccountViewModel, loading: Boolean, hasError: Bool
             if (!register) {
                 TextButton(enabled = !loading, onClick = onRecover) { Text("Recuperar contraseña") }
             }
-            TextButton(enabled = !loading, onClick = { register = !register; password = "" }) {
+            TextButton(enabled = !loading, onClick = { register = !register; password = ""; confirmPassword = ""; attempted = false; account.clearFeedback() }) {
                 Text(if (register) "Ya tengo una cuenta" else "Crear una cuenta")
             }
         }
@@ -406,7 +436,7 @@ private fun documentLabel(type: String) = when (type) {
 }
 
 @Composable
-private fun DocumentField(type: String, value: String, enabled: Boolean, onTypeChange: (String) -> Unit, onValueChange: (String) -> Unit) {
+private fun DocumentField(type: String, value: String, enabled: Boolean, onTypeChange: (String) -> Unit, onValueChange: (String) -> Unit, showError: Boolean = false) {
     var expanded by remember { mutableStateOf(false) }
     Text("Tipo de documento", style = MaterialTheme.typography.labelLarge)
     Box {
@@ -426,6 +456,8 @@ private fun DocumentField(type: String, value: String, enabled: Boolean, onTypeC
         },
         label = { Text(if (type == "DNI") "Número de DNI" else "Número de ${documentLabel(type).lowercase()}") },
         enabled = enabled, singleLine = true,
+        isError = showError && pe.tuempuje.app.auth.identityError(value, "900000000", type) != null,
+        supportingText = if (showError) pe.tuempuje.app.auth.identityError(value, "900000000", type)?.let { message -> { Text(message) } } else null,
         keyboardOptions = KeyboardOptions(keyboardType = if (type == "PASAPORTE") KeyboardType.Ascii else KeyboardType.Number),
         modifier = Modifier.fillMaxWidth(),
     )
@@ -520,7 +552,7 @@ private fun ProfileForm(state: AccountUiState, account: AccountViewModel, isEmpl
                     modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
                 ) { Text("Guardar perfil") }
                 if (!state.needsProfile) {
-                    TextButton(enabled = !state.loading, onClick = { name = state.displayName; dni = state.dni; documentType = state.documentType; phone = state.phone; nationality = state.nationality; editing = false }) { Text("Cancelar") }
+                    TextButton(enabled = !state.loading, onClick = { name = state.displayName; dni = state.dni; documentType = state.documentType; phone = state.phone; nationality = state.nationality; district = state.district; organization = state.organization; editing = false }) { Text("Cancelar") }
                 }
             } else {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -538,20 +570,21 @@ private fun ProfileForm(state: AccountUiState, account: AccountViewModel, isEmpl
                     }
                 }
                 OutlinedButton(enabled = !state.loading, onClick = { editing = true }) { Text("Editar perfil") }
-                OutlinedButton(enabled = !state.loading, onClick = onShowExperience, modifier = Modifier.fillMaxWidth()) { Text(if (isEmployer) "Datos del negocio y perfil" else "Mi perfil laboral") }
+                OutlinedButton(enabled = !state.loading, onClick = onShowExperience, modifier = Modifier.fillMaxWidth()) { Text(if (isEmployer) "Datos para publicar" else "Mi perfil laboral") }
             }
             TextButton(enabled = !state.loading, onClick = onSignOut) { Text("Cerrar sesión") }
         }
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun ExperienceEditor(state: AccountUiState, account: AccountViewModel, isEmployer: Boolean, onBack: () -> Unit) {
+private fun ExperienceEditor(state: AccountUiState, account: AccountViewModel, onBack: () -> Unit) {
     var skills by rememberSaveable(state.uid) { mutableStateOf(state.skills) }
     var experience by rememberSaveable(state.uid) { mutableStateOf(state.experience) }
     var availability by rememberSaveable(state.uid) { mutableStateOf(state.availability) }
     var district by rememberSaveable(state.uid) { mutableStateOf(state.district) }
-    var organization by rememberSaveable(state.uid) { mutableStateOf(state.organization) }
+    val organization = state.organization
     var education by rememberSaveable(state.uid) { mutableStateOf(state.education) }
     var portfolio by rememberSaveable(state.uid) { mutableStateOf(state.portfolio) }
     var confirmDiscard by rememberSaveable { mutableStateOf(false) }
@@ -577,15 +610,34 @@ private fun ExperienceEditor(state: AccountUiState, account: AccountViewModel, i
     }
     Column(Modifier.verticalScroll(rememberScrollState()).padding(22.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
         TextButton(onClick = leave, enabled = !state.loading) { Text("Volver al perfil") }
-        Text(if (isEmployer) "Datos del negocio y perfil" else "Mi perfil laboral", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+        Text("Mi perfil laboral", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
         AppNotice("Al postular se comparten tus habilidades, experiencia, disponibilidad, distrito, estudios y portafolio, tu documento, celular y correo permanecen privados")
         state.error?.let { AccountError(it) }
         Surface(shape = MaterialTheme.shapes.large, color = MaterialTheme.colorScheme.surface) {
             Column(Modifier.fillMaxWidth().padding(20.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
                 Text("Habilidades y disponibilidad", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
                 Text("Tus conocimientos también pueden venir de estudios o proyectos personales", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                val completed = listOf(skills.trim().length >= 2, availability.trim().length >= 2).count { it }
+                Text("Datos laborales para postular: $completed de 2", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
                 OutlinedTextField(value = skills, onValueChange = { skills = it.take(500) }, enabled = !state.loading, label = { Text("Habilidades") }, placeholder = { Text("Ejemplo: edición de video") }, modifier = Modifier.fillMaxWidth())
+                Text("Agrega habilidades o escríbelas con tus palabras", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    listOf("Edición de video", "Atención al cliente", "Excel", "Programación", "Diseño").forEach { suggestion ->
+                        val entries = skills.split(',').map { it.trim() }.filter { it.isNotEmpty() }
+                        val selected = entries.any { it.equals(suggestion, ignoreCase = true) }
+                        FilterChip(selected = selected, enabled = !state.loading, onClick = {
+                            val updated = if (selected) entries.filterNot { it.equals(suggestion, ignoreCase = true) } else entries + suggestion
+                            val result = updated.joinToString(", ")
+                            if (result.length <= 500) skills = result
+                        }, label = { Text(suggestion) })
+                    }
+                }
                 OutlinedTextField(value = availability, onValueChange = { availability = it.take(200) }, enabled = !state.loading, label = { Text("Disponibilidad") }, placeholder = { Text("Ejemplo: fines de semana") }, modifier = Modifier.fillMaxWidth())
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    listOf("Mañanas", "Tardes", "Fines de semana", "Por coordinar").forEach { suggestion ->
+                        FilterChip(selected = availability == suggestion, enabled = !state.loading, onClick = { availability = suggestion }, label = { Text(suggestion) })
+                    }
+                }
                 Text("Experiencia y proyectos", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
                 OutlinedTextField(value = experience, onValueChange = { experience = it.take(1500) }, enabled = !state.loading, label = { Text("Proyectos o experiencia") }, minLines = 3, modifier = Modifier.fillMaxWidth())
                 Text("Si aún no tienes experiencia puedes dejar este campo vacío", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -594,10 +646,67 @@ private fun ExperienceEditor(state: AccountUiState, account: AccountViewModel, i
                 OutlinedTextField(value = district, onValueChange = { district = it.take(100) }, enabled = !state.loading, label = { Text("Distrito") }, modifier = Modifier.fillMaxWidth())
                 OutlinedTextField(value = education, onValueChange = { education = it.take(500) }, enabled = !state.loading, label = { Text("Estudios o formación") }, modifier = Modifier.fillMaxWidth())
                 OutlinedTextField(value = portfolio, onValueChange = { portfolio = it.take(500) }, enabled = !state.loading, label = { Text("Portafolio o proyectos") }, modifier = Modifier.fillMaxWidth())
-                OutlinedTextField(value = organization, onValueChange = { organization = it.take(100) }, enabled = !state.loading, label = { Text("Negocio u organización, si corresponde") }, modifier = Modifier.fillMaxWidth())
-                Text("El nombre de tu negocio se mantiene en tu perfil privado", style = MaterialTheme.typography.bodySmall)
                 AppPrimaryButton("Guardar cambios", enabled = hasDraft && !state.loading, onClick = { saving = true; account.saveExperience(skills, experience, availability, district, organization, education, portfolio) })
                 if (state.loading) AppLoadingState("Guardando perfil")
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun BusinessEditor(state: AccountUiState, account: AccountViewModel, onBack: () -> Unit) {
+    var type by rememberSaveable(state.uid) { mutableStateOf(state.businessType) }
+    var organization by rememberSaveable(state.uid) { mutableStateOf(state.organization) }
+    var district by rememberSaveable(state.uid) { mutableStateOf(state.district) }
+    var sector by rememberSaveable(state.uid) { mutableStateOf(state.businessSector) }
+    var description by rememberSaveable(state.uid) { mutableStateOf(state.businessDescription) }
+    var discard by rememberSaveable { mutableStateOf(false) }
+    var saving by remember { mutableStateOf(false) }
+    var attempted by rememberSaveable { mutableStateOf(false) }
+    val scrollState = rememberScrollState()
+    val changed = type != state.businessType || organization != state.organization || district != state.district || sector != state.businessSector || description != state.businessDescription
+    val leave = { if (!state.loading) { if (changed) discard = true else onBack() } }
+    BackHandler { leave() }
+    LaunchedEffect(state.loading, state.error, saving) {
+        if (saving && !state.loading) { saving = false; if (state.error == null) onBack() }
+    }
+    LaunchedEffect(state.error) { if (state.error != null) scrollState.animateScrollTo(0) }
+    if (discard) AlertDialog(onDismissRequest = { discard = false }, title = { Text("¿Descartar los cambios?") },
+        text = { Text("Los datos que no guardaste se perderán") },
+        confirmButton = { TextButton(onClick = onBack) { Text("Descartar") } },
+        dismissButton = { TextButton(onClick = { discard = false }) { Text("Seguir editando") } })
+    Column(Modifier.verticalScroll(scrollState).padding(22.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        TextButton(onClick = leave, enabled = !state.loading) { Text("Volver al perfil") }
+        Text("Datos para publicar", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+        Text("Cuéntanos desde dónde ofreces oportunidades", style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        state.error?.let { AccountError(it) }
+        Surface(shape = MaterialTheme.shapes.large, color = MaterialTheme.colorScheme.surface) {
+            Column(Modifier.fillMaxWidth().padding(20.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                Text("¿Cómo publicas?", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    listOf("PERSONA" to "Persona", "PROFESIONAL" to "Profesional", "NEGOCIO" to "Negocio").forEach { (value, label) ->
+                        FilterChip(selected = type == value, onClick = { type = value }, enabled = !state.loading, label = { Text(label) })
+                    }
+                }
+                if (attempted && type.isBlank()) Text("Selecciona una opción", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+                OutlinedTextField(value = organization, onValueChange = { organization = it.take(100) }, enabled = !state.loading,
+                    label = { Text(if (type == "NEGOCIO") "Nombre del negocio" else "Negocio u organización, opcional") }, singleLine = true,
+                    isError = attempted && type == "NEGOCIO" && organization.trim().length !in 2..100,
+                    supportingText = if (attempted && type == "NEGOCIO" && organization.trim().length !in 2..100) { { Text("Ingresa el nombre del negocio") } } else null,
+                    modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(value = district, onValueChange = { district = it.take(100) }, enabled = !state.loading,
+                    label = { Text("Distrito") }, singleLine = true, isError = attempted && district.trim().length !in 2..100,
+                    supportingText = if (attempted && district.trim().length !in 2..100) { { Text("Ingresa tu distrito") } } else null,
+                    modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(value = sector, onValueChange = { sector = it.take(80) }, enabled = !state.loading,
+                    label = { Text("Rubro, opcional") }, placeholder = { Text("Ejemplo: fotografía, comercio o servicios") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(value = description, onValueChange = { description = it.take(500) }, enabled = !state.loading,
+                    label = { Text("A qué te dedicas, opcional") }, minLines = 3, modifier = Modifier.fillMaxWidth())
+                Text("Tus datos son privados, al crear o editar una oportunidad podrás elegir si compartes el nombre, el rubro y la descripción del negocio", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text("Los cambios no actualizan automáticamente las publicaciones anteriores", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                AppPrimaryButton("Guardar datos", enabled = changed && !state.loading, onClick = { attempted = true; saving = true; account.saveBusinessProfile(type, organization, district, sector, description) })
+                if (state.loading) AppLoadingState("Guardando datos")
             }
         }
     }

@@ -75,7 +75,11 @@ Al entrar se elige entre buscar trabajo y ofrecer oportunidades, después se ini
 
 El registro solicita nombre, correo, documento, celular y nacionalidad, admite DNI, carné de extranjería y pasaporte con validación de formato, el celular conserva el formato peruano y los documentos no verifican identidad
 
-La búsqueda puede filtrarse por categoría, ubicación, modalidad remota y vacantes, solo el objetivo de ofrecer trabajo permite publicar
+La búsqueda puede filtrarse por categoría, ubicación, modalidad, experiencia, fecha de publicación y vacantes, también puede ordenarse por intereses o por fecha, solo el objetivo de ofrecer trabajo permite publicar
+
+Quien publica puede registrar si actúa como persona, profesional o negocio y completar datos de su actividad, al publicar decide si comparte el nombre, el rubro y la descripción de su negocio, y puede retirarlos de una oportunidad incluso si ya tiene postulantes seleccionados
+
+Las oportunidades nuevas indican si el trabajo es presencial, híbrido o remoto, las publicaciones anteriores mantienen su información sin asignarles una modalidad que no declararon
 
 Las personas pueden completar sus habilidades y disponibilidad antes de postular, retirar una candidatura, editar o retirar una publicación sin seleccionados y consultar el historial
 

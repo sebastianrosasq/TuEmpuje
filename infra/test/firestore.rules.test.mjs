@@ -1,8 +1,9 @@
 import { after, before, beforeEach, test } from 'node:test';
+import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { assertFails, assertSucceeds, initializeTestEnvironment } from '@firebase/rules-unit-testing';
 import {
-  collection, collectionGroup, doc, getDoc, getDocs, query, runTransaction, serverTimestamp, setDoc, updateDoc, where, writeBatch,
+  collection, collectionGroup, deleteField, doc, getDoc, getDocs, query, runTransaction, serverTimestamp, setDoc, updateDoc, where, writeBatch,
 } from 'firebase/firestore';
 
 const projectId = 'demo-tuempuje';
@@ -98,13 +99,45 @@ test('una cuenta normal no puede consultar ni alterar registros de moderación',
   await assertFails(setDoc(doc(user('candidato'), 'moderationActions', 'nueva'), { action: 'removed' }));
 });
 
+test('los datos del negocio son privados y admiten solo valores válidos', async () => {
+  const own = doc(user('cliente'), 'users', 'cliente');
+  await assertSucceeds(updateDoc(own, { businessType: 'NEGOCIO', organization: 'Taller Central', businessSector: 'Fotografía', businessDescription: 'Servicios para eventos' }));
+  await assertFails(getDoc(doc(user('candidato'), 'users', 'cliente')));
+  await assertFails(updateDoc(doc(user('otro'), 'users', 'cliente'), { businessSector: 'Cambio ajeno' }));
+  await assertFails(updateDoc(own, { businessType: 'EMPRESA_VERIFICADA' }));
+  await assertFails(updateDoc(own, { organization: '' }));
+  await assertFails(updateDoc(own, { businessDescription: 'x'.repeat(501) }));
+});
+
 test('la experiencia previa acepta un indicador booleano y conserva compatibilidad', async () => {
   const db = user('cliente');
   await assertSucceeds(setDoc(doc(db, 'opportunities', 'antigua'), opportunity('cliente')));
   await assertSucceeds(setDoc(doc(db, 'opportunities', 'primera'), { ...opportunity('cliente'), noExperienceRequired: true }));
+  await assertSucceeds(setDoc(doc(db, 'opportunities', 'hibrida'), { ...opportunity('cliente'), workMode: 'Híbrido' }));
+  await assertFails(setDoc(doc(db, 'opportunities', 'modalidad-invalida'), { ...opportunity('cliente'), workMode: 'Inventada' }));
   await assertFails(setDoc(doc(db, 'opportunities', 'invalida'), { ...opportunity('cliente'), noExperienceRequired: 'sí' }));
   await assertSucceeds(updateDoc(doc(db, 'opportunities', 'primera'), { noExperienceRequired: false, updatedAt: serverTimestamp() }));
   await assertFails(updateDoc(doc(db, 'opportunities', 'primera'), { noExperienceRequired: 'no', updatedAt: serverTimestamp() }));
+});
+
+test('el negocio solo se comparte cuando coincide con el perfil y puede retirarse de una oferta', async () => {
+  const owner = user('cliente');
+  await assertSucceeds(updateDoc(doc(owner, 'users', 'cliente'), { organization: 'Taller Central', businessSector: 'Fotografía', businessDescription: 'Servicios para eventos' }));
+  const fields = { publicBusinessName: 'Taller Central', publicBusinessSector: 'Fotografía', publicBusinessDescription: 'Servicios para eventos' };
+  await assertFails(setDoc(doc(owner, 'opportunities', 'nombre-falso'), { ...opportunity('cliente'), ...fields, publicBusinessName: 'Otro negocio' }));
+  await assertFails(setDoc(doc(owner, 'opportunities', 'parcial'), { ...opportunity('cliente'), publicBusinessName: 'Taller Central' }));
+  const job = doc(owner, 'opportunities', 'con-negocio');
+  await assertSucceeds(setDoc(job, { ...opportunity('cliente'), ...fields }));
+  const read = await assertSucceeds(getDoc(doc(user('candidato'), 'opportunities', 'con-negocio')));
+  assert.equal(read.data().publicBusinessName, 'Taller Central');
+  await assertFails(getDoc(doc(user('candidato'), 'users', 'cliente')));
+  await assertFails(updateDoc(job, { publicBusinessDescription: 'Información falsa', updatedAt: serverTimestamp() }));
+  await env.withSecurityRulesDisabled(async context => {
+    await updateDoc(doc(context.firestore(), 'opportunities', 'con-negocio'), { selectedCount: 1 });
+  });
+  await assertFails(updateDoc(doc(user('otro'), 'opportunities', 'con-negocio'), { publicBusinessName: deleteField(), publicBusinessSector: deleteField(), publicBusinessDescription: deleteField(), updatedAt: serverTimestamp() }));
+  await assertFails(updateDoc(job, { publicBusinessName: deleteField(), title: 'Cambio no permitido', updatedAt: serverTimestamp() }));
+  await assertSucceeds(updateDoc(job, { publicBusinessName: deleteField(), publicBusinessSector: deleteField(), publicBusinessDescription: deleteField(), updatedAt: serverTimestamp() }));
 });
 
 test('la experiencia y la referencia requieren la confirmación de ambas partes', async () => {
