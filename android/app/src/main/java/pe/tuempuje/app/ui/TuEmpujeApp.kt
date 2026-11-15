@@ -1273,7 +1273,7 @@ private fun PublishScreen(services: FirebaseServices?, model: OpportunityViewMod
                 }
             }
             Text("La publicación mostrará el nombre de tu cuenta", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedButton(onClick = { step = 0; showError = false; scope.launch { scrollState.animateScrollTo(0) } }) { Text("Editar trabajo") }
                 OutlinedButton(onClick = { step = 1; showError = false; scope.launch { scrollState.animateScrollTo(0) } }) { Text("Editar condiciones") }
             }
