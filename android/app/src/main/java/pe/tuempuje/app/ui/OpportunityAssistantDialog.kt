@@ -39,16 +39,17 @@ fun OpportunityAssistantDialog(services: FirebaseServices?, onDismiss: () -> Uni
                 OutlinedTextField(value = input, onValueChange = { input = it.take(2000); result = null },
                     label = { Text("Describe la oportunidad") }, placeholder = { Text("Necesito ayuda para editar dos videos para mi tienda") },
                     minLines = 3, enabled = !busy, modifier = Modifier.fillMaxWidth())
-                Text("No incluyas DNI, teléfonos ni datos privados. El texto se enviará a Gemini y Google puede usarlo para mejorar sus productos en el nivel gratuito", style = MaterialTheme.typography.bodySmall)
-                if (services == null || services.isLocal) AppNotice("Empu necesita la conexión de desarrollo para usar Gemini. Puedes completar el formulario manualmente")
+                Text("Empu utiliza la IA de Google. No incluyas DNI, teléfonos ni datos privados. Google puede usar el texto para mejorar sus productos en el nivel gratuito", style = MaterialTheme.typography.bodySmall)
+                if (services == null || services.isLocal) AppNotice("Empu necesita conexión al servicio de IA. Puedes completar el formulario manualmente")
                 Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
                     Checkbox(checked = consent, onCheckedChange = { consent = it }, enabled = !busy)
-                    Text("Acepto enviar esta descripción a Gemini", style = MaterialTheme.typography.bodySmall)
+                    Text("Acepto enviar esta descripción a Google", style = MaterialTheme.typography.bodySmall)
                 }
                 Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
                     Checkbox(checked = adult, onCheckedChange = { adult = it }, enabled = !busy)
                     Text("Confirmo que tengo 18 años o más", style = MaterialTheme.typography.bodySmall)
                 }
+                if (!consent || !adult || input.trim().length < 10) Text("Para continuar, escribe al menos 10 caracteres y marca las dos casillas", style = MaterialTheme.typography.bodySmall)
                 if (busy) AppLoadingState("Preparando borrador")
                 error?.let { AppNotice(it, isError = true) }
                 result?.let { draft ->

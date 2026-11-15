@@ -5,6 +5,7 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.keyframes
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -31,6 +32,8 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.launch
 import pe.tuempuje.app.R
 import pe.tuempuje.app.ui.LocalAppPreferences
 
@@ -42,6 +45,7 @@ fun WelcomeIntro(onFinished: () -> Unit) {
     var logoVisible by remember { mutableStateOf(!showMascot) }
     val flip = remember { Animatable(0f) }
     val wave = remember { Animatable(0f) }
+    val fall = remember { Animatable(-380f) }
     val opacity = remember { Animatable(1f) }
 
     BackHandler { onFinished() }
@@ -51,6 +55,10 @@ fun WelcomeIntro(onFinished: () -> Unit) {
             return@LaunchedEffect
         }
         if (showMascot) {
+            coroutineScope {
+                launch { fall.animateTo(0f, keyframes { durationMillis = 650; -380f at 0; 16f at 470; -20f at 545; 0f at 650 }) }
+                launch { wave.animateTo(360f, tween(650, easing = FastOutSlowInEasing)); wave.snapTo(0f) }
+            }
             wave.animateTo(-6f, tween(100))
             wave.animateTo(6f, tween(100))
             wave.animateTo(0f, tween(100))
@@ -81,7 +89,7 @@ fun WelcomeIntro(onFinished: () -> Unit) {
                 Image(painterResource(R.drawable.tuempuje_symbol), contentDescription = null, modifier = Modifier.size(142.dp))
                 Text("TuEmpuje", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
             } else {
-                Empu(EmpuMood.HAPPY, Modifier.size(160.dp).graphicsLayer { rotationZ = wave.value })
+                Empu(EmpuMood.HAPPY, Modifier.size(160.dp).graphicsLayer { translationY = fall.value * density; rotationZ = wave.value })
                 Text("¡Hola!", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
             }
         }

@@ -93,7 +93,7 @@ El perfil permite guardar un CV en PDF con los datos registrados, el archivo se 
 
 El asistente de Empu utiliza Gemini en el entorno de desarrollo para proponer borradores de oportunidades y sugerencias de CV, la persona confirma qué texto envía y revisa las propuestas antes de usarlas, el formulario manual sigue disponible
 
-El creador de CV ofrece tres diseños, permite guardar un borrador general y otro por oportunidad en el dispositivo y genera un PDF, todavía no importa archivos existentes ni entrega el PDF al empleador
+El creador de CV ofrece seis diseños, muestra la primera página antes de exportar y permite añadir una foto opcional, guardar un borrador general o por oportunidad y generar un PDF, todavía no importa archivos existentes ni entrega el PDF al empleador
 
 TuEmpuje está dirigido a personas de 18 años o más, antes de abrir la aplicación al público se debe completar y verificar el control de edad de acceso conforme a las condiciones del proveedor de IA
 

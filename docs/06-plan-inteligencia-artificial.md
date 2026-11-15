@@ -67,7 +67,7 @@ La app utiliza [Firebase AI Logic](https://firebase.google.com/docs/ai-logic) de
 
 En ningún caso se incluirá una clave privada en el código fuente, repositorio o APK. Una salida de IA es una sugerencia no confiable: hay que comprobar su estructura, tipos, campos obligatorios y reglas antes de guardar datos. El asistente no tiene permisos para seleccionar candidatos ni efectuar pagos.
 
-El creador de CV permite elegir un diseño, editar los datos del perfil, solicitar sugerencias y guardar una versión local. Puede iniciar una versión para una oportunidad a partir del CV general. La importación de PDF existentes y la entrega del archivo en una postulación todavía no están implementadas.
+El creador de CV permite elegir entre seis diseños, añadir una foto opcional, editar la información, responder a las preguntas de Empu y guardar un PDF y un borrador local. La vista previa y el documento utilizan el mismo diseño. Puede iniciar una versión para una oportunidad a partir del CV general. La importación de PDF existentes y la entrega del archivo en una postulación todavía no están implementadas.
 
 ## 4. Modelo propio: investigación separada
 

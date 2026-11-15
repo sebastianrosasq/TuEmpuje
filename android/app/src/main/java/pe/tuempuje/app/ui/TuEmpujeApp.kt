@@ -95,6 +95,7 @@ import pe.tuempuje.app.ui.components.AppLoadingState
 import pe.tuempuje.app.ui.components.OpportunityLoadingState
 import pe.tuempuje.app.ui.components.Empu
 import pe.tuempuje.app.ui.components.EmpuAccessory
+import pe.tuempuje.app.ui.components.EmpuArrival
 import pe.tuempuje.app.ui.components.EmpuMood
 import pe.tuempuje.app.ui.components.EmpuProvider
 import pe.tuempuje.app.ui.components.EmptyIllustration
@@ -483,7 +484,7 @@ private fun Hero() {
             }
             if (LocalConfiguration.current.fontScale < 1.3f && LocalAppPreferences.current?.showMascot != false) {
                 Spacer(Modifier.width(10.dp))
-                Empu(EmpuMood.HAPPY, Modifier.size(112.dp), accessory = accessory)
+                EmpuArrival(EmpuMood.HAPPY, Modifier.size(112.dp), accessory = accessory)
             }
         }
     }
@@ -1119,7 +1120,7 @@ private fun PublishScreen(services: FirebaseServices?, model: OpportunityViewMod
                     Text("Publicar", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSecondaryContainer)
                     Text("Cuéntanos qué apoyo necesitas y define las condiciones", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSecondaryContainer)
                 }
-                if (LocalConfiguration.current.fontScale < 1.3f && LocalAppPreferences.current?.showMascot != false) Empu(EmpuMood.THINKING, Modifier.size(100.dp), accessory = EmpuAccessory.BUSINESS)
+                if (LocalConfiguration.current.fontScale < 1.3f && LocalAppPreferences.current?.showMascot != false) EmpuArrival(if (step == 2) EmpuMood.SUCCESS else EmpuMood.THINKING, Modifier.size(100.dp), accessory = EmpuAccessory.BUSINESS)
             }
         }
         if (model.userId == null) {

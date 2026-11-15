@@ -22,7 +22,7 @@ internal fun assistantErrorMessage(error: Throwable): String {
 }
 
 class EmpuAssistant(private val services: FirebaseServices) {
-    suspend fun draftResume(goal: String, skills: String, experience: String, education: String, instruction: String, opportunityRequirements: String = ""): ResumeSuggestion {
+    suspend fun draftResume(goal: String, skills: String, experience: String, education: String, instruction: String, opportunityRequirements: String = "", answers: String = ""): ResumeSuggestion {
         require(!services.isLocal && services.auth.currentUser != null)
         require(listOf(skills, experience, education).any { it.isNotBlank() })
         val schema = Schema.obj(mapOf("summary" to Schema.string(), "skills" to Schema.string(),
@@ -45,6 +45,7 @@ class EmpuAssistant(private val services: FirebaseServices) {
             <proyectos>${experience.take(2500)}</proyectos>
             <formacion>${education.take(1500)}</formacion>
             <preferencia>${instruction.take(500)}</preferencia>
+            <respuestas>${answers.take(1200)}</respuestas>
         """.trimIndent()
         val response = withTimeout(45_000) { model.generateContent(prompt) }
         val json = JSONObject(response.text ?: error("Respuesta vacía"))

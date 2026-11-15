@@ -8,11 +8,19 @@ import android.graphics.pdf.PdfDocument
 import android.net.Uri
 import pe.tuempuje.app.auth.AccountUiState
 
-enum class ResumeStyle { PROFESSIONAL, MODERN, FIRST_EXPERIENCE }
+enum class ResumeStyle {
+    PROFESSIONAL, MODERN, FIRST_EXPERIENCE,
+    CENTRADO, ORGANICO, EDITORIAL, MONOCROMO, GRAFITO, TURQUESA,
+}
 
 object ResumePdf {
     fun write(resolver: ContentResolver, destination: Uri, profile: AccountUiState,
-              style: ResumeStyle = ResumeStyle.PROFESSIONAL, target: String = "", summary: String = "") {
+              style: ResumeStyle = ResumeStyle.PROFESSIONAL, target: String = "", summary: String = "",
+              photo: Uri? = null, languages: String = "", references: String = "") {
+        if (style in ReferenceResumeTemplates.styles) {
+            ReferenceResumeTemplates.write(resolver, destination, profile, style, target, summary, photo, languages, references)
+            return
+        }
         if (style == ResumeStyle.MODERN) {
             writeModern(resolver, destination, profile, target, summary)
             return
@@ -63,7 +71,7 @@ object ResumePdf {
                 paint.color = when (style) {
                     ResumeStyle.PROFESSIONAL -> Color.rgb(28, 42, 56)
                     ResumeStyle.MODERN -> Color.rgb(24, 127, 118)
-                    ResumeStyle.FIRST_EXPERIENCE -> Color.rgb(61, 85, 133)
+                    else -> Color.rgb(61, 85, 133)
                 }
                 paragraph(title, 12f, true)
                 paint.color = Color.rgb(28, 42, 56)
