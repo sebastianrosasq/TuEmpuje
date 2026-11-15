@@ -149,11 +149,11 @@ Hosting reemplaza el contenido del sitio en cada despliegue, por eso hay que con
 
 Firebase AI Logic utiliza Gemini Developer API en el plan Spark, el nivel gratuito tiene límites y Google puede utilizar el contenido enviado para mejorar sus productos
 
-La integración en la app está pendiente, antes de implementarla debe definirse qué información se envía, informar a la persona y exigir que revise los resultados antes de usarlos
+La app ofrece asistencia para redactar oportunidades y CV, muestra qué información se enviará, solicita confirmación y exige revisar los resultados, el flujo manual permanece disponible si el servicio falla
 
-Antes de un despliegue público debe revisarse el cumplimiento de las restricciones de edad y uso de Gemini para toda la aplicación
+TuEmpuje se dirige a personas de 18 años o más, antes de un despliegue público debe implementarse y verificarse una política de acceso coherente con las restricciones de edad y uso de Gemini para toda la aplicación, la declaración en el asistente por sí sola no verifica la edad
 
-App Check está activado para Firebase AI Logic, cada instalación de depuración necesita registrar su propio token en Firebase, el token es secreto y no debe añadirse al repositorio ni distribuirse con el APK
+App Check está activado para Firebase AI Logic, cada instalación de depuración necesita registrar su propio token en Firebase, el token es secreto y no debe añadirse al repositorio ni distribuirse con el APK, las compilaciones de lanzamiento usan el proveedor de Play Integrity y necesitan su configuración correspondiente
 
 La carga de CV como archivo sigue pendiente, Firebase Storage necesita el plan Blaze y se evaluará otra opción antes de elegir dónde guardar documentos
 ## Eliminación de cuentas

@@ -37,6 +37,7 @@ object FirebaseEnvironment {
         val appName = if (isLocal) "tuempuje-local" else "tuempuje-cloud"
         val app = FirebaseApp.getApps(context).firstOrNull { it.name == appName }
             ?: FirebaseApp.initializeApp(context, options, appName)
+        if (!isLocal) configureAppCheck(app)
         val auth = FirebaseAuth.getInstance(app).apply {
             if (isLocal) useEmulator("10.0.2.2", 9099)
         }

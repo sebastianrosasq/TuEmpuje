@@ -80,6 +80,7 @@ import androidx.navigation.compose.rememberNavController
 import pe.tuempuje.app.R
 import pe.tuempuje.app.BuildConfig
 import pe.tuempuje.app.data.Opportunity
+import pe.tuempuje.app.data.OpportunityDraft
 import pe.tuempuje.app.data.OpportunityViewModel
 import pe.tuempuje.app.data.OpportunityFilters
 import pe.tuempuje.app.data.searchOpportunities
@@ -183,6 +184,9 @@ private fun TuEmpujeContent(services: FirebaseServices?, model: OpportunityViewM
     }
     var activityRevision by rememberSaveable { mutableIntStateOf(0) }
     var openWorkProfile by rememberSaveable { mutableStateOf(false) }
+    var cvOpportunityId by rememberSaveable { mutableStateOf<String?>(null) }
+    var cvOpportunityTitle by rememberSaveable { mutableStateOf("") }
+    var cvOpportunityRequirements by rememberSaveable { mutableStateOf("") }
     val snackbar = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     val availableDestinations = if (preferences?.purpose == "employer") destinations else destinations.filterNot { it.route == "publicar" }
@@ -262,7 +266,7 @@ private fun TuEmpujeContent(services: FirebaseServices?, model: OpportunityViewM
                     DestinationSurface { ExploreScreen(model, onSaved = { nav.navigate("guardados") }, onSettings = { nav.navigate("ajustes") }, onAccount = { openDestination("perfil") }, onPublish = { openDestination("publicar") }) { nav.navigate("detalle/$it") { launchSingleTop = true } } }
                 }
                 composable("publicar") {
-                    if (preferences?.purpose == "employer") DestinationSurface { PublishScreen(model, onBack = { nav.popBackStack() }, onAccount = { openDestination("perfil") }) {
+                    if (preferences?.purpose == "employer") DestinationSurface { PublishScreen(services, model, onBack = { nav.popBackStack() }, onAccount = { openDestination("perfil") }) {
                         activityRevision++
                         openDestination("actividad")
                         scope.launch { snackbar.showSnackbar("Oportunidad publicada") }
@@ -277,7 +281,7 @@ private fun TuEmpujeContent(services: FirebaseServices?, model: OpportunityViewM
                 composable("perfil") {
                     DestinationSurface {
                     if (services != null) {
-                        AccountScreen(services.auth, services.firestore, onSettings = { nav.navigate("ajustes") }, onSaved = { nav.navigate("guardados") }, onChoosePurpose = onChoosePurpose, resetCode = resetCode, onResetConsumed = onResetConsumed, onHelp = { nav.navigate("ayuda") }, openWorkProfile = openWorkProfile, onWorkProfileOpened = { openWorkProfile = false })
+                        AccountScreen(services.auth, services.firestore, onSettings = { nav.navigate("ajustes") }, onSaved = { nav.navigate("guardados") }, onChoosePurpose = onChoosePurpose, resetCode = resetCode, onResetConsumed = onResetConsumed, onHelp = { nav.navigate("ayuda") }, openWorkProfile = openWorkProfile, onWorkProfileOpened = { openWorkProfile = false }, cvOpportunity = cvOpportunityId?.let { CvOpportunityContext(it, cvOpportunityTitle, cvOpportunityRequirements) }, onCvClosed = { cvOpportunityId = null; cvOpportunityTitle = ""; cvOpportunityRequirements = "" })
                     } else {
                         ProfileScreen(onSettings = { nav.navigate("ajustes") }, onSaved = { nav.navigate("guardados") })
                     }
@@ -288,7 +292,7 @@ private fun TuEmpujeContent(services: FirebaseServices?, model: OpportunityViewM
                 composable("guardados") { DestinationSurface { SavedScreen(model, onBack = { nav.popBackStack() }, onExplore = { openDestination("explorar") }) { nav.navigate("detalle/$it") } } }
                 composable("detalle/{id}") { entry ->
                     val opportunity = model.find(entry.arguments?.getString("id").orEmpty())
-                    DestinationSurface { DetailScreen(opportunity, model, onBack = { nav.popBackStack() }, onCandidates = { nav.navigate("candidatos/$it") }, onEdit = { nav.navigate("editar/$it") }, onProfile = { openWorkProfile = true; nav.navigate("perfil") { launchSingleTop = true } }, onChat = { job, applicant -> nav.navigate("conversacion/$job/$applicant") }, onApplied = {
+                    DestinationSurface { DetailScreen(opportunity, model, onBack = { nav.popBackStack() }, onCandidates = { nav.navigate("candidatos/$it") }, onEdit = { nav.navigate("editar/$it") }, onProfile = { openWorkProfile = true; nav.navigate("perfil") { launchSingleTop = true } }, onPrepareCv = { id -> model.find(id)?.let { job -> cvOpportunityId = job.id; cvOpportunityTitle = job.title; cvOpportunityRequirements = job.requirements; nav.navigate("perfil") { launchSingleTop = true } } }, onChat = { job, applicant -> nav.navigate("conversacion/$job/$applicant") }, onApplied = {
                         scope.launch { snackbar.showSnackbar("Postulación enviada") }
                     }) }
                 }
@@ -576,7 +580,7 @@ private fun OpportunityCard(opportunity: Opportunity, status: String? = null, mo
 }
 
 @Composable
-private fun DetailScreen(opportunity: Opportunity?, model: OpportunityViewModel, onBack: () -> Unit, onCandidates: (String) -> Unit, onEdit: (String) -> Unit, onProfile: () -> Unit, onChat: (String, String) -> Unit, onApplied: () -> Unit) {
+private fun DetailScreen(opportunity: Opportunity?, model: OpportunityViewModel, onBack: () -> Unit, onCandidates: (String) -> Unit, onEdit: (String) -> Unit, onProfile: () -> Unit, onPrepareCv: (String) -> Unit, onChat: (String, String) -> Unit, onApplied: () -> Unit) {
     var confirmApplication by rememberSaveable(opportunity?.id) { mutableStateOf(false) }
     var confirmWithdraw by rememberSaveable(opportunity?.id) { mutableStateOf(false) }
     var confirmRemove by rememberSaveable(opportunity?.id) { mutableStateOf(false) }
@@ -724,10 +728,12 @@ private fun DetailScreen(opportunity: Opportunity?, model: OpportunityViewModel,
                 val full = opportunity.selectedCount >= opportunity.vacancies
                 if (status == "cancelled") AppNotice("La selección fue cancelada por quien publicó la oportunidad")
                 if (opportunity.status == "published" && !applied) {
+                    Text("Por ahora la postulación comparte tu perfil laboral; el envío del CV todavía no está disponible", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     if (!model.profileReady) {
                         AppNotice("Completa tus habilidades y disponibilidad antes de postular")
                         OutlinedButton(onClick = onProfile, modifier = Modifier.fillMaxWidth()) { Text("Completar mi perfil") }
                     } else AppPrimaryButton(if (full) "Vacantes cubiertas" else if (canReapply) "Volver a postular" else "Postular", onClick = { confirmApplication = true }, enabled = !full && !model.busy)
+                    OutlinedButton(onClick = { onPrepareCv(opportunity.id) }, modifier = Modifier.fillMaxWidth()) { Text("Preparar mi CV para esta oportunidad") }
                 }
                 if (applied) {
                     AppNotice(when (status) { "reviewing" -> "Tu postulación está en revisión"; "selected" -> "Fuiste seleccionado"; "rejected" -> "No fuiste seleccionado para esta oportunidad"; "completed" -> "Trabajo finalizado"; else -> "Postulación enviada" })
@@ -957,7 +963,7 @@ private fun DetailRow(label: String, value: String) {
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
-private fun PublishScreen(model: OpportunityViewModel, onBack: () -> Unit, onAccount: () -> Unit, onPublished: () -> Unit) {
+private fun PublishScreen(services: FirebaseServices?, model: OpportunityViewModel, onBack: () -> Unit, onAccount: () -> Unit, onPublished: () -> Unit) {
     var title by rememberSaveable { mutableStateOf("") }
     var description by rememberSaveable { mutableStateOf("") }
     var location by rememberSaveable { mutableStateOf("") }
@@ -980,6 +986,7 @@ private fun PublishScreen(model: OpportunityViewModel, onBack: () -> Unit, onAcc
     var confirmPublish by rememberSaveable { mutableStateOf(false) }
     var showCalendar by rememberSaveable { mutableStateOf(false) }
     var showAiInfo by rememberSaveable { mutableStateOf(false) }
+    var pendingAiDraft by remember { mutableStateOf<OpportunityDraft?>(null) }
     val scrollState = rememberScrollState()
     val scope = rememberCoroutineScope()
     val today = LocalDate.now()
@@ -1036,14 +1043,20 @@ private fun PublishScreen(model: OpportunityViewModel, onBack: () -> Unit, onAcc
             },
         )
     }
-    if (showAiInfo) {
-        AlertDialog(
-            onDismissRequest = { showAiInfo = false },
-            icon = { Empu(EmpuMood.THINKING, Modifier.size(112.dp)) },
-            title = { Text("Redactar con ayuda de IA") },
-            text = { Text("Más adelante podrás describir lo que necesitas para preparar un borrador, después podrás revisarlo antes de publicar") },
-            confirmButton = { TextButton(onClick = { showAiInfo = false }) { Text("Entendido") } },
-        )
+    if (showAiInfo) OpportunityAssistantDialog(services, onDismiss = { showAiInfo = false }, onUse = { draft ->
+        showAiInfo = false
+        pendingAiDraft = draft
+    })
+    pendingAiDraft?.let { draft ->
+        AlertDialog(onDismissRequest = { pendingAiDraft = null }, title = { Text("¿Usar este borrador?") },
+            text = { Text("Los campos propuestos reemplazarán el texto actual. Los datos que falten deberán completarse manualmente") },
+            confirmButton = { TextButton(onClick = {
+                if (draft.title.isNotBlank()) title = draft.title
+                if (draft.tasks.isNotBlank()) description = draft.tasks
+                if (draft.requirements.isNotBlank()) requirements = draft.requirements
+                pendingAiDraft = null
+            }) { Text("Usar y revisar") } },
+            dismissButton = { TextButton(onClick = { pendingAiDraft = null }) { Text("Conservar texto") } })
     }
     if (confirmPublish) {
         AlertDialog(
@@ -1121,7 +1134,7 @@ private fun PublishScreen(model: OpportunityViewModel, onBack: () -> Unit, onAcc
         }
         if (step == 0) {
             FormSectionHeading("01", "Trabajo", "Describe el apoyo que necesitas")
-            OutlinedButton(onClick = { showAiInfo = true }, modifier = Modifier.fillMaxWidth()) { Text("Ayuda de IA · Próximamente") }
+            OutlinedButton(onClick = { showAiInfo = true }, modifier = Modifier.fillMaxWidth()) { Text("Redactar con Empu") }
             Text("Empezar con una plantilla", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
             Text("Úsala como punto de partida y adapta las tareas a lo que necesitas", style = MaterialTheme.typography.bodySmall)
             LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {

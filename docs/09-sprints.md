@@ -24,7 +24,9 @@ Los guardados se verificaron al reiniciar, al cambiar de cuenta, sin conexión y
 
 La revisión del sistema visual incorporó componentes compartidos, estados de error y vacío, transiciones y adaptación de la navegación con texto ampliado, sigue pendiente la revisión manual con TalkBack y en otros dispositivos, el estado detallado del recorrido se encuentra en [Diseño y navegación](10-diseno-y-navegacion.md)
 
-El estado de finalización y el registro de reportes cuentan con reglas probadas y desplegadas en el entorno de desarrollo, todavía faltan la herramienta de moderación y las pruebas completas de extremo a extremo
+El estado de finalización y el registro de reportes cuentan con reglas probadas y desplegadas en el entorno de desarrollo, existe una herramienta de moderación por línea de comandos y faltan una interfaz administrativa y las pruebas completas de extremo a extremo
+
+El sprint 15 tiene una integración inicial con Gemini probada con datos de ejemplo para oportunidades y CV, faltan pruebas adicionales de privacidad, edad, límites de uso y configuración de producción
 
 La recuperación de cuenta incluye una pantalla propia y el manejo del enlace de Firebase, queda pendiente comprobar el recorrido con un correo real en un teléfono físico
 

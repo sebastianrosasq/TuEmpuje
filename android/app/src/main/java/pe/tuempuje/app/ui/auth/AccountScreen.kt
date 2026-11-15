@@ -86,13 +86,17 @@ import pe.tuempuje.app.ui.components.EmpuMood
 import pe.tuempuje.app.BuildConfig
 import pe.tuempuje.app.R
 import pe.tuempuje.app.profile.ResumePdf
+import pe.tuempuje.app.profile.ResumeDraftStore
+import pe.tuempuje.app.data.FirebaseServices
+import pe.tuempuje.app.ui.ResumeAssistantScreen
+import pe.tuempuje.app.ui.CvOpportunityContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.withContext
 
 @Composable
-fun AccountScreen(auth: FirebaseAuth, firestore: FirebaseFirestore, onSettings: () -> Unit, onSaved: () -> Unit, onChoosePurpose: () -> Unit = {}, resetCode: String? = null, onResetConsumed: () -> Unit = {}, authGate: Boolean = false, onHelp: () -> Unit = {}, openWorkProfile: Boolean = false, onWorkProfileOpened: () -> Unit = {}) {
+fun AccountScreen(auth: FirebaseAuth, firestore: FirebaseFirestore, onSettings: () -> Unit, onSaved: () -> Unit, onChoosePurpose: () -> Unit = {}, resetCode: String? = null, onResetConsumed: () -> Unit = {}, authGate: Boolean = false, onHelp: () -> Unit = {}, openWorkProfile: Boolean = false, onWorkProfileOpened: () -> Unit = {}, cvOpportunity: CvOpportunityContext? = null, onCvClosed: () -> Unit = {}) {
     val factory = remember(auth, firestore) { AccountViewModelFactory(auth, firestore) }
     val account: AccountViewModel = viewModel(factory = factory)
     val state by account.state.collectAsState()
@@ -138,10 +142,11 @@ fun AccountScreen(auth: FirebaseAuth, firestore: FirebaseFirestore, onSettings: 
     val deleted: (String) -> Unit = { uid ->
         scope.launch {
             SavedDatabase.get(context).saved().clearAccount(uid)
+            ResumeDraftStore(context).clearAccount(uid)
             runCatching { credentialManager.clearCredentialState(ClearCredentialStateRequest()) }
         }
     }
-    var showCvInfo by rememberSaveable { mutableStateOf(false) }
+    var showCvAssistant by rememberSaveable(state.uid) { mutableStateOf(false) }
     val signOut = {
         account.signOut()
         scope.launch { runCatching { credentialManager.clearCredentialState(ClearCredentialStateRequest()) } }
@@ -201,16 +206,6 @@ fun AccountScreen(auth: FirebaseAuth, firestore: FirebaseFirestore, onSettings: 
             dismissButton = { TextButton(enabled = !state.loading, onClick = { confirmDelete = false; deletePassword = "" }) { Text("Cancelar") } },
         )
     }
-    if (showCvInfo) {
-        AlertDialog(
-            onDismissRequest = { showCvInfo = false },
-            icon = { Empu(EmpuMood.THINKING, Modifier.size(112.dp)) },
-            title = { Text("Tu futuro CV") },
-            text = { Text("Más adelante podrás recibir ayuda para preparar un CV con la información que decidas proporcionar") },
-            confirmButton = { TextButton(onClick = { showCvInfo = false }) { Text("Entendido") } },
-        )
-    }
-
     LaunchedEffect(state.error) {
         if (state.error != null) scrollState.animateScrollTo(0)
     }
@@ -224,6 +219,10 @@ fun AccountScreen(auth: FirebaseAuth, firestore: FirebaseFirestore, onSettings: 
     }
     if (showRecovery) {
         RecoveryScreen(state, account, onBack = { showRecovery = false; account.clearRecovery() })
+        return
+    }
+    if ((showCvAssistant || cvOpportunity != null) && state.uid != null) {
+        ResumeAssistantScreen(state, FirebaseServices(auth, firestore, BuildConfig.FIREBASE_LOCAL), cvOpportunity) { showCvAssistant = false; onCvClosed() }
         return
     }
     if (showExperience && state.uid != null) {
@@ -268,7 +267,7 @@ fun AccountScreen(auth: FirebaseAuth, firestore: FirebaseFirestore, onSettings: 
                 }, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) { Text(if (pdfBusy) "Guardando CV…" else "Guardar mi CV en PDF") }
                 Text("El archivo se crea con los datos de tu perfil y se guarda en tu dispositivo, no se envía automáticamente", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 pdfMessage?.let { AppNotice(it) }
-                OutlinedButton(onClick = { showCvInfo = true }, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) { Text("Asistente para mi CV · Próximamente") }
+                OutlinedButton(onClick = { showCvAssistant = true }, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) { Text("Crear CV con Empu") }
             }
         }
         if (!authGate) {

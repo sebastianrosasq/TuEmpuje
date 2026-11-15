@@ -1,6 +1,6 @@
 # TuEmpuje: plan de inteligencia artificial
 
-**Fecha:** 11 de noviembre de 2026 · **Estado:** decisión de producto y propuesta técnica; no implementado.
+**Estado:** asistencia conectada y probada en el entorno de desarrollo, pendiente de revisión y pruebas para producción.
 
 ## 1. Decisión
 
@@ -8,7 +8,7 @@ TuEmpuje utilizará **Gemini como proveedor inicial de asistencia generativa**. 
 
 En una línea de trabajo separada, se preparará y evaluará un **modelo propio para una tarea específica** cuando existan tiempo, datos adecuados y capacidad de prueba. El primer candidato es sugerir la categoría de una oportunidad. El modelo propio no sustituirá automáticamente a Gemini y su entrenamiento no modificará Gemini.
 
-Para el curso se prioriza la publicación, consulta y postulación. La integración con Gemini se realizará después de que ese recorrido funcione, si las credenciales y el plazo lo permiten. La pasarela de pagos sigue al final del proyecto.
+La asistencia de oportunidades y CV está disponible en el proyecto de desarrollo, las propuestas siempre requieren revisión y el acceso manual sigue disponible. La pasarela de pagos sigue al final del proyecto.
 
 ## 2. Qué hará el asistente
 
@@ -45,13 +45,13 @@ Los campos que no se hayan indicado deben permanecer vacíos o marcados como pen
 Aplicación Android del cliente
    │ descripción proporcionada voluntariamente
    ▼
-Servicio de TuEmpuje con control de acceso y límites
+Firebase AI Logic con App Check
    │ envía instrucciones, texto mínimo y formato esperado
    ▼
 Gemini
    │ devuelve sugerencias estructuradas
    ▼
-Servicio valida estructura y tipos de datos
+Android valida estructura y tipos de datos
    │
    ▼
 Cliente revisa y completa el formulario
@@ -63,9 +63,11 @@ TuEmpuje valida y guarda la publicación en Firestore
 Android consulta la oportunidad compartida
 ```
 
-La alternativa inicial es llamar a Gemini desde un backend protegido, porque permite centralizar límites y validaciones. También se puede evaluar Firebase AI Logic para acceso desde clientes, con sus controles correspondientes. Google documenta que [Firebase AI Logic dispone de SDK para Kotlin y web](https://firebase.google.com/docs/ai-logic) y que puede protegerse con [App Check](https://firebase.google.com/docs/ai-logic/app-check). La opción definitiva dependerá del tiempo, los costos y las restricciones del curso.
+La app utiliza [Firebase AI Logic](https://firebase.google.com/docs/ai-logic) desde Kotlin y [App Check](https://firebase.google.com/docs/ai-logic/app-check), con una credencial de depuración por instalación durante las pruebas. El control centralizado de límites por cuenta y la configuración de producción aún deben completarse.
 
-En ningún caso se incluirá una clave privada en el código fuente, repositorio o APK. Una salida de IA es una sugerencia no confiable: hay que comprobar su estructura, tipos, campos obligatorios y reglas antes de guardar datos. El asistente no tendrá permisos para seleccionar candidatos ni efectuar pagos.
+En ningún caso se incluirá una clave privada en el código fuente, repositorio o APK. Una salida de IA es una sugerencia no confiable: hay que comprobar su estructura, tipos, campos obligatorios y reglas antes de guardar datos. El asistente no tiene permisos para seleccionar candidatos ni efectuar pagos.
+
+El creador de CV permite elegir un diseño, editar los datos del perfil, solicitar sugerencias y guardar una versión local. Puede iniciar una versión para una oportunidad a partir del CV general. La importación de PDF existentes y la entrega del archivo en una postulación todavía no están implementadas.
 
 ## 4. Modelo propio: investigación separada
 

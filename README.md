@@ -91,13 +91,17 @@ Las confirmaciones y referencias registran lo declarado por las partes, no verif
 
 El perfil permite guardar un CV en PDF con los datos registrados, el archivo se guarda en el dispositivo y no se adjunta automáticamente a las postulaciones
 
-Gemini Developer API está habilitada en el proyecto de desarrollo, la asistencia para preparar CV y redactar oportunidades se implementará y verificará en una etapa posterior
+El asistente de Empu utiliza Gemini en el entorno de desarrollo para proponer borradores de oportunidades y sugerencias de CV, la persona confirma qué texto envía y revisa las propuestas antes de usarlas, el formulario manual sigue disponible
+
+El creador de CV ofrece tres diseños, permite guardar un borrador general y otro por oportunidad en el dispositivo y genera un PDF, todavía no importa archivos existentes ni entrega el PDF al empleador
+
+TuEmpuje está dirigido a personas de 18 años o más, antes de abrir la aplicación al público se debe completar y verificar el control de edad de acceso conforme a las condiciones del proveedor de IA
 
 La bandeja reúne las conversaciones asociadas a postulaciones, los avisos de mensajes y cambios de estado pueden activarse en ajustes
 
 Los avisos revisan la actividad mediante WorkManager aproximadamente cada hora cuando hay conexión, Android puede retrasarlos por batería y la primera revisión establece una referencia sin avisar, no son mensajes push inmediatos
 
-La carga y entrega de archivos CV, la web, los pagos y una interfaz de moderación están pendientes, el proyecto de desarrollo se usa únicamente con datos de prueba
+La carga y entrega de archivos CV, la obligatoriedad del CV al postular, la web, los pagos y una interfaz de moderación están pendientes, el proyecto de desarrollo se usa únicamente con datos de prueba
 
 El sistema visual comparte avisos, botones y estados vacíos, con transiciones y una navegación que se adapta al texto ampliado, las pruebas y limitaciones están registradas en [Diseño y navegación](docs/10-diseno-y-navegacion.md)
 
