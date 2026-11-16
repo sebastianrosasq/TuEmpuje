@@ -27,6 +27,16 @@ enum class VisualStyle(val label: String, val description: String) {
     HORIZONTE("Horizonte", "Índigo y luz coral"),
 }
 
+internal fun visualStyleFromStorage(value: String?): VisualStyle =
+    VisualStyle.entries.firstOrNull { it.name == value } ?: VisualStyle.ORIGINAL
+
+internal fun darkAppearance(style: VisualStyle, display: DisplayMode, systemDark: Boolean): Boolean =
+    style != VisualStyle.ORIGINAL || when (display) {
+        DisplayMode.SYSTEM -> systemDark
+        DisplayMode.LIGHT -> false
+        DisplayMode.DARK -> true
+    }
+
 class AppPreferences(context: Context) {
     private val storage = context.applicationContext.getSharedPreferences("apariencia", Context.MODE_PRIVATE)
     private var accountScope: String? = null
@@ -51,10 +61,7 @@ class AppPreferences(context: Context) {
             ?: DisplayMode.SYSTEM,
     )
         private set
-    var visualStyle by mutableStateOf(
-        VisualStyle.entries.firstOrNull { it.name == storage.getString("estilo_visual", VisualStyle.ORIGINAL.name) }
-            ?: VisualStyle.ORIGINAL,
-    )
+    var visualStyle by mutableStateOf(visualStyleFromStorage(storage.getString("estilo_visual", VisualStyle.ORIGINAL.name)))
         private set
     var reduceMotion by mutableStateOf(storage.getBoolean("reducir_movimiento", false))
         private set

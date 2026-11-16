@@ -2,6 +2,7 @@ package pe.tuempuje.app.ui.components
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.animation.core.animateFloatAsState
@@ -19,6 +20,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.background
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -37,6 +39,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
@@ -51,6 +56,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import pe.tuempuje.app.ui.theme.AppSpacing
 import pe.tuempuje.app.ui.LocalAppPreferences
+import pe.tuempuje.app.R
 
 @Composable
 fun AppNotice(message: String, modifier: Modifier = Modifier, isError: Boolean = false) {
@@ -98,7 +104,7 @@ fun OpportunityLoadingState() {
     }
 }
 
-enum class EmptyIllustration { General, Search, Posts, Applications }
+enum class EmptyIllustration { General, Intro, Search, Posts, Applications, Messages }
 
 @Composable
 fun AppEmptyState(title: String, message: String, action: String? = null, illustration: EmptyIllustration = EmptyIllustration.General, showMascot: Boolean = true, onAction: (() -> Unit)? = null) {
@@ -109,7 +115,20 @@ fun AppEmptyState(title: String, message: String, action: String? = null, illust
         modifier = Modifier.fillMaxWidth(),
     ) {
         Column(Modifier.padding(AppSpacing.large), verticalArrangement = Arrangement.spacedBy(AppSpacing.small)) {
-            if (showMascot && LocalAppPreferences.current?.showMascot != false) {
+            val picture = when (illustration) {
+                EmptyIllustration.Intro -> R.drawable.ilustracion_explorar
+                EmptyIllustration.Search -> R.drawable.ilustracion_sin_resultados
+                EmptyIllustration.Applications -> R.drawable.ilustracion_actividad
+                EmptyIllustration.Messages -> R.drawable.ilustracion_mensajes
+                else -> null
+            }
+            if (picture != null) {
+                val maxHeight = if (LocalConfiguration.current.fontScale >= 1.5f) 104.dp else 144.dp
+                BoxWithConstraints(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                    Image(painterResource(picture), contentDescription = null, contentScale = ContentScale.Fit,
+                        modifier = Modifier.fillMaxWidth().height(minOf(maxWidth / 2.1f, maxHeight)))
+                }
+            } else if (showMascot && LocalAppPreferences.current?.showMascot != false) {
                 Empu(EmpuMood.EMPTY, Modifier.size(96.dp))
             } else EmptyOpportunityIllustration(illustration, Modifier.size(70.dp))
             Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
@@ -147,6 +166,7 @@ private fun EmptyOpportunityIllustration(kind: EmptyIllustration, modifier: Modi
                 drawLine(line, Offset(.68f * w, .73f * h), Offset(.74f * w, .79f * h), strokeWidth = .035f * w)
                 drawLine(line, Offset(.74f * w, .79f * h), Offset(.85f * w, .67f * h), strokeWidth = .035f * w)
             }
+            EmptyIllustration.Intro, EmptyIllustration.Messages -> Unit
             EmptyIllustration.General -> Unit
         }
     }

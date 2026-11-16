@@ -16,8 +16,7 @@ import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 import pe.tuempuje.app.data.FirebaseEnvironment
 import pe.tuempuje.app.ui.AppPreferences
-import pe.tuempuje.app.ui.DisplayMode
-import pe.tuempuje.app.ui.VisualStyle
+import pe.tuempuje.app.ui.darkAppearance
 import pe.tuempuje.app.ui.LocalAppPreferences
 import pe.tuempuje.app.ui.TuEmpujeApp
 import pe.tuempuje.app.ui.theme.TuEmpujeTheme
@@ -58,11 +57,8 @@ class MainActivity : ComponentActivity() {
         setContent {
             val preferences = remember { AppPreferences(applicationContext) }
             DisposableEffect(preferences) { onDispose { preferences.close() } }
-            val darkTheme = preferences.visualStyle != VisualStyle.ORIGINAL || when (preferences.displayMode) {
-                DisplayMode.SYSTEM -> isSystemInDarkTheme()
-                DisplayMode.LIGHT -> false
-                DisplayMode.DARK -> true
-            }
+            val systemDark = isSystemInDarkTheme()
+            val darkTheme = darkAppearance(preferences.visualStyle, preferences.displayMode, systemDark)
             val view = LocalView.current
             SideEffect {
                 WindowCompat.getInsetsController(window, view).apply {

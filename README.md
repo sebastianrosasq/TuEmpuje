@@ -61,6 +61,8 @@ El repositorio incluye una aplicación Android en desarrollo con navegación, cu
 
 En Ajustes se puede elegir entre el estilo original y cinco estilos oscuros: Prisma, Pulso, Petróleo, Tinta y Horizonte. La selección se conserva en el dispositivo
 
+Los estados vacíos de exploración, postulaciones y mensajes incluyen ilustraciones adaptadas a fondos claros y oscuros, Empu conserva su papel como mascota de la aplicación
+
 Las cuentas y los perfiles pueden probarse con los emuladores locales o con un proyecto Firebase de desarrollo en la nube, utilizando datos ficticios
 
 Las oportunidades, postulaciones y selección de candidatos están conectadas a Firestore en el entorno de desarrollo, el recorrido se verificó entre cuentas en emuladores locales y mediante el SDK en Firebase de desarrollo

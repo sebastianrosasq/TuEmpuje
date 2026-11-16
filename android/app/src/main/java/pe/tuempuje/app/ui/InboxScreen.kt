@@ -21,6 +21,7 @@ import com.google.firebase.firestore.Query
 import pe.tuempuje.app.data.FirebaseServices
 import pe.tuempuje.app.data.OpportunityViewModel
 import pe.tuempuje.app.ui.components.AppEmptyState
+import pe.tuempuje.app.ui.components.EmptyIllustration
 import pe.tuempuje.app.ui.components.AppLoadingState
 import pe.tuempuje.app.ui.components.AppNotice
 import pe.tuempuje.app.ui.components.Empu
@@ -74,7 +75,7 @@ fun InboxScreen(services: FirebaseServices?, model: OpportunityViewModel, onOpen
         modelError?.let { message -> item { AppNotice(message, isError = true); TextButton(onClick = model::retry) { Text("Reintentar") } } }
         if (model.loading || model.applicationsLoading || pending.values.any { it }) item { AppLoadingState("Cargando conversaciones") }
         if (!model.loading && !model.applicationsLoading && pending.values.none { it } && allEntries.isEmpty() && error == null && modelError == null) {
-            item { AppEmptyState("Aún no tienes conversaciones", "Cuando haya una postulación podrás coordinar los detalles aquí") }
+            item { AppEmptyState("Aún no tienes conversaciones", "Cuando haya una postulación podrás coordinar los detalles aquí", illustration = EmptyIllustration.Messages) }
         }
         items(allEntries, key = { "${it.jobId}/${it.applicantId}" }) { entry ->
             val context = LocalContext.current

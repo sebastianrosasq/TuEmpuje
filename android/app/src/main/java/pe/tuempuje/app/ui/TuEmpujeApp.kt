@@ -457,7 +457,7 @@ private fun ExploreScreen(model: OpportunityViewModel, onSaved: () -> Unit, onSe
             }
         }
         if (model.userId == null) {
-            item { AppEmptyState("Encuentra tu próxima oportunidad", "Inicia sesión para consultar publicaciones y participar", "Ir a mi cuenta", EmptyIllustration.Search, showMascot = false, onAction = onAccount) }
+            item { AppEmptyState("Encuentra tu próxima oportunidad", "Inicia sesión para consultar publicaciones y participar", "Ir a mi cuenta", EmptyIllustration.Intro, showMascot = false, onAction = onAccount) }
         }
         (model.feedError ?: model.error)?.let { message -> item { AppNotice(message, isError = true); TextButton(onClick = model::retry) { Text("Reintentar") } } }
         if (interests.isNotEmpty() && prioritizeInterests && !model.loading) item { Text("Primero verás las categorías que elegiste", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
@@ -470,7 +470,7 @@ private fun ExploreScreen(model: OpportunityViewModel, onSaved: () -> Unit, onSe
         if (model.loading && opportunities.isEmpty()) item { OpportunityLoadingState() }
         if (model.userId != null && !model.loading && model.feedError == null && opportunities.isEmpty()) {
             item {
-                if (model.opportunities.isEmpty()) AppEmptyState("Aún no hay oportunidades", "Cuando alguien publique una oportunidad aparecerá aquí")
+                if (model.opportunities.isEmpty()) AppEmptyState("Aún no hay oportunidades", "Cuando alguien publique una oportunidad aparecerá aquí", illustration = EmptyIllustration.Intro)
                 else AppEmptyState("No encontramos coincidencias", "Prueba con otra palabra o cambia los filtros", "Limpiar filtros", EmptyIllustration.Search) { clearFilters() }
             }
         }

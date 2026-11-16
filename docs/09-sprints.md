@@ -28,7 +28,7 @@ El estado de finalización y el registro de reportes cuentan con reglas probadas
 
 El sprint 15 tiene una integración inicial con Gemini probada con datos de ejemplo para oportunidades y CV, faltan pruebas adicionales de privacidad, edad, límites de uso y configuración de producción
 
-La recuperación de cuenta incluye una pantalla propia y el manejo del enlace de Firebase, queda pendiente comprobar el recorrido con un correo real en un teléfono físico
+La recuperación de cuenta incluye una pantalla propia y el manejo del enlace de Firebase, el acceso con Google y la recuperación se han probado en un teléfono físico, quedan pendientes pruebas adicionales en otros dispositivos
 
 La eliminación de cuentas está preparada y probada en emuladores, no se ha habilitado en la nube porque requiere un servicio protegido y el proyecto mantiene el plan sin facturación
 
@@ -65,7 +65,7 @@ Si el entorno o las dependencias impiden ejecutar la app a tiempo, se registrar�
 
 ## Navegación y comportamiento
 
-Los destinos principales son **Explorar**, **Actividad** y **Perfil**, el destino **Publicar** se muestra cuando el objetivo elegido es ofrecer trabajo
+Los destinos principales son **Explorar**, **Publicar**, **Actividad**, **Mensajes** y **Perfil**, las cuentas personales pueden postular y publicar solicitudes de apoyo, las cuentas empresariales pueden publicar y consultar oportunidades
 
 El detalle de una oportunidad, el formulario y la revisión de candidatos serán pantallas secundarias con un regreso coherente al contexto anterior
 
