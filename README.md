@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/assets/tuempuje-icono.svg" alt="Símbolo de TuEmpuje: dos piezas forman una escalera" width="150">
+  <img src="docs/assets/tuempuje-icono.svg" alt="Símbolo de TuEmpuje" width="150">
 </p>
 
 # TuEmpuje
@@ -58,6 +58,8 @@ Las tecnologías pueden ajustarse según los requisitos del curso y las necesida
 El proyecto se encuentra en **desarrollo**
 
 El repositorio incluye una aplicación Android en desarrollo con navegación, cuenta, perfil, ajustes y guardados locales con Room
+
+En Ajustes se puede elegir entre el estilo original y cinco estilos oscuros: Prisma, Pulso, Petróleo, Tinta y Horizonte. La selección se conserva en el dispositivo
 
 Las cuentas y los perfiles pueden probarse con los emuladores locales o con un proyecto Firebase de desarrollo en la nube, utilizando datos ficticios
 

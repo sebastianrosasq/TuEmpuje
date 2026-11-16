@@ -14,6 +14,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import pe.tuempuje.app.ui.VisualStyle
 
 val Ink = Color(0xFF202B3D)
 val Slate = Color(0xFF506174)
@@ -76,6 +77,23 @@ private val DarkColors = darkColorScheme(
     outline = Color(0xFF91A3B5),
     outlineVariant = Color(0xFF455565),
 )
+
+private fun futuristicColors(background: Color, surface: Color, accent: Color, container: Color, onAccent: Color, secondary: Color) = darkColorScheme(
+    primary = accent, onPrimary = onAccent, primaryContainer = container, onPrimaryContainer = Color(0xFFF2F6FA),
+    secondary = secondary, onSecondary = background, secondaryContainer = surface, onSecondaryContainer = Color(0xFFE9F0F5),
+    tertiary = accent, onTertiary = onAccent, tertiaryContainer = container, onTertiaryContainer = Color.White,
+    background = background, onBackground = Color(0xFFF2F6FA), surface = surface, onSurface = Color(0xFFF2F6FA),
+    surfaceVariant = container, onSurfaceVariant = Color(0xFFCBD7E2),
+    surfaceContainerLowest = background, surfaceContainerLow = surface, surfaceContainer = surface,
+    surfaceContainerHigh = container, surfaceContainerHighest = container,
+    outline = Color(0xFF91A3B5), outlineVariant = Color(0xFF546778),
+)
+
+private val PrismaColors = futuristicColors(Color(0xFF1A1525), Color(0xFF272039), Color(0xFFCBB8FF), Color(0xFF403159), Color(0xFF24163F), Color(0xFFD3C5F1))
+private val PulsoColors = futuristicColors(Color(0xFF111A22), Color(0xFF172F35), Color(0xFF50E3B1), Color(0xFF16443F), Color(0xFF062F25), Color(0xFFB3DDD2))
+private val PetroleoColors = futuristicColors(Color(0xFF0E2023), Color(0xFF182F31), Color(0xFFFFB59B), Color(0xFF46362F), Color(0xFF482116), Color(0xFFB5DBD3))
+private val TintaColors = futuristicColors(Color(0xFF121A28), Color(0xFF1B293B), Color(0xFFAAC5FF), Color(0xFF263D68), Color(0xFF08265D), Color(0xFFC0D4EB))
+private val HorizonteColors = futuristicColors(Color(0xFF151B36), Color(0xFF242B4B), Color(0xFFFFA997), Color(0xFF4A304A), Color(0xFF4E1D17), Color(0xFFC7D8F0))
 
 private val AppShapes = Shapes(
     extraSmall = RoundedCornerShape(8.dp),
@@ -143,10 +161,18 @@ private val AppTypography = Typography(
 @Composable
 fun TuEmpujeTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
+    visualStyle: VisualStyle = VisualStyle.ORIGINAL,
     content: @Composable () -> Unit,
 ) {
     MaterialExpressiveTheme(
-        colorScheme = if (darkTheme) DarkColors else LightColors,
+        colorScheme = when (visualStyle) {
+            VisualStyle.ORIGINAL -> if (darkTheme) DarkColors else LightColors
+            VisualStyle.PRISMA -> PrismaColors
+            VisualStyle.PULSO -> PulsoColors
+            VisualStyle.PETROLEO -> PetroleoColors
+            VisualStyle.TINTA -> TintaColors
+            VisualStyle.HORIZONTE -> HorizonteColors
+        },
         typography = AppTypography,
         shapes = AppShapes,
         content = content,

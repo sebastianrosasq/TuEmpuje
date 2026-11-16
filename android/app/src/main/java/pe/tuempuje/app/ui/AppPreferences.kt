@@ -18,6 +18,14 @@ import pe.tuempuje.app.data.SavedDatabase
 import pe.tuempuje.app.data.SavedOpportunity
 
 enum class DisplayMode { SYSTEM, LIGHT, DARK }
+enum class VisualStyle(val label: String, val description: String) {
+    ORIGINAL("Original", "La apariencia de TuEmpuje"),
+    PRISMA("Prisma", "Violeta y reflejos geométricos"),
+    PULSO("Pulso", "Verde menta y líneas de energía"),
+    PETROLEO("Petróleo", "Verde oscuro y cobre"),
+    TINTA("Tinta", "Azul noche y azul eléctrico"),
+    HORIZONTE("Horizonte", "Índigo y luz coral"),
+}
 
 class AppPreferences(context: Context) {
     private val storage = context.applicationContext.getSharedPreferences("apariencia", Context.MODE_PRIVATE)
@@ -43,6 +51,11 @@ class AppPreferences(context: Context) {
             ?: DisplayMode.SYSTEM,
     )
         private set
+    var visualStyle by mutableStateOf(
+        VisualStyle.entries.firstOrNull { it.name == storage.getString("estilo_visual", VisualStyle.ORIGINAL.name) }
+            ?: VisualStyle.ORIGINAL,
+    )
+        private set
     var reduceMotion by mutableStateOf(storage.getBoolean("reducir_movimiento", false))
         private set
     var showMascot by mutableStateOf(storage.getBoolean("mostrar_empu", true))
@@ -62,6 +75,11 @@ class AppPreferences(context: Context) {
     fun updateDisplayMode(value: DisplayMode) {
         displayMode = value
         storage.edit().putString("tema", value.name).apply()
+    }
+
+    fun updateVisualStyle(value: VisualStyle) {
+        visualStyle = value
+        storage.edit().putString("estilo_visual", value.name).apply()
     }
 
     fun updateReduceMotion(value: Boolean) {

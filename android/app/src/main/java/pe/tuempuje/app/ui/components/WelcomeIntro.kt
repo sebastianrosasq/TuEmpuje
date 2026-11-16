@@ -86,7 +86,7 @@ fun WelcomeIntro(onFinished: () -> Unit) {
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             if (logoVisible) {
-                Image(painterResource(R.drawable.tuempuje_symbol), contentDescription = null, modifier = Modifier.size(142.dp))
+                BrandMark(Modifier.size(142.dp))
                 Text("TuEmpuje", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
             } else {
                 Empu(EmpuMood.HAPPY, Modifier.size(160.dp).graphicsLayer { translationY = fall.value * density; rotationZ = wave.value })

@@ -43,6 +43,11 @@ import androidx.compose.ui.platform.LocalContext
 import pe.tuempuje.app.ui.components.Empu
 import pe.tuempuje.app.ui.components.EmpuMood
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.background
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.graphics.Color
 import androidx.compose.material3.OutlinedButton
 
 @Composable
@@ -68,6 +73,32 @@ fun SettingsScreen(preferences: AppPreferences, onTerms: () -> Unit = {}, onBack
         Text("Elige cómo quieres usar TuEmpuje en este dispositivo", style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Surface(shape = MaterialTheme.shapes.large, color = MaterialTheme.colorScheme.surface, modifier = Modifier.fillMaxWidth()) {
             Column(Modifier.padding(vertical = 10.dp)) {
+                Text("Estilo visual", modifier = Modifier.padding(horizontal = 18.dp, vertical = 8.dp), style = MaterialTheme.typography.titleLarge)
+                VisualStyle.entries.forEach { style ->
+                    val sample = when (style) {
+                        VisualStyle.ORIGINAL -> Color(0xFF187F76)
+                        VisualStyle.PRISMA -> Color(0xFFA893FF)
+                        VisualStyle.PULSO -> Color(0xFF50E3B1)
+                        VisualStyle.PETROLEO -> Color(0xFFD28463)
+                        VisualStyle.TINTA -> Color(0xFF527CF6)
+                        VisualStyle.HORIZONTE -> Color(0xFFFF806B)
+                    }
+                    Row(Modifier.fillMaxWidth().heightIn(min = 64.dp).selectable(selected = preferences.visualStyle == style, role = Role.RadioButton, onClick = { preferences.updateVisualStyle(style) }).padding(horizontal = 18.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Spacer(Modifier.size(26.dp).background(sample, CircleShape))
+                        Spacer(Modifier.width(14.dp))
+                        Column(Modifier.weight(1f)) {
+                            Text(style.label, style = MaterialTheme.typography.titleMedium)
+                            Text(style.description, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                        RadioButton(selected = preferences.visualStyle == style, onClick = null)
+                    }
+                }
+                Text("Los cinco estilos nuevos usan fondos oscuros. El estilo original admite modo claro, oscuro o del sistema", modifier = Modifier.padding(horizontal = 18.dp, vertical = 8.dp), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
+        if (preferences.visualStyle == VisualStyle.ORIGINAL) {
+        Surface(shape = MaterialTheme.shapes.large, color = MaterialTheme.colorScheme.surface, modifier = Modifier.fillMaxWidth()) {
+            Column(Modifier.padding(vertical = 10.dp)) {
                 Text("Apariencia", modifier = Modifier.padding(horizontal = 18.dp, vertical = 8.dp), style = MaterialTheme.typography.titleLarge)
                 listOf(
                     DisplayMode.SYSTEM to "Igual que el dispositivo",
@@ -85,6 +116,7 @@ fun SettingsScreen(preferences: AppPreferences, onTerms: () -> Unit = {}, onBack
                     }
                 }
             }
+        }
         }
         Surface(shape = MaterialTheme.shapes.large, color = MaterialTheme.colorScheme.surface, modifier = Modifier.fillMaxWidth()) {
             Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {

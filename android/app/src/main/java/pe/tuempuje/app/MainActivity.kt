@@ -17,6 +17,7 @@ import androidx.core.view.WindowCompat
 import pe.tuempuje.app.data.FirebaseEnvironment
 import pe.tuempuje.app.ui.AppPreferences
 import pe.tuempuje.app.ui.DisplayMode
+import pe.tuempuje.app.ui.VisualStyle
 import pe.tuempuje.app.ui.LocalAppPreferences
 import pe.tuempuje.app.ui.TuEmpujeApp
 import pe.tuempuje.app.ui.theme.TuEmpujeTheme
@@ -57,7 +58,7 @@ class MainActivity : ComponentActivity() {
         setContent {
             val preferences = remember { AppPreferences(applicationContext) }
             DisposableEffect(preferences) { onDispose { preferences.close() } }
-            val darkTheme = when (preferences.displayMode) {
+            val darkTheme = preferences.visualStyle != VisualStyle.ORIGINAL || when (preferences.displayMode) {
                 DisplayMode.SYSTEM -> isSystemInDarkTheme()
                 DisplayMode.LIGHT -> false
                 DisplayMode.DARK -> true
@@ -70,7 +71,7 @@ class MainActivity : ComponentActivity() {
                 }
             }
             CompositionLocalProvider(LocalAppPreferences provides preferences) {
-                TuEmpujeTheme(darkTheme = darkTheme) { TuEmpujeApp(services = services, resetCode = resetCode, onResetConsumed = { resetCode = null }, notificationDestination = notificationDestination, notificationRevision = notificationRevision) }
+                TuEmpujeTheme(darkTheme = darkTheme, visualStyle = preferences.visualStyle) { TuEmpujeApp(services = services, resetCode = resetCode, onResetConsumed = { resetCode = null }, notificationDestination = notificationDestination, notificationRevision = notificationRevision) }
             }
         }
     }

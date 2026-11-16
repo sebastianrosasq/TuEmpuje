@@ -69,6 +69,8 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
@@ -110,6 +112,8 @@ import pe.tuempuje.app.ui.components.LocalEmpuSharedScope
 import pe.tuempuje.app.ui.components.LocalEmpuVisibilityScope
 import pe.tuempuje.app.ui.components.EmpuMood
 import pe.tuempuje.app.ui.components.EmpuProvider
+import pe.tuempuje.app.ui.components.BrandMark
+import pe.tuempuje.app.ui.components.stylePanel
 import pe.tuempuje.app.ui.components.EmptyIllustration
 import pe.tuempuje.app.ui.components.WelcomeIntro
 import pe.tuempuje.app.ui.theme.EmpuLight
@@ -246,7 +250,7 @@ private fun TuEmpujeContent(services: FirebaseServices?, model: OpportunityViewM
                         tonalElevation = 3.dp,
                         shadowElevation = 8.dp,
                     ) {
-                        Column {
+                        Column(Modifier.stylePanel(preferences?.visualStyle ?: VisualStyle.ORIGINAL, MaterialTheme.colorScheme.primary)) {
                             navigationGroups.forEach { group ->
                                 NavigationBar(containerColor = Color.Transparent, windowInsets = WindowInsets(0, 0, 0, 0)) {
                                     group.forEach { item ->
@@ -405,7 +409,7 @@ private fun ExploreScreen(model: OpportunityViewModel, onSaved: () -> Unit, onSe
                 leadingIcon = { Icon(Icons.Rounded.Search, contentDescription = null) },
                 singleLine = true,
                 shape = RoundedCornerShape(18.dp),
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).stylePanel(LocalAppPreferences.current?.visualStyle ?: VisualStyle.ORIGINAL, MaterialTheme.colorScheme.primary),
             )
         }
         item {
@@ -507,7 +511,7 @@ private fun BrandHeader(onSaved: () -> Unit, onSettings: () -> Unit) {
         Box(
             Modifier.size(40.dp).clip(RoundedCornerShape(13.dp)).background(MaterialTheme.colorScheme.surfaceVariant),
             contentAlignment = Alignment.Center,
-        ) { Image(painterResource(R.drawable.tuempuje_symbol), contentDescription = "Símbolo de TuEmpuje", modifier = Modifier.size(24.dp)) }
+        ) { BrandMark(Modifier.size(24.dp).semantics { contentDescription = "Símbolo de TuEmpuje" }) }
         Spacer(Modifier.width(10.dp))
         Column(Modifier.weight(1f)) {
             Text("TuEmpuje", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
@@ -528,7 +532,7 @@ private fun Hero() {
         contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
     ) {
         val colors = MaterialTheme.colorScheme
-        Row(Modifier.background(Brush.linearGradient(listOf(colors.primaryContainer, colors.secondaryContainer))).padding(start = 20.dp, end = 6.dp, top = 12.dp, bottom = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+        Row(Modifier.background(Brush.linearGradient(listOf(colors.primaryContainer, colors.secondaryContainer))).stylePanel(LocalAppPreferences.current?.visualStyle ?: VisualStyle.ORIGINAL, colors.primary).padding(start = 20.dp, end = 6.dp, top = 12.dp, bottom = 12.dp), verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text("HOLA, SOY EMPU", style = MaterialTheme.typography.labelSmall, letterSpacing = 1.sp, color = colors.onPrimaryContainer)
                 Text("Tu próximo paso empieza aquí", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = colors.onPrimaryContainer)
@@ -587,7 +591,7 @@ private fun OpportunityCard(opportunity: Opportunity, status: String? = null, mo
         color = MaterialTheme.colorScheme.surface,
         border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
     ) {
-        Column(Modifier.padding(AppSpacing.large), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Column(Modifier.stylePanel(preferences?.visualStyle ?: VisualStyle.ORIGINAL, MaterialTheme.colorScheme.primary).padding(AppSpacing.large), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Row(verticalAlignment = Alignment.Top) {
                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(5.dp)) {
                     Text(opportunity.category.uppercase(Locale.forLanguageTag("es-PE")), style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary, maxLines = 2, overflow = TextOverflow.Ellipsis)
