@@ -46,7 +46,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.material3.OutlinedButton
 
 @Composable
-fun SettingsScreen(preferences: AppPreferences, onBack: () -> Unit) {
+fun SettingsScreen(preferences: AppPreferences, onTerms: () -> Unit = {}, onBack: () -> Unit) {
     val context = LocalContext.current
     var permissionDenied by remember { mutableStateOf(false) }
     val permission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
@@ -97,6 +97,7 @@ fun SettingsScreen(preferences: AppPreferences, onBack: () -> Unit) {
             Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text("Privacidad", style = MaterialTheme.typography.titleLarge)
                 Text("Tu documento, celular y correo de la cuenta son privados. Antes de postular revisa tu perfil y el contenido de cualquier CV que adjuntes", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                OutlinedButton(onClick = onTerms, modifier = Modifier.fillMaxWidth()) { Text("Términos y servicios") }
             }
         }
         Surface(shape = MaterialTheme.shapes.large, color = MaterialTheme.colorScheme.surface, modifier = Modifier.fillMaxWidth()) {

@@ -9,6 +9,8 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.ExperimentalSharedTransitionApi
+import androidx.compose.animation.SharedTransitionLayout
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.fadeIn
@@ -103,6 +105,9 @@ import pe.tuempuje.app.ui.components.EmpuAccessory
 import pe.tuempuje.app.ui.components.EmpuArrival
 import pe.tuempuje.app.ui.components.EmpuGreeting
 import pe.tuempuje.app.ui.components.EmpuWalkIn
+import pe.tuempuje.app.ui.components.SharedEmpu
+import pe.tuempuje.app.ui.components.LocalEmpuSharedScope
+import pe.tuempuje.app.ui.components.LocalEmpuVisibilityScope
 import pe.tuempuje.app.ui.components.EmpuMood
 import pe.tuempuje.app.ui.components.EmpuProvider
 import pe.tuempuje.app.ui.components.EmptyIllustration
@@ -161,7 +166,7 @@ fun TuEmpujeApp(services: FirebaseServices?, resetCode: String? = null, onResetC
     EmpuProvider {
         Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background, contentColor = MaterialTheme.colorScheme.onBackground) {
             Box(Modifier.fillMaxSize()) {
-                if (choosePurpose && resetCode == null) PurposeScreen(if (model.profileLoaded && model.profileAccountType == null) null else preferences?.purpose, preferences?.interests.orEmpty(), purposeSaving, purposeError, requireCompanyName = model.userId != null && model.profileLoaded, initialCompanyName = model.profileOrganization) { role, interests, companyName ->
+                if (choosePurpose && resetCode == null) PurposeScreen(if (model.profileLoaded && model.profileAccountType == null) null else preferences?.purpose, preferences?.interests.orEmpty(), purposeSaving, purposeError, requireCompanyName = model.userId != null && model.profileLoaded, initialCompanyName = model.profileOrganization, onCancel = { choosePurpose = false }) { role, interests, companyName ->
                     purposeError = null
                     if (model.userId == null) {
                         preferences?.updatePurpose(role, interests)
@@ -188,6 +193,7 @@ fun TuEmpujeApp(services: FirebaseServices?, resetCode: String? = null, onResetC
     }
 }
 
+@OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
 private fun TuEmpujeContent(services: FirebaseServices?, model: OpportunityViewModel, resetCode: String?, onResetConsumed: () -> Unit, notificationDestination: String?, notificationRevision: Int, onChoosePurpose: () -> Unit) {
     val nav = rememberNavController()
@@ -202,16 +208,24 @@ private fun TuEmpujeContent(services: FirebaseServices?, model: OpportunityViewM
     var cvOpportunityId by rememberSaveable { mutableStateOf<String?>(null) }
     var cvOpportunityTitle by rememberSaveable { mutableStateOf("") }
     var cvOpportunityRequirements by rememberSaveable { mutableStateOf("") }
+    var profileHomeRevision by rememberSaveable { mutableIntStateOf(0) }
     val snackbar = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     val availableDestinations = destinations
     val navigationGroups = if (LocalConfiguration.current.fontScale >= 1.8f) availableDestinations.chunked(if (availableDestinations.size > 4) 3 else 2) else listOf(availableDestinations)
     val openDestination: (String) -> Unit = { route ->
         val current = nav.currentDestination?.route
-        if (route in availableDestinations.map { it.route } && current != route) nav.navigate(route) {
-            popUpTo(nav.graph.findStartDestination().id) { saveState = true }
-            launchSingleTop = true
-            restoreState = true
+        if (route in availableDestinations.map { it.route }) {
+            if (cvOpportunityId != null) { cvOpportunityId = null; cvOpportunityTitle = ""; cvOpportunityRequirements = "" }
+            if (route == "perfil") { profileHomeRevision++; openWorkProfile = false }
+            if (current != route) {
+                if (route == nav.graph.findStartDestination().route) nav.popBackStack(nav.graph.findStartDestination().id, false)
+                else nav.navigate(route) {
+                    popUpTo(nav.graph.findStartDestination().id) { saveState = true }
+                    launchSingleTop = true
+                    restoreState = true
+                }
+            }
         }
     }
     LaunchedEffect(resetCode) { if (resetCode != null) openDestination("perfil") }
@@ -259,6 +273,8 @@ private fun TuEmpujeContent(services: FirebaseServices?, model: OpportunityViewM
         },
     ) { padding ->
         Box(Modifier.fillMaxSize().padding(padding).consumeWindowInsets(padding).imePadding(), contentAlignment = Alignment.TopCenter) {
+            SharedTransitionLayout {
+            CompositionLocalProvider(LocalEmpuSharedScope provides this@SharedTransitionLayout) {
             NavHost(
                 navController = nav,
                 startDestination = if (preferences?.purpose == "employer") "publicar" else "explorar",
@@ -266,19 +282,32 @@ private fun TuEmpujeContent(services: FirebaseServices?, model: OpportunityViewM
                 enterTransition = {
                     if (targetState.destination.route?.startsWith("detalle/") == true) {
                         fadeIn(tween(if (reduceMotion) 0 else 200)) + slideInHorizontally(tween(if (reduceMotion) 0 else 220)) { it / 14 }
+                    } else if (setOf(initialState.destination.route, targetState.destination.route) == setOf("explorar", "actividad") && !reduceMotion) {
+                        fadeIn(tween(180))
                     } else if (initialState.destination.route in destinations.map { it.route } && targetState.destination.route in destinations.map { it.route }) {
                         EnterTransition.None
                     } else fadeIn(tween(if (reduceMotion) 0 else 180))
                 },
                 exitTransition = {
-                    if (initialState.destination.route in destinations.map { it.route } && targetState.destination.route in destinations.map { it.route }) ExitTransition.None
+                    if (setOf(initialState.destination.route, targetState.destination.route) == setOf("explorar", "actividad") && !reduceMotion) fadeOut(tween(520))
+                    else if (initialState.destination.route in destinations.map { it.route } && targetState.destination.route in destinations.map { it.route }) ExitTransition.None
                     else fadeOut(tween(if (reduceMotion) 0 else 120))
                 },
-                popEnterTransition = { if (reduceMotion) EnterTransition.None else slideInHorizontally(tween(220)) { -it / 4 } },
-                popExitTransition = { if (reduceMotion) ExitTransition.None else slideOutHorizontally(tween(220)) { it } },
+                popEnterTransition = {
+                    if (reduceMotion) EnterTransition.None
+                    else if (setOf(initialState.destination.route, targetState.destination.route) == setOf("explorar", "actividad")) fadeIn(tween(180))
+                    else slideInHorizontally(tween(220)) { -it / 4 }
+                },
+                popExitTransition = {
+                    if (reduceMotion) ExitTransition.None
+                    else if (setOf(initialState.destination.route, targetState.destination.route) == setOf("explorar", "actividad")) fadeOut(tween(520))
+                    else slideOutHorizontally(tween(220)) { it }
+                },
             ) {
                 composable("explorar") {
+                    CompositionLocalProvider(LocalEmpuVisibilityScope provides this@composable) {
                     DestinationSurface { ExploreScreen(model, onSaved = { nav.navigate("guardados") }, onSettings = { nav.navigate("ajustes") }, onAccount = { openDestination("perfil") }, onPublish = { openDestination("publicar") }) { nav.navigate("detalle/$it") { launchSingleTop = true } } }
+                    }
                 }
                 composable("publicar") {
                     DestinationSurface { PublishScreen(services, model, onBack = { nav.popBackStack() }, onAccount = { openDestination("perfil") }) {
@@ -288,7 +317,9 @@ private fun TuEmpujeContent(services: FirebaseServices?, model: OpportunityViewM
                     } }
                 }
                 composable("actividad") {
+                    CompositionLocalProvider(LocalEmpuVisibilityScope provides this@composable) {
                     DestinationSurface { ActivityScreen(model, activityRevision, openDestination) { nav.navigate("detalle/$it") { launchSingleTop = true } } }
+                    }
                 }
                 composable("mensajes") {
                     DestinationSurface { InboxScreen(services, model) { job, applicant -> nav.navigate("conversacion/$job/$applicant") } }
@@ -296,7 +327,7 @@ private fun TuEmpujeContent(services: FirebaseServices?, model: OpportunityViewM
                 composable("perfil") {
                     DestinationSurface {
                     if (services != null) {
-                        AccountScreen(services.auth, services.firestore, onSettings = { nav.navigate("ajustes") }, onSaved = { nav.navigate("guardados") }, onChoosePurpose = onChoosePurpose, resetCode = resetCode, onResetConsumed = onResetConsumed, onHelp = { nav.navigate("ayuda") }, openWorkProfile = openWorkProfile, onWorkProfileOpened = { openWorkProfile = false }, cvOpportunity = cvOpportunityId?.let { CvOpportunityContext(it, cvOpportunityTitle, cvOpportunityRequirements) }, onCvClosed = {
+                        AccountScreen(services.auth, services.firestore, onSettings = { nav.navigate("ajustes") }, onSaved = { nav.navigate("guardados") }, onChoosePurpose = onChoosePurpose, resetCode = resetCode, onResetConsumed = onResetConsumed, onHelp = { nav.navigate("ayuda") }, openWorkProfile = openWorkProfile, onWorkProfileOpened = { openWorkProfile = false }, profileHomeRevision = profileHomeRevision, expectedAccountType = model.profileAccountType, cvOpportunity = cvOpportunityId?.let { CvOpportunityContext(it, cvOpportunityTitle, cvOpportunityRequirements) }, onCvClosed = {
                             val returnToOpportunity = cvOpportunityId != null
                             cvOpportunityId = null; cvOpportunityTitle = ""; cvOpportunityRequirements = ""
                             if (returnToOpportunity) nav.popBackStack()
@@ -306,7 +337,8 @@ private fun TuEmpujeContent(services: FirebaseServices?, model: OpportunityViewM
                     }
                     }
                 }
-                composable("ajustes") { DestinationSurface { if (preferences != null) SettingsScreen(preferences) { nav.popBackStack() } } }
+                composable("ajustes") { DestinationSurface { if (preferences != null) SettingsScreen(preferences, onTerms = { nav.navigate("terminos") }) { nav.popBackStack() } } }
+                composable("terminos") { DestinationSurface { TermsScreen { nav.popBackStack() } } }
                 composable("ayuda") { DestinationSurface { HelpScreen { nav.popBackStack() } } }
                 composable("guardados") { DestinationSurface { SavedScreen(model, onBack = { nav.popBackStack() }, onExplore = { openDestination("explorar") }) { nav.navigate("detalle/$it") } } }
                 composable("detalle/{id}") { entry ->
@@ -326,6 +358,8 @@ private fun TuEmpujeContent(services: FirebaseServices?, model: OpportunityViewM
                     val job = model.find(entry.arguments?.getString("id").orEmpty())
                     DestinationSurface { ConversationScreen(services, job, entry.arguments?.getString("applicant").orEmpty()) { nav.popBackStack() } }
                 }
+            }
+            }
             }
         }
     }
@@ -471,7 +505,7 @@ private fun QuickAction(title: String, description: String, icon: ImageVector, m
 private fun BrandHeader(onSaved: () -> Unit, onSettings: () -> Unit) {
     Row(verticalAlignment = Alignment.CenterVertically) {
         Box(
-            Modifier.size(40.dp).clip(RoundedCornerShape(13.dp)).background(EmpuLight),
+            Modifier.size(40.dp).clip(RoundedCornerShape(13.dp)).background(MaterialTheme.colorScheme.surfaceVariant),
             contentAlignment = Alignment.Center,
         ) { Image(painterResource(R.drawable.tuempuje_symbol), contentDescription = "Símbolo de TuEmpuje", modifier = Modifier.size(24.dp)) }
         Spacer(Modifier.width(10.dp))
@@ -502,7 +536,7 @@ private fun Hero() {
             }
             if (LocalConfiguration.current.fontScale < 1.3f && LocalAppPreferences.current?.showMascot != false) {
                 Spacer(Modifier.width(10.dp))
-                EmpuGreeting(Modifier.size(112.dp), accessory = accessory)
+                SharedEmpu(112.dp) { EmpuGreeting(it, accessory = accessory) }
             }
         }
     }
@@ -684,7 +718,7 @@ private fun DetailScreen(opportunity: Opportunity?, model: OpportunityViewModel,
             finally { cvBusy = false }
         }
     }
-    if (confirmApplication && opportunity != null && !opportunity.own) {
+    if (confirmApplication && opportunity != null && !opportunity.own && model.profileAccountType == "person") {
         AlertDialog(
             onDismissRequest = { confirmApplication = false },
             icon = { Empu(EmpuMood.THINKING, Modifier.size(112.dp)) },
@@ -741,7 +775,10 @@ private fun DetailScreen(opportunity: Opportunity?, model: OpportunityViewModel,
             if (opportunity.publicBusinessName.isNotBlank()) Text("Publicado por ${opportunity.organization}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Surface(shape = MaterialTheme.shapes.large, color = MaterialTheme.colorScheme.secondaryContainer, modifier = Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    DetailRow("Ubicación", opportunity.location)
+                    Row(verticalAlignment = Alignment.Top, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Icon(Icons.Rounded.Place, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                        DetailRow("Ubicación", opportunity.location)
+                    }
                     opportunity.workMode?.let { DetailRow("Modalidad", it) }
                     if (opportunity.workMode != "Remoto" && opportunity.location.trim().lowercase(Locale.ROOT) !in setOf("remoto", "virtual", "en línea", "online")) {
                         TextButton(onClick = {
@@ -752,7 +789,7 @@ private fun DetailScreen(opportunity: Opportunity?, model: OpportunityViewModel,
                             } catch (_: ActivityNotFoundException) {
                                 mapUnavailable = true
                             }
-                        }) { Text("Buscar ubicación en el mapa") }
+                        }) { Icon(Icons.Rounded.Place, contentDescription = null); Spacer(Modifier.width(6.dp)); Text("Buscar ubicación en el mapa") }
                         if (mapUnavailable) Text("No se encontró una aplicación de mapas", style = MaterialTheme.typography.bodySmall)
                         Text("Comprueba el lugar con quien publicó la oportunidad", style = MaterialTheme.typography.bodySmall)
                     }
@@ -1429,7 +1466,7 @@ private fun ActivityScreen(model: OpportunityViewModel, activityRevision: Int, o
                         Text("Tu actividad", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSecondaryContainer)
                         Text("Revisa tus publicaciones y postulaciones", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSecondaryContainer)
                     }
-                    if (LocalConfiguration.current.fontScale < 1.3f && LocalAppPreferences.current?.showMascot != false) EmpuWalkIn(EmpuMood.IDLE, Modifier.size(90.dp), accessory = if (purpose == "employer") EmpuAccessory.BUSINESS else EmpuAccessory.WORK)
+                    if (LocalConfiguration.current.fontScale < 1.3f && LocalAppPreferences.current?.showMascot != false) SharedEmpu(90.dp) { EmpuWalkIn(EmpuMood.IDLE, it, accessory = if (purpose == "employer") EmpuAccessory.BUSINESS else EmpuAccessory.WORK) }
                 }
             }
         }

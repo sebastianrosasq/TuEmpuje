@@ -10,6 +10,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.clickable
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.tween
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.WaterDrop
 import androidx.compose.material3.Icon
@@ -18,6 +21,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.staticCompositionLocalOf
@@ -30,6 +34,10 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 import app.rive.Result as RiveResult
@@ -51,6 +59,7 @@ import pe.tuempuje.app.ui.theme.EmpuInk
 import pe.tuempuje.app.ui.theme.EmpuLight
 import pe.tuempuje.app.ui.theme.EmpuTeal
 import kotlin.math.sin
+import kotlinx.coroutines.launch
 
 private val LocalEmpuFile = staticCompositionLocalOf<RiveResult<RiveFile>?> { null }
 
@@ -94,7 +103,14 @@ fun Empu(mood: EmpuMood, modifier: Modifier = Modifier, accessory: EmpuAccessory
         Spacer(modifier.aspectRatio(1f))
         return
     }
-    BoxWithConstraints(modifier.aspectRatio(1f).clearAndSetSemantics { }) {
+    val motionEnabled = preferences?.reduceMotion != true && ValueAnimator.areAnimatorsEnabled()
+    val bounce = remember { Animatable(0f) }
+    val scope = rememberCoroutineScope()
+    BoxWithConstraints(modifier.aspectRatio(1f).graphicsLayer { translationY = bounce.value * density; if (wave >= 0f) rotationZ = sin(wave * 6.2831855f) * 6f }
+        .semantics { contentDescription = "Empu" }
+        .clickable(enabled = motionEnabled, role = Role.Button, onClickLabel = "Saludar a Empu") {
+            scope.launch { bounce.stop(); bounce.animateTo(-8f, tween(120)); bounce.animateTo(0f, tween(180)) }
+        }) {
         Canvas(Modifier.matchParentSize()) {
             val u = size.minDimension / 240f
             fun foot(x: Float, direction: Float, phase: Float) {
@@ -107,13 +123,6 @@ fun Empu(mood: EmpuMood, modifier: Modifier = Modifier, accessory: EmpuAccessory
             foot(161f, 1f, -walkPhase)
         }
         EmpuArtwork(mood, Modifier.matchParentSize())
-        if (wave >= 0f) Canvas(Modifier.matchParentSize()) {
-            val u = size.minDimension / 240f
-            val handX = 219f + 7f * sin(wave * 6.2831855f)
-            val handY = 112f + 4f * sin(wave * 6.2831855f)
-            drawLine(EmpuTeal, Offset(194 * u, 143 * u), Offset(handX * u, handY * u), 9 * u, cap = StrokeCap.Round)
-            drawCircle(EmpuTeal, 6 * u, Offset(handX * u, handY * u))
-        }
         if (accessory != EmpuAccessory.NONE) Canvas(Modifier.matchParentSize()) {
             val u = size.minDimension / 240f
             if (accessory == EmpuAccessory.WORK) {

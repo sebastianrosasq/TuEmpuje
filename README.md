@@ -71,13 +71,13 @@ La recuperación de contraseña envía un enlace al correo, la app valida el enl
 
 La eliminación completa de cuentas se preparó para el emulador mediante una función protegida, su despliegue y la configuración de expiración de bloqueos están pendientes, por lo que todavía no está disponible en la nube
 
-Al entrar se elige entre buscar trabajo y ofrecer oportunidades, después se inicia sesión o se crea una cuenta para continuar, el objetivo puede cambiarse desde el perfil
+Al crear la cuenta se elige un perfil personal o empresarial, después se puede corregir el tipo desde el perfil conservando el historial
 
 El registro solicita nombre, correo, documento, celular y nacionalidad, admite DNI, carné de extranjería y pasaporte con validación de formato, el celular conserva el formato peruano y los documentos no verifican identidad
 
-La búsqueda puede filtrarse por categoría, ubicación, modalidad, experiencia, fecha de publicación y vacantes, también puede ordenarse por intereses o por fecha, solo el objetivo de ofrecer trabajo permite publicar
+La búsqueda puede filtrarse por categoría, ubicación, modalidad, experiencia, fecha de publicación y vacantes, también puede ordenarse por intereses o por fecha
 
-Quien publica puede registrar si actúa como persona, profesional o negocio y completar datos de su actividad, al publicar decide si comparte el nombre, el rubro y la descripción de su negocio, y puede retirarlos de una oportunidad incluso si ya tiene postulantes seleccionados
+Las cuentas personales publican como particulares y las empresas usan los datos de su perfil empresarial, los datos compartidos de un negocio pueden retirarse de una oportunidad
 
 Las oportunidades nuevas indican si el trabajo es presencial, híbrido o remoto, las publicaciones anteriores mantienen su información sin asignarles una modalidad que no declararon
 
@@ -95,7 +95,7 @@ El asistente de Empu utiliza Gemini en el entorno de desarrollo para proponer op
 
 El creador de CV ofrece seis diseños, muestra la primera página antes de exportar y permite añadir una foto opcional, guardar un borrador general o por oportunidad y generar un PDF, todavía no interpreta el contenido de archivos existentes
 
-Una cuenta personal puede postular y publicar solicitudes de apoyo, una cuenta de empresa puede publicar y consultar oportunidades, el tipo se elige al registrarse y los perfiles anteriores deben seleccionarlo al ingresar
+Una cuenta personal puede postular y publicar solicitudes de apoyo, una cuenta de empresa puede publicar y consultar oportunidades, los perfiles anteriores deben seleccionar su tipo al ingresar
 
 TuEmpuje está dirigido a personas de 18 años o más, antes de abrir la aplicación al público se debe completar y verificar el control de edad de acceso conforme a las condiciones del proveedor de IA
 
@@ -103,7 +103,7 @@ La bandeja reúne las conversaciones asociadas a postulaciones, los avisos de me
 
 Los avisos revisan la actividad mediante WorkManager aproximadamente cada hora cuando hay conexión, Android puede retrasarlos por batería y la primera revisión establece una referencia sin avisar, no son mensajes push inmediatos
 
-La carga y entrega de archivos CV, la obligatoriedad del CV al postular, la web, los pagos y una interfaz de moderación están pendientes, el proyecto de desarrollo se usa únicamente con datos de prueba
+El envío de CV está implementado para archivos de hasta 700 kB y falta comprobar el recorrido completo entre dos teléfonos, la web, los pagos y una interfaz de moderación siguen pendientes
 
 El sistema visual comparte avisos, botones y estados vacíos, con transiciones y una navegación que se adapta al texto ampliado, las pruebas y limitaciones están registradas en [Diseño y navegación](docs/10-diseno-y-navegacion.md)
 

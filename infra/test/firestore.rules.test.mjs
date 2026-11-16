@@ -111,14 +111,26 @@ test('un invitado no puede leer ni escribir datos privados', async () => {
   await assertFails(setDoc(doc(guest, 'opportunities', 'nueva'), opportunity('invitado')));
 });
 
-test('una persona publica y postula, una empresa publica sin poder postular ni cambiar de tipo', async () => {
+test('una persona publica y postula, una empresa publica sin poder postular', async () => {
   const person = user('candidato'); const company = user('cliente');
   await assertSucceeds(setDoc(doc(person, 'opportunities', 'solicitud-personal'), opportunity('candidato')));
   await assertSucceeds(setDoc(doc(person, 'opportunities', 'oferta', 'applications', 'candidato'), application('candidato')));
   await assertFails(setDoc(doc(company, 'opportunities', 'solicitud-personal', 'applications', 'cliente'), application('cliente')));
-  await assertFails(updateDoc(doc(company, 'users', 'cliente'), { accountType: 'person', role: 'worker' }));
-  await assertFails(updateDoc(doc(person, 'users', 'candidato'), { accountType: 'company', role: 'employer', organization: 'Empresa' }));
+  await assertFails(updateDoc(doc(user('otro'), 'users', 'cliente'), { accountType: 'person', role: 'worker' }));
   await assertFails(updateDoc(doc(person, 'users', 'candidato'), { businessType: 'NEGOCIO', organization: 'Empresa' }));
+});
+
+test('el titular puede corregir su tipo sin borrar sus datos ni su historial', async () => {
+  const person = user('candidato'); const own = doc(person, 'users', 'candidato');
+  await assertSucceeds(setDoc(doc(person, 'opportunities', 'oferta', 'applications', 'candidato'), application('candidato')));
+  await assertFails(updateDoc(own, { accountType: 'company', role: 'worker', organization: 'Negocio' }));
+  await assertFails(updateDoc(own, { accountType: 'company', role: 'employer', organization: '' }));
+  await assertSucceeds(updateDoc(own, { accountType: 'company', role: 'employer', businessType: 'NEGOCIO', organization: 'Negocio' }));
+  await env.withSecurityRulesDisabled(async context => { await setDoc(doc(context.firestore(), 'opportunities', 'segunda'), opportunity('cliente')); });
+  await assertFails(setDoc(doc(person, 'opportunities', 'segunda', 'applications', 'candidato'), application('candidato')));
+  assert.equal((await getDoc(own)).data().skills, 'Edición');
+  await assertSucceeds(updateDoc(own, { accountType: 'person', role: 'worker', businessType: 'PERSONA' }));
+  assert.equal((await getDoc(doc(person, 'opportunities', 'oferta', 'applications', 'candidato'))).data().status, 'pending');
 });
 
 test('un perfil anterior debe elegir el tipo de cuenta antes de realizar nuevas operaciones', async () => {

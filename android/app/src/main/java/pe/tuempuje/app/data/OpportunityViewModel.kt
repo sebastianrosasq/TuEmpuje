@@ -272,7 +272,6 @@ class OpportunityViewModel(private val services: FirebaseServices?) : ViewModel(
                     val existing = transaction.get(profile)
                     check(existing.exists())
                     val accountType = if (role == "employer") "company" else "person"
-                    check(existing.getString("accountType").let { it == null || it == accountType })
                     val updates = mutableMapOf<String, Any>("role" to role, "accountType" to accountType, "interests" to interests.sorted())
                     if (accountType == "company") {
                         check(companyName.trim().length in 2..100)

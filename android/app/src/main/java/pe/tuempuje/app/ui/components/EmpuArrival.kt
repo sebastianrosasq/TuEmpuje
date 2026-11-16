@@ -6,20 +6,49 @@ import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.keyframes
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.State
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 import pe.tuempuje.app.ui.LocalAppPreferences
 import pe.tuempuje.app.ui.theme.EmpuTeal
+
+@Composable
+private fun idleTilt(allowMotion: Boolean): State<Float> {
+    val owner = LocalLifecycleOwner.current
+    var visible by remember(owner) { mutableStateOf(owner.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) }
+    DisposableEffect(owner) {
+        val observer = LifecycleEventObserver { _, _ -> visible = owner.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED) }
+        owner.lifecycle.addObserver(observer)
+        onDispose { owner.lifecycle.removeObserver(observer) }
+    }
+    if (!allowMotion || !visible) return remember { mutableStateOf(0f) }
+    return rememberInfiniteTransition(label = "empu-reposo").animateFloat(
+        initialValue = -1.4f, targetValue = 1.4f,
+        animationSpec = infiniteRepeatable(tween(2400, easing = FastOutSlowInEasing), RepeatMode.Reverse),
+        label = "balanceo",
+    )
+}
 
 @Composable
 fun EmpuArrival(mood: EmpuMood, modifier: Modifier = Modifier, accessory: EmpuAccessory = EmpuAccessory.NONE) {
@@ -47,6 +76,7 @@ fun EmpuArrival(mood: EmpuMood, modifier: Modifier = Modifier, accessory: EmpuAc
 @Composable
 fun EmpuGreeting(modifier: Modifier = Modifier, accessory: EmpuAccessory = EmpuAccessory.NONE) {
     val allowMotion = LocalAppPreferences.current?.reduceMotion != true && ValueAnimator.areAnimatorsEnabled()
+    val idle = idleTilt(allowMotion)
     val drop = remember { Animatable(if (allowMotion) -100f else 0f) }
     val tilt = remember { Animatable(if (allowMotion) -65f else 0f) }
     val wave = remember { Animatable(-1f) }
@@ -60,12 +90,13 @@ fun EmpuGreeting(modifier: Modifier = Modifier, accessory: EmpuAccessory = EmpuA
         wave.animateTo(2f, tween(700, easing = LinearEasing))
         wave.snapTo(-1f)
     }
-    Empu(EmpuMood.HAPPY, modifier.graphicsLayer { translationY = drop.value * density; rotationZ = tilt.value }, accessory, wave = wave.value)
+    Empu(EmpuMood.HAPPY, modifier.graphicsLayer { translationY = drop.value * density; rotationZ = tilt.value + idle.value }, accessory, wave = wave.value)
 }
 
 @Composable
 fun EmpuWalkIn(mood: EmpuMood, modifier: Modifier = Modifier, accessory: EmpuAccessory = EmpuAccessory.NONE) {
     val allowMotion = LocalAppPreferences.current?.reduceMotion != true && ValueAnimator.areAnimatorsEnabled()
+    val idle = idleTilt(allowMotion)
     val distance = remember { Animatable(if (allowMotion) 28f else 0f) }
     val stride = remember { Animatable(0f) }
     LaunchedEffect(allowMotion) {
@@ -75,5 +106,5 @@ fun EmpuWalkIn(mood: EmpuMood, modifier: Modifier = Modifier, accessory: EmpuAcc
             launch { stride.animateTo(12.56637f, tween(700, easing = LinearEasing)); stride.snapTo(0f) }
         }
     }
-    Empu(mood, modifier.graphicsLayer { translationX = distance.value * density }, accessory, walkPhase = stride.value)
+    Empu(mood, modifier.graphicsLayer { translationX = distance.value * density; rotationZ = idle.value }, accessory, walkPhase = stride.value)
 }

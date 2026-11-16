@@ -26,6 +26,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import pe.tuempuje.app.auth.AccountUiState
 import pe.tuempuje.app.data.EmpuAssistant
@@ -73,6 +74,13 @@ fun ResumeAssistantScreen(profile: AccountUiState, services: FirebaseServices, o
     var confirmExit by remember { mutableStateOf(false) }
     var confirmEmpty by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
+    LaunchedEffect(uid, opportunity?.id, style, goal, summary, skills, experience, education, instruction, languages, references, photoUri, answers) {
+        if (uid.isNotBlank()) {
+            delay(350)
+            val draft = ResumeDraft(style, goal, summary, skills, experience, education, instruction, languages, references, photoUri, answers)
+            withContext(Dispatchers.IO) { draftStore.save(uid, opportunity?.id, draft) }
+        }
+    }
     var pdfProfile by remember { mutableStateOf<AccountUiState?>(null) }
     val savePdf = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/pdf")) { uri ->
         val selected = pdfProfile
@@ -179,10 +187,10 @@ fun ResumeAssistantScreen(profile: AccountUiState, services: FirebaseServices, o
             if (photoUri.isNotBlank()) TextButton(onClick = { photoUri = "" }) { Text("Quitar foto") }
             Text("Tu foto se guarda solo en el documento y no se envía a la IA", style = MaterialTheme.typography.bodySmall)
             OutlinedTextField(value = instruction, onValueChange = { instruction = it.take(500) }, label = { Text("¿Qué quieres destacar? Opcional") }, minLines = 2, modifier = Modifier.fillMaxWidth())
-            Text("Empu utiliza la IA de Google. Si solicitas ayuda, se enviarán el puesto, los requisitos y los textos de habilidades, experiencia, estudios, preferencias y respuestas. No incluyas DNI, teléfono ni correo en esos campos. Google puede usar el contenido para mejorar sus productos en el nivel gratuito", style = MaterialTheme.typography.bodySmall)
+            Text("Para sugerir tu CV se envían a Google el puesto, requisitos y los textos que ingreses aquí. Evita DNI, teléfono y correo en esos campos. En el nivel gratuito, Google puede usar este contenido para mejorar sus productos", style = MaterialTheme.typography.bodySmall)
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Checkbox(checked = consent, onCheckedChange = { consent = it }, enabled = !busy)
-                Text("Acepto enviar estos textos a Google", style = MaterialTheme.typography.bodySmall)
+                Text("Acepto enviar estos datos", style = MaterialTheme.typography.bodySmall)
             }
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Checkbox(checked = adult, onCheckedChange = { adult = it }, enabled = !busy)

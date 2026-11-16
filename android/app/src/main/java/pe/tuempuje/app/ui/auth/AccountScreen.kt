@@ -19,6 +19,7 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.background
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
@@ -26,6 +27,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -40,6 +42,9 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Visibility
 import androidx.compose.material.icons.rounded.VisibilityOff
 import androidx.compose.material.icons.rounded.Settings
+import androidx.compose.material.icons.rounded.Edit
+import androidx.compose.material.icons.rounded.WorkOutline
+import androidx.compose.material.icons.rounded.BusinessCenter
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -90,18 +95,20 @@ import pe.tuempuje.app.profile.ResumeDraftStore
 import pe.tuempuje.app.data.FirebaseServices
 import pe.tuempuje.app.ui.ResumeAssistantScreen
 import pe.tuempuje.app.ui.CvOpportunityContext
+import pe.tuempuje.app.ui.TermsScreen
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.withContext
 
 @Composable
-fun AccountScreen(auth: FirebaseAuth, firestore: FirebaseFirestore, onSettings: () -> Unit, onSaved: () -> Unit, onChoosePurpose: () -> Unit = {}, resetCode: String? = null, onResetConsumed: () -> Unit = {}, authGate: Boolean = false, onHelp: () -> Unit = {}, openWorkProfile: Boolean = false, onWorkProfileOpened: () -> Unit = {}, cvOpportunity: CvOpportunityContext? = null, onCvClosed: () -> Unit = {}) {
+fun AccountScreen(auth: FirebaseAuth, firestore: FirebaseFirestore, onSettings: () -> Unit, onSaved: () -> Unit, onChoosePurpose: () -> Unit = {}, resetCode: String? = null, onResetConsumed: () -> Unit = {}, authGate: Boolean = false, onHelp: () -> Unit = {}, openWorkProfile: Boolean = false, onWorkProfileOpened: () -> Unit = {}, profileHomeRevision: Int = 0, expectedAccountType: String? = null, cvOpportunity: CvOpportunityContext? = null, onCvClosed: () -> Unit = {}) {
     val factory = remember(auth, firestore) { AccountViewModelFactory(auth, firestore) }
     val account: AccountViewModel = viewModel(factory = factory)
     val state by account.state.collectAsState()
     var showExperience by rememberSaveable(state.uid) { mutableStateOf(false) }
     var showRecovery by rememberSaveable { mutableStateOf(false) }
+    var showTerms by rememberSaveable { mutableStateOf(false) }
     val isEmployer = LocalAppPreferences.current?.purpose == "employer"
     LaunchedEffect(openWorkProfile, state.uid, state.profileLoadFailed, state.loading) {
         if (openWorkProfile && state.uid != null && !state.profileLoadFailed && !state.loading && !isEmployer) {
@@ -147,6 +154,16 @@ fun AccountScreen(auth: FirebaseAuth, firestore: FirebaseFirestore, onSettings: 
         }
     }
     var showCvAssistant by rememberSaveable(state.uid) { mutableStateOf(false) }
+    var observedProfileRevision by rememberSaveable { mutableStateOf(profileHomeRevision) }
+    LaunchedEffect(profileHomeRevision) {
+        if (profileHomeRevision != observedProfileRevision) {
+            showCvAssistant = false; showExperience = false; showRecovery = false
+            observedProfileRevision = profileHomeRevision
+        }
+    }
+    LaunchedEffect(state.uid, state.accountType, expectedAccountType) {
+        if (state.uid != null && !state.loading && expectedAccountType != null && state.accountType != expectedAccountType) account.retryProfile()
+    }
     val signOut = {
         account.signOut()
         scope.launch { runCatching { credentialManager.clearCredentialState(ClearCredentialStateRequest()) } }
@@ -217,11 +234,16 @@ fun AccountScreen(auth: FirebaseAuth, firestore: FirebaseFirestore, onSettings: 
             onResetConsumed()
         }
     }
+    if (showTerms) {
+        BackHandler { showTerms = false }
+        TermsScreen { showTerms = false }
+        return
+    }
     if (showRecovery) {
         RecoveryScreen(state, account, onBack = { showRecovery = false; account.clearRecovery() })
         return
     }
-    if ((showCvAssistant || cvOpportunity != null) && state.uid != null) {
+    if ((showCvAssistant || cvOpportunity != null) && state.uid != null && !isEmployer) {
         ResumeAssistantScreen(state, FirebaseServices(auth, firestore, BuildConfig.FIREBASE_LOCAL), cvOpportunity) { showCvAssistant = false; onCvClosed() }
         return
     }
@@ -257,6 +279,7 @@ fun AccountScreen(auth: FirebaseAuth, firestore: FirebaseFirestore, onSettings: 
             else -> ProfileForm(state, account, isEmployer, onShowExperience = { showExperience = true }, onSignOut = { confirmSignOut = true })
         }
         if (authGate && state.uid == null && auth.currentUser == null) TextButton(enabled = !state.loading, onClick = onChoosePurpose) { Text("Cambiar tipo de cuenta") }
+        if (authGate && state.uid == null) TextButton(onClick = { showTerms = true }) { Text("Términos y servicios") }
         if (state.uid != null && !authGate) {
             TextButton(enabled = !state.loading, onClick = { confirmDelete = true }) { Text("Eliminar cuenta", color = MaterialTheme.colorScheme.error) }
             if (!isEmployer && !state.profileLoadFailed) {
@@ -273,6 +296,7 @@ fun AccountScreen(auth: FirebaseAuth, firestore: FirebaseFirestore, onSettings: 
         }
         if (!authGate) {
             Text(if (isEmployer) "Cuenta de empresa" else "Cuenta personal · puedes buscar trabajo y pedir ayuda", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            OutlinedButton(enabled = !state.loading, onClick = onChoosePurpose, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) { Text("Cambiar tipo de cuenta") }
             Text("Tu espacio", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
             if (!isEmployer) OutlinedButton(onClick = onSaved, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) { Text("Oportunidades guardadas") }
             OutlinedButton(onClick = onHelp, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) { Text("Ayuda y seguridad") }
@@ -522,7 +546,7 @@ private fun ProfileForm(state: AccountUiState, account: AccountViewModel, isEmpl
         if (!state.loading && state.error == null && !state.needsProfile) editing = false
     }
 
-    Surface(color = MaterialTheme.colorScheme.surface, shape = MaterialTheme.shapes.large) {
+    Surface(color = MaterialTheme.colorScheme.surface, shape = MaterialTheme.shapes.extraLarge, border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)) {
         Column(Modifier.fillMaxWidth().padding(20.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
                 Text(
@@ -563,22 +587,27 @@ private fun ProfileForm(state: AccountUiState, account: AccountViewModel, isEmpl
                     TextButton(enabled = !state.loading, onClick = { name = state.displayName; dni = state.dni; documentType = state.documentType; phone = state.phone; nationality = state.nationality; district = state.district; organization = state.organization; editing = false }) { Text("Cancelar") }
                 }
             } else {
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Box(
-                        modifier = Modifier.size(56.dp).background(MaterialTheme.colorScheme.primaryContainer, CircleShape),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Text(state.displayName.trim().firstOrNull()?.uppercase() ?: "", style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.onPrimaryContainer)
-                    }
-                    Column(Modifier.weight(1f)) {
-                        Text(state.displayName, style = MaterialTheme.typography.titleMedium)
-                        Text(state.email, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        if (state.nationality.isNotBlank()) Text(state.nationality, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        Text("${documentLabel(state.documentType)} ••••${state.dni.takeLast(4)} · ${state.phone}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Surface(shape = MaterialTheme.shapes.large, color = MaterialTheme.colorScheme.primaryContainer, modifier = Modifier.fillMaxWidth()) {
+                    Row(Modifier.background(Brush.linearGradient(listOf(MaterialTheme.colorScheme.primaryContainer, MaterialTheme.colorScheme.secondaryContainer))).padding(16.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Box(modifier = Modifier.size(56.dp).background(MaterialTheme.colorScheme.surface.copy(alpha = .75f), CircleShape), contentAlignment = Alignment.Center) {
+                            Text(state.displayName.trim().firstOrNull()?.uppercase() ?: "", style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
+                        }
+                        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                            Text(state.displayName, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onPrimaryContainer)
+                            Text(state.email, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onPrimaryContainer)
+                            Text(if (isEmployer) "Cuenta de empresa" else "Cuenta personal", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onPrimaryContainer)
+                        }
                     }
                 }
-                OutlinedButton(enabled = !state.loading, onClick = { editing = true }) { Text("Editar perfil") }
-                OutlinedButton(enabled = !state.loading, onClick = onShowExperience, modifier = Modifier.fillMaxWidth()) { Text(if (isEmployer) "Datos para publicar" else "Mi perfil laboral") }
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text("DATOS DE CONTACTO", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
+                    if (state.nationality.isNotBlank()) Text(state.nationality, style = MaterialTheme.typography.bodyMedium)
+                    Text("${documentLabel(state.documentType)} ••••${state.dni.takeLast(4)} · ${state.phone}", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                FilledTonalButton(enabled = !state.loading, onClick = onShowExperience, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
+                    Icon(if (isEmployer) Icons.Rounded.BusinessCenter else Icons.Rounded.WorkOutline, contentDescription = null); Spacer(Modifier.width(8.dp)); Text(if (isEmployer) "Datos de mi empresa" else "Mi perfil laboral")
+                }
+                OutlinedButton(enabled = !state.loading, onClick = { editing = true }, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) { Icon(Icons.Rounded.Edit, contentDescription = null); Spacer(Modifier.width(8.dp)); Text("Editar perfil") }
             }
             TextButton(enabled = !state.loading, onClick = onSignOut) { Text("Cerrar sesión") }
         }
