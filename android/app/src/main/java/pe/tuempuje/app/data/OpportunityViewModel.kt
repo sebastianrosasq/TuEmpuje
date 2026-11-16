@@ -10,6 +10,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FieldValue
+import com.google.firebase.firestore.Blob
 import com.google.firebase.firestore.ListenerRegistration
 import com.google.firebase.firestore.MetadataChanges
 import com.google.firebase.firestore.Source
@@ -68,6 +69,8 @@ class OpportunityViewModel(private val services: FirebaseServices?) : ViewModel(
         private set
     var profileRole by mutableStateOf<String?>(null)
         private set
+    var profileAccountType by mutableStateOf<String?>(null)
+        private set
     var profileInterests by mutableStateOf<Set<String>>(emptySet())
         private set
     var profileOrganization by mutableStateOf("")
@@ -125,7 +128,7 @@ class OpportunityViewModel(private val services: FirebaseServices?) : ViewModel(
         personalListeners.values.forEach { it.remove() }
         personalListeners.clear()
         publicItems.clear(); ownItems.clear(); personalItems.clear()
-        profileReady = false; profileLoaded = false; profileRole = null; profileInterests = emptySet()
+        profileReady = false; profileLoaded = false; profileRole = null; profileAccountType = null; profileInterests = emptySet()
         applicationProfile = ApplicationProfile()
         profileOrganization = ""; profileBusinessSector = ""; profileBusinessDescription = ""
         opportunityListener = null
@@ -155,6 +158,7 @@ class OpportunityViewModel(private val services: FirebaseServices?) : ViewModel(
             profileReady = (profile.getString("skills")?.trim()?.length ?: 0) >= 2 && (profile.getString("availability")?.trim()?.length ?: 0) >= 2 && pe.tuempuje.app.auth.identityError(profile.getString("dni").orEmpty(), profile.getString("phone").orEmpty(), profile.getString("documentType") ?: "DNI") == null
             applicationProfile = ApplicationProfile(profile.getString("displayName").orEmpty(), profile.getString("skills").orEmpty(), profile.getString("experience").orEmpty(), profile.getString("availability").orEmpty(), profile.getString("district").orEmpty(), profile.getString("education").orEmpty(), profile.getString("portfolio").orEmpty())
             profileRole = profile.getString("role")
+            profileAccountType = profile.getString("accountType")
             profileOrganization = profile.getString("organization").orEmpty()
             profileBusinessSector = profile.getString("businessSector").orEmpty()
             profileBusinessDescription = profile.getString("businessDescription").orEmpty()
@@ -257,7 +261,7 @@ class OpportunityViewModel(private val services: FirebaseServices?) : ViewModel(
         opportunities.clear(); opportunities.addAll(items)
     }
 
-    fun savePurpose(role: String, interests: Set<String>, onResult: (Boolean) -> Unit = {}) {
+    fun savePurpose(role: String, interests: Set<String>, companyName: String = "", onResult: (Boolean) -> Unit = {}) {
         val uid = userId ?: run { onResult(false); return }
         val db = services?.firestore ?: run { onResult(false); return }
         if (!profileLoaded || role !in listOf("worker", "employer")) { onResult(false); return }
@@ -265,8 +269,17 @@ class OpportunityViewModel(private val services: FirebaseServices?) : ViewModel(
             try {
                 val profile = db.collection("users").document(uid)
                 db.runTransaction { transaction ->
-                    check(transaction.get(profile).exists())
-                    transaction.update(profile, mapOf("role" to role, "interests" to interests.sorted()))
+                    val existing = transaction.get(profile)
+                    check(existing.exists())
+                    val accountType = if (role == "employer") "company" else "person"
+                    check(existing.getString("accountType").let { it == null || it == accountType })
+                    val updates = mutableMapOf<String, Any>("role" to role, "accountType" to accountType, "interests" to interests.sorted())
+                    if (accountType == "company") {
+                        check(companyName.trim().length in 2..100)
+                        updates["organization"] = companyName.trim()
+                        updates["businessType"] = "NEGOCIO"
+                    } else if (existing.getString("businessType") == "NEGOCIO") updates["businessType"] = "PERSONA"
+                    transaction.update(profile, updates)
                 }.await()
                 onResult(userId == uid)
             }
@@ -285,7 +298,7 @@ class OpportunityViewModel(private val services: FirebaseServices?) : ViewModel(
     fun find(id: String): Opportunity? = opportunities.find { it.id == id }
 
     fun publish(title: String, description: String, location: String, pay: String, duration: String, requirements: String, vacancies: Int, category: String, noExperienceRequired: Boolean, workMode: String, includeBusiness: Boolean, onSuccess: () -> Unit) {
-        if (profileRole != "employer") { error = "Cambia a la opción de ofrecer trabajo antes de publicar"; return }
+        if (profileAccountType !in listOf("person", "company")) { error = "Selecciona el tipo de cuenta antes de publicar"; return }
         val uid = userId ?: run { error = "Inicia sesión para publicar"; return }
         val db = services?.firestore ?: return
         if (listOf(title, description, location, pay, duration, requirements, category).any { it.isBlank() } || vacancies !in 1..99 || workMode !in listOf("Presencial", "Híbrido", "Remoto")) {
@@ -311,12 +324,14 @@ class OpportunityViewModel(private val services: FirebaseServices?) : ViewModel(
         }
     }
 
-    fun apply(id: String, onSuccess: () -> Unit) {
+    fun apply(id: String, cv: ByteArray? = null, onSuccess: () -> Unit) {
+        if (profileAccountType != "person") { error = "Las postulaciones están disponibles para cuentas personales"; return }
         val uid = userId ?: run { error = "Inicia sesión para postular"; return }
         val db = services?.firestore ?: return
         val opportunity = find(id) ?: run { error = "La oportunidad ya no está disponible"; return }
         if (opportunity.own || (id in applications && applications[id] !in setOf("withdrawn", "cancelled"))) return
         if (!profileReady) { error = "Completa tus habilidades y disponibilidad en tu perfil antes de postular"; return }
+        if (cv != null && (cv.size !in 5..700_000 || !cv.take(5).toByteArray().contentEquals("%PDF-".toByteArray()))) { error = "Selecciona un PDF válido de hasta 700 kB"; return }
         if (opportunity.selectedCount >= opportunity.vacancies) {
             error = "Las vacantes de esta oportunidad ya están cubiertas"
             return
@@ -332,14 +347,28 @@ class OpportunityViewModel(private val services: FirebaseServices?) : ViewModel(
             val education = profile.getString("education").orEmpty()
             val portfolio = profile.getString("portfolio").orEmpty()
             val ref = db.collection("opportunities").document(id).collection("applications").document(uid)
+            val batch = db.batch()
             if (applications[id] in setOf("withdrawn", "cancelled")) {
-                ref.update(mapOf("status" to "pending", "applicantName" to name, "applicantSkills" to skills, "applicantAvailability" to availability, "applicantExperience" to experience, "applicantDistrict" to district, "applicantEducation" to education, "applicantPortfolio" to portfolio, "createdAt" to FieldValue.serverTimestamp(),
-                    "withdrawnAt" to FieldValue.delete(), "selectedAt" to FieldValue.delete(), "completedAt" to FieldValue.delete(), "reviewedAt" to FieldValue.delete(), "decisionAt" to FieldValue.delete())).await()
-            } else ref.set(mapOf(
+                batch.update(ref, mapOf("status" to "pending", "applicantName" to name, "applicantSkills" to skills, "applicantAvailability" to availability, "applicantExperience" to experience, "applicantDistrict" to district, "applicantEducation" to education, "applicantPortfolio" to portfolio, "createdAt" to FieldValue.serverTimestamp(),
+                    "withdrawnAt" to FieldValue.delete(), "selectedAt" to FieldValue.delete(), "completedAt" to FieldValue.delete(), "reviewedAt" to FieldValue.delete(), "decisionAt" to FieldValue.delete()))
+            } else batch.set(ref, mapOf(
                 "applicantId" to uid, "applicantName" to name, "applicantSkills" to skills, "applicantAvailability" to availability, "applicantExperience" to experience, "applicantDistrict" to district, "applicantEducation" to education, "applicantPortfolio" to portfolio, "status" to "pending", "createdAt" to FieldValue.serverTimestamp(),
-            )).await()
+            ))
+            val cvRef = ref.collection("privateFiles").document("cv")
+            if (cv != null) batch.set(cvRef, mapOf("data" to Blob.fromBytes(cv), "contentType" to "application/pdf", "updatedAt" to FieldValue.serverTimestamp()))
+            else if (applications[id] in setOf("withdrawn", "cancelled")) batch.delete(cvRef)
+            batch.commit().await()
             onSuccess()
         }
+    }
+
+    suspend fun candidateCv(opportunityId: String, applicantId: String): ByteArray? {
+        val db = services?.firestore ?: error("Servicio no disponible")
+        val snapshot = db.collection("opportunities").document(opportunityId).collection("applications").document(applicantId)
+            .collection("privateFiles").document("cv").get(Source.SERVER).await()
+        val data = snapshot.getBlob("data")?.toBytes() ?: return null
+        require(data.size in 5..700_000 && data.copyOfRange(0, 5).contentEquals("%PDF-".toByteArray()))
+        return data
     }
 
     fun observeCandidates(id: String) {
@@ -402,6 +431,7 @@ class OpportunityViewModel(private val services: FirebaseServices?) : ViewModel(
                     else -> error("La postulación no puede retirarse")
                 }
                 tx.update(application, mapOf("status" to "withdrawn", "withdrawnAt" to FieldValue.serverTimestamp()))
+                tx.delete(application.collection("privateFiles").document("cv"))
             }.await()
             onSuccess()
         }

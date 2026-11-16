@@ -44,7 +44,13 @@ class ResumeDraftStore(context: Context) {
 
     fun clearAccount(uid: String) {
         val editor = preferences.edit()
-        preferences.all.keys.filter { it.startsWith("$uid/") }.forEach(editor::remove)
+        preferences.all.keys.filter { it.startsWith("$uid/") || it.startsWith("pdf/$uid/") }.forEach(editor::remove)
         editor.apply()
     }
+
+    fun savePdfUri(uid: String, opportunityId: String?, uri: String): Boolean =
+        preferences.edit().putString("pdf/${resumeDraftKey(uid, opportunityId)}", uri).commit()
+
+    fun loadPdfUri(uid: String, opportunityId: String?): String? =
+        preferences.getString("pdf/${resumeDraftKey(uid, opportunityId)}", null)
 }

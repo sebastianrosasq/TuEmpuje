@@ -54,7 +54,7 @@ internal fun OpportunityAssistantDialog(
     var payUnit by rememberSaveable { mutableStateOf("Por tarea") }
     var noExperience by rememberSaveable { mutableStateOf<Boolean?>(null) }
     var dateChoice by rememberSaveable { mutableStateOf("Por coordinar") }
-    var includeBusiness by rememberSaveable { mutableStateOf(businessName.isNotBlank()) }
+    val includeBusiness = businessName.isNotBlank()
     var noAdditionalRequirements by rememberSaveable { mutableStateOf(false) }
     var consent by rememberSaveable { mutableStateOf(false) }
     var adult by rememberSaveable { mutableStateOf(false) }
@@ -67,6 +67,8 @@ internal fun OpportunityAssistantDialog(
     var error by remember { mutableStateOf<String?>(null) }
     var showValidation by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
+    val scrollState = rememberScrollState()
+    LaunchedEffect(step) { scrollState.scrollTo(0) }
     val workLocation = if (mode == "Remoto") "Remoto" else location.trim()
     val firstValid = input.trim().length >= 10 && noExperience != null
     val conditionsValid = assistantConditionsValid(mode, location, amount, payUnit, consent, adult)
@@ -76,7 +78,7 @@ internal fun OpportunityAssistantDialog(
         icon = { Empu(if (busy) EmpuMood.LOADING else if (step == 2) EmpuMood.SUCCESS else EmpuMood.THINKING, Modifier.size(96.dp)) },
         title = { Text(when (step) { 0 -> "Creemos tu oportunidad"; 1 -> "Solo faltan las condiciones"; else -> "Así se verá tu publicación" }) },
         text = {
-            Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Column(Modifier.verticalScroll(scrollState), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Text("Paso ${step + 1} de 3", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
                 LinearProgressIndicator(progress = { (step + 1) / 3f }, modifier = Modifier.fillMaxWidth())
                 error?.let { AppNotice(it, isError = true) }
@@ -84,10 +86,7 @@ internal fun OpportunityAssistantDialog(
                     0 -> {
                         Text("Cuéntame qué necesitas en pocas palabras. Prepararé una publicación para que la revises")
                         if (businessName.isNotBlank()) {
-                            Row(Modifier.fillMaxWidth().toggleable(value = includeBusiness, role = Role.Checkbox, enabled = !busy, onValueChange = { includeBusiness = it }), verticalAlignment = Alignment.CenterVertically) {
-                                Checkbox(checked = includeBusiness, onCheckedChange = null)
-                                Column { Text("Publicar como $businessName", fontWeight = FontWeight.SemiBold); Text("Datos guardados en tu perfil", style = MaterialTheme.typography.bodySmall) }
-                            }
+                            Column { Text("Publicar como $businessName", fontWeight = FontWeight.SemiBold); Text("Datos guardados en tu perfil de empresa", style = MaterialTheme.typography.bodySmall) }
                         }
                         OutlinedTextField(value = input, onValueChange = { input = it.take(2000) }, label = { Text("¿Qué necesitas?") }, placeholder = { Text("Editar dos videos para mi tienda") }, minLines = 2, enabled = !busy, modifier = Modifier.fillMaxWidth(), isError = showValidation && input.trim().length < 10, supportingText = if (showValidation && input.trim().length < 10) { { Text("Escribe al menos 10 caracteres") } } else null)
                         Text("Tipo de trabajo", fontWeight = FontWeight.SemiBold)
@@ -157,6 +156,7 @@ internal fun OpportunityAssistantDialog(
                 0 -> TextButton(enabled = !busy, onClick = { showValidation = true; if (firstValid) { step = 1; showValidation = false } }) { Text("Continuar") }
                 1 -> TextButton(enabled = !busy && services != null && !services.isLocal, onClick = {
                     showValidation = true
+                    if (mode.isBlank()) scope.launch { scrollState.animateScrollTo(0) }
                     if (conditionsValid) {
                         busy = true; error = null; showValidation = false
                         scope.launch {

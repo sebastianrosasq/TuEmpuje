@@ -19,6 +19,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.graphics.asImageBitmap
 import android.content.Intent
 import android.net.Uri
+import android.content.ActivityNotFoundException
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.CancellationException
@@ -68,6 +69,7 @@ fun ResumeAssistantScreen(profile: AccountUiState, services: FirebaseServices, o
     var suggestion by remember { mutableStateOf<ResumeSuggestion?>(null) }
     var error by remember { mutableStateOf<String?>(null) }
     var message by remember { mutableStateOf<String?>(null) }
+    var lastPdf by rememberSaveable(uid, opportunity?.id) { mutableStateOf<String?>(null) }
     var confirmExit by remember { mutableStateOf(false) }
     var confirmEmpty by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
@@ -79,7 +81,10 @@ fun ResumeAssistantScreen(profile: AccountUiState, services: FirebaseServices, o
             busy = true
             try {
                 withContext(Dispatchers.IO) { ResumePdf.write(context.contentResolver, uri, selected, ResumeStyle.valueOf(style), goal, summary, photoUri.takeIf { it.isNotBlank() }?.let(Uri::parse), languages, references) }
-                message = "CV guardado en el lugar que elegiste"
+                val retained = runCatching { context.contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION) }.isSuccess
+                val remembered = retained && withContext(Dispatchers.IO) { draftStore.savePdfUri(uid, opportunity?.id, uri.toString()) }
+                lastPdf = uri.toString()
+                message = if (remembered) "CV guardado. Ya puedes abrirlo o elegirlo al postular" else "CV guardado. Si lo adjuntas más tarde, vuelve a elegir el archivo"
             } catch (e: CancellationException) { throw e }
             catch (_: Exception) { error = "No se pudo guardar el CV. Inténtalo de nuevo" }
             finally { busy = false }
@@ -216,6 +221,14 @@ fun ResumeAssistantScreen(profile: AccountUiState, services: FirebaseServices, o
                 pdfProfile = profile.copy(skills = skills, experience = experience, education = education)
                 savePdf.launch("TuEmpuje-CV.pdf")
             }, modifier = Modifier.fillMaxWidth()) { Text("Guardar PDF") }
+            lastPdf?.let { saved ->
+                OutlinedButton(onClick = {
+                    try { context.startActivity(Intent(Intent.ACTION_VIEW).setDataAndType(Uri.parse(saved), "application/pdf").addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)) }
+                    catch (_: ActivityNotFoundException) { error = "No hay una aplicación para abrir PDF" }
+                    catch (_: SecurityException) { error = "No se pudo abrir el archivo, vuelve a seleccionarlo desde el dispositivo" }
+                }, modifier = Modifier.fillMaxWidth()) { Text("Abrir mi CV") }
+                Button(onClick = onBack, modifier = Modifier.fillMaxWidth()) { Text(if (opportunity != null) "Volver a la oportunidad" else "Terminar") }
+            }
         }
     }
 }

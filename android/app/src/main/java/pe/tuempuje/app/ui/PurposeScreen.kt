@@ -34,10 +34,12 @@ internal val workInterests = listOf("Ayudantía", "Creativo", "Diseño y edició
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-fun PurposeScreen(initialRole: String?, initialInterests: Set<String>, saving: Boolean = false, saveError: String? = null, onComplete: (String, Set<String>) -> Unit) {
+fun PurposeScreen(initialRole: String?, initialInterests: Set<String>, saving: Boolean = false, saveError: String? = null,
+                  requireCompanyName: Boolean = false, initialCompanyName: String = "", onComplete: (String, Set<String>, String) -> Unit) {
     var role by rememberSaveable { mutableStateOf(initialRole) }
     var step by rememberSaveable { mutableIntStateOf(0) }
     var selected by rememberSaveable { mutableStateOf(initialInterests.toList()) }
+    var companyName by rememberSaveable { mutableStateOf(initialCompanyName) }
     BackHandler(enabled = step == 1) { step = 0 }
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
@@ -46,8 +48,8 @@ fun PurposeScreen(initialRole: String?, initialInterests: Set<String>, saving: B
             Surface(color = MaterialTheme.colorScheme.surface, tonalElevation = 3.dp, shadowElevation = 4.dp) {
                 Column(Modifier.fillMaxWidth().navigationBarsPadding().padding(horizontal = 22.dp, vertical = 12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Button(
-                        onClick = { if (step == 0 && role == "worker") step = 1 else onComplete(role ?: return@Button, selected.toSet()) },
-                        enabled = !saving && if (step == 0) role != null else selected.isNotEmpty(),
+                        onClick = { if (step == 0 && role == "worker") step = 1 else onComplete(role ?: return@Button, selected.toSet(), companyName.trim()) },
+                        enabled = !saving && if (step == 0) role != null && (role != "employer" || !requireCompanyName || companyName.trim().length in 2..100) else selected.isNotEmpty(),
                         modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
                         shape = MaterialTheme.shapes.large,
                     ) {
@@ -56,7 +58,7 @@ fun PurposeScreen(initialRole: String?, initialInterests: Set<String>, saving: B
                         Icon(Icons.AutoMirrored.Rounded.ArrowForward, contentDescription = null, modifier = Modifier.size(20.dp))
                     }
                     if (step == 1) TextButton(onClick = { step = 0 }, enabled = !saving, modifier = Modifier.align(Alignment.CenterHorizontally)) { Text("Volver") }
-                    if (step == 1 && selected.isEmpty()) TextButton(onClick = { onComplete("worker", emptySet()) }, enabled = !saving, modifier = Modifier.align(Alignment.CenterHorizontally)) { Text("Aún no me decido") }
+                    if (step == 1 && selected.isEmpty()) TextButton(onClick = { onComplete("worker", emptySet(), "") }, enabled = !saving, modifier = Modifier.align(Alignment.CenterHorizontally)) { Text("Aún no me decido") }
                 }
             }
         },
@@ -75,11 +77,13 @@ fun PurposeScreen(initialRole: String?, initialInterests: Set<String>, saving: B
             saveError?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodyMedium) }
             if (step == 0) {
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text("¿Qué quieres hacer?", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground)
-                    Text("Puedes cambiar de opción cuando lo necesites", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text("Elige tu tipo de cuenta", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground)
+                    Text("La cuenta personal puede buscar trabajo y pedir ayuda. La cuenta de empresa puede publicar oportunidades", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
-                PurposeCard("Buscar trabajo", "Encuentra oportunidades para tus habilidades y tus primeras experiencias", Icons.Rounded.BusinessCenter, role == "worker") { role = "worker" }
-                PurposeCard("Necesito ayuda", "Publica una tarea y conecta con personas que pueden apoyarte", Icons.Rounded.Storefront, role == "employer") { role = "employer" }
+                PurposeCard("Persona", "Busca trabajo y, cuando necesites apoyo, publica como particular", Icons.Rounded.BusinessCenter, role == "worker") { role = "worker" }
+                PurposeCard("Empresa", "Publica oportunidades con el perfil de tu negocio", Icons.Rounded.Storefront, role == "employer") { role = "employer" }
+                if (role == "employer" && requireCompanyName) OutlinedTextField(value = companyName, onValueChange = { companyName = it.take(100) }, label = { Text("Nombre de la empresa") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
+                Text("Después de guardar el tipo de cuenta no podrás cambiarlo. Una persona puede trabajar y pedir ayuda con la misma cuenta", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             } else {
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Text("Elige tus intereses", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground)

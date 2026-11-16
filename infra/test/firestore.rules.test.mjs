@@ -3,14 +3,14 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { assertFails, assertSucceeds, initializeTestEnvironment } from '@firebase/rules-unit-testing';
 import {
-  collection, collectionGroup, deleteField, doc, getDoc, getDocs, query, runTransaction, serverTimestamp, setDoc, updateDoc, where, writeBatch,
+  Bytes, collection, collectionGroup, deleteDoc, deleteField, doc, getDoc, getDocs, query, runTransaction, serverTimestamp, setDoc, updateDoc, where, writeBatch,
 } from 'firebase/firestore';
 
 const projectId = 'demo-tuempuje';
 let env;
 
 const user = (uid) => env.authenticatedContext(uid, { email: `${uid}@example.invalid` }).firestore();
-const profile = (uid) => ({ uid, displayName: `Perfil ${uid}`, email: `${uid}@example.invalid`, dni: '12345678', phone: '987654321', skills: 'Edición', availability: 'Tardes', role: uid === 'cliente' ? 'employer' : 'worker' });
+const profile = (uid) => ({ uid, displayName: `Perfil ${uid}`, email: `${uid}@example.invalid`, dni: '12345678', phone: '987654321', skills: 'Edición', availability: 'Tardes', role: uid === 'cliente' ? 'employer' : 'worker', accountType: uid === 'cliente' ? 'company' : 'person', ...(uid === 'cliente' ? { organization: 'Empresa de prueba' } : {}) });
 const opportunity = (uid) => ({
   ownerId: uid,
   ownerName: `Perfil ${uid}`,
@@ -25,6 +25,7 @@ const opportunity = (uid) => ({
   selectedCount: 0,
   status: 'published',
   createdAt: serverTimestamp(),
+  ...(uid === 'cliente' ? { publicBusinessName: 'Empresa de prueba', publicBusinessSector: '', publicBusinessDescription: '' } : {}),
 });
 const application = (uid) => ({ applicantId: uid, applicantName: `Perfil ${uid}`, applicantSkills: 'Edición', applicantAvailability: 'Tardes', applicantExperience: '', applicantDistrict: '', applicantEducation: '', applicantPortfolio: '', status: 'pending', createdAt: serverTimestamp() });
 
@@ -48,6 +49,27 @@ beforeEach(async () => {
 
 after(async () => {
   if (env) await env.cleanup();
+});
+
+test('el CV de una postulación solo es visible para sus participantes y tiene tamaño limitado', async () => {
+  const worker = user('candidato'); const owner = user('cliente'); const other = user('otro');
+  const app = doc(worker, 'opportunities', 'oferta', 'applications', 'candidato');
+  const cv = doc(worker, 'opportunities', 'oferta', 'applications', 'candidato', 'privateFiles', 'cv');
+  const data = { data: Bytes.fromUint8Array(new TextEncoder().encode('%PDF-1.4\nexample')), contentType: 'application/pdf', updatedAt: serverTimestamp() };
+  await assertFails(setDoc(cv, data));
+  const batch = writeBatch(worker); batch.set(app, application('candidato')); batch.set(cv, data);
+  await assertSucceeds(batch.commit());
+  await assertSucceeds(getDoc(cv));
+  await assertSucceeds(getDoc(doc(owner, 'opportunities', 'oferta', 'applications', 'candidato', 'privateFiles', 'cv')));
+  await assertFails(getDoc(doc(other, 'opportunities', 'oferta', 'applications', 'candidato', 'privateFiles', 'cv')));
+  await assertFails(getDocs(collection(owner, 'opportunities', 'oferta', 'applications', 'candidato', 'privateFiles')));
+  await assertFails(setDoc(doc(other, 'opportunities', 'oferta', 'applications', 'candidato', 'privateFiles', 'cv'), data));
+  await assertFails(setDoc(cv, { ...data, contentType: 'text/html' }));
+  await assertFails(setDoc(cv, { ...data, data: Bytes.fromUint8Array(new Uint8Array(700001)) }));
+  await assertFails(setDoc(doc(worker, 'opportunities', 'oferta', 'applications', 'candidato', 'privateFiles', 'otro'), data));
+  await assertSucceeds(updateDoc(app, { status: 'withdrawn', withdrawnAt: serverTimestamp() }));
+  await assertFails(getDoc(doc(owner, 'opportunities', 'oferta', 'applications', 'candidato', 'privateFiles', 'cv')));
+  await assertSucceeds(deleteDoc(cv));
 });
 
 test('solo el titular crea, lee y edita su perfil privado', async () => {
@@ -87,6 +109,27 @@ test('un invitado no puede leer ni escribir datos privados', async () => {
   await assertFails(getDoc(doc(guest, 'opportunities', 'oferta')));
   await assertFails(setDoc(doc(guest, 'users', 'invitado'), profile('invitado')));
   await assertFails(setDoc(doc(guest, 'opportunities', 'nueva'), opportunity('invitado')));
+});
+
+test('una persona publica y postula, una empresa publica sin poder postular ni cambiar de tipo', async () => {
+  const person = user('candidato'); const company = user('cliente');
+  await assertSucceeds(setDoc(doc(person, 'opportunities', 'solicitud-personal'), opportunity('candidato')));
+  await assertSucceeds(setDoc(doc(person, 'opportunities', 'oferta', 'applications', 'candidato'), application('candidato')));
+  await assertFails(setDoc(doc(company, 'opportunities', 'solicitud-personal', 'applications', 'cliente'), application('cliente')));
+  await assertFails(updateDoc(doc(company, 'users', 'cliente'), { accountType: 'person', role: 'worker' }));
+  await assertFails(updateDoc(doc(person, 'users', 'candidato'), { accountType: 'company', role: 'employer', organization: 'Empresa' }));
+  await assertFails(updateDoc(doc(person, 'users', 'candidato'), { businessType: 'NEGOCIO', organization: 'Empresa' }));
+});
+
+test('un perfil anterior debe elegir el tipo de cuenta antes de realizar nuevas operaciones', async () => {
+  await env.withSecurityRulesDisabled(async context => {
+    const { accountType, ...legacy } = profile('otro');
+    await setDoc(doc(context.firestore(), 'users', 'otro'), legacy);
+  });
+  const legacy = user('otro');
+  await assertFails(setDoc(doc(legacy, 'opportunities', 'sin-clasificar'), opportunity('otro')));
+  await assertSucceeds(updateDoc(doc(legacy, 'users', 'otro'), { accountType: 'person', role: 'worker' }));
+  await assertSucceeds(setDoc(doc(legacy, 'opportunities', 'ya-clasificada'), opportunity('otro')));
 });
 
 test('una cuenta normal no puede consultar ni alterar registros de moderación', async () => {
@@ -270,7 +313,7 @@ test('solo se crean oportunidades propias y con campos válidos', async () => {
   await assertFails(setDoc(doc(db, 'opportunities', 'estado'), { ...opportunity('cliente'), status: 'closed' }));
   await assertFails(setDoc(doc(db, 'opportunities', 'extra'), { ...opportunity('cliente'), verified: true }));
   await assertFails(setDoc(doc(user('sinperfil'), 'opportunities', 'sin-perfil'), opportunity('sinperfil')));
-  await assertFails(setDoc(doc(user('candidato'), 'opportunities', 'trabajador-no-publica'), opportunity('candidato')));
+  await assertSucceeds(setDoc(doc(user('candidato'), 'opportunities', 'persona-publica'), opportunity('candidato')));
 });
 
 test('ninguna cuenta altera vacantes, estado o dueño en esta etapa', async () => {

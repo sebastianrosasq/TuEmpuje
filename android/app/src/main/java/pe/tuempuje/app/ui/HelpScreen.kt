@@ -23,7 +23,7 @@ fun HelpScreen(onBack: () -> Unit) {
         }
         HelpTopic("Buscar y postular", "Elige una oportunidad, revisa sus condiciones y completa tus habilidades y disponibilidad antes de enviar tu postulación")
         HelpTopic("Publicar una oportunidad", "Selecciona la opción de ofrecer trabajo en tu perfil, describe las tareas, condiciones, pago y vacantes antes de publicar")
-        HelpTopic("Tus datos", "Al postular puedes revisar qué información del perfil se comparte. Tu documento, celular, nacionalidad y correo permanecen en tu perfil privado")
+        HelpTopic("Tus datos", "Al postular revisa qué información compartes. Los datos privados de tu cuenta no se envían por separado, pero un CV adjunto puede incluir tus datos de contacto")
         HelpTopic("Coordina con cuidado", "Revisa el lugar, las tareas y el pago antes de aceptar, no compartas contraseñas ni códigos de acceso y desconfía de cobros para postular")
         HelpTopic("Reportar una oportunidad", "Desde el detalle de la publicación puedes enviar un reporte. El registro de reportes está disponible y su revisión aún se encuentra en preparación")
         HelpTopic("Acerca de TuEmpuje", "Una plataforma para conectar primeras experiencias, personas y oportunidades de trabajo")

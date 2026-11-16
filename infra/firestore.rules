@@ -24,7 +24,7 @@ service cloud.firestore {
 
     function validProfile(data, uid) {
       return data.keys().hasAll(['uid', 'displayName', 'email'])
-        && data.keys().hasOnly(['uid', 'displayName', 'email', 'dni', 'documentType', 'phone', 'nationality', 'skills', 'experience', 'availability', 'role', 'interests', 'district', 'organization', 'education', 'portfolio', 'businessType', 'businessSector', 'businessDescription'])
+        && data.keys().hasOnly(['uid', 'displayName', 'email', 'dni', 'documentType', 'phone', 'nationality', 'skills', 'experience', 'availability', 'role', 'accountType', 'interests', 'district', 'organization', 'education', 'portfolio', 'businessType', 'businessSector', 'businessDescription'])
         && data.uid == uid
         && textWithin(data.displayName, 2, 80)
         && data.displayName.matches('(?s).*\\S.*')
@@ -36,6 +36,11 @@ service cloud.firestore {
         && (!('experience' in data) || textWithin(data.experience, 0, 1500))
         && (!('availability' in data) || textWithin(data.availability, 0, 200))
         && (!('role' in data) || data.role in ['worker', 'employer'])
+        && (!('accountType' in data) || (data.accountType in ['person', 'company']
+          && ((data.accountType == 'person' && data.get('role', '') == 'worker' && data.get('businessType', '') != 'NEGOCIO')
+            || (data.accountType == 'company' && data.get('role', '') == 'employer'
+              && data.get('businessType', 'NEGOCIO') == 'NEGOCIO'
+              && textWithin(data.get('organization', ''), 2, 100)))))
         && (!('interests' in data) || (data.interests is list && data.interests.size() <= 11 && data.interests.hasOnly(['Ayudantía', 'Creativo', 'Diseño y edición', 'Programación', 'Ventas y atención', 'Administración', 'Eventos', 'Logística', 'Educación', 'Servicios', 'Otro'])))
         && (!('district' in data) || textWithin(data.district, 0, 100))
         && (!('organization' in data) || textWithin(data.organization, 0, 100))
@@ -58,7 +63,8 @@ service cloud.firestore {
       allow update: if signedIn() && active(request.auth.uid)
         && request.auth.uid == uid
         && validProfile(request.resource.data, uid)
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['displayName', 'dni', 'documentType', 'phone', 'nationality', 'skills', 'experience', 'availability', 'role', 'interests', 'district', 'organization', 'education', 'portfolio', 'businessType', 'businessSector', 'businessDescription']);
+        && (!('accountType' in resource.data) || request.resource.data.get('accountType', '') == resource.data.accountType)
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['displayName', 'dni', 'documentType', 'phone', 'nationality', 'skills', 'experience', 'availability', 'role', 'accountType', 'interests', 'district', 'organization', 'education', 'portfolio', 'businessType', 'businessSector', 'businessDescription']);
       allow delete: if false;
     }
 
@@ -69,7 +75,7 @@ service cloud.firestore {
     function validBusinessSnapshot(data) {
       let fields = ['publicBusinessName', 'publicBusinessSector', 'publicBusinessDescription'];
       let profile = get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
-      return !data.keys().hasAny(fields) || (data.keys().hasAll(fields)
+      return !data.keys().hasAny(fields) || (profile.get('accountType', '') == 'company' && data.keys().hasAll(fields)
         && textWithin(data.publicBusinessName, 2, 100)
         && data.publicBusinessName == profile.get('organization', '')
         && data.publicBusinessSector == profile.get('businessSector', '')
@@ -111,7 +117,9 @@ service cloud.firestore {
         || exists(/databases/$(database)/documents/opportunities/$(opportunityId)/applications/$(request.auth.uid)));
       allow create: if signedIn() && active(request.auth.uid)
         && exists(/databases/$(database)/documents/users/$(request.auth.uid))
-        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('role', '') == 'employer'
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('accountType', '') in ['person', 'company']
+        && (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.accountType != 'company'
+          || request.resource.data.keys().hasAll(['publicBusinessName', 'publicBusinessSector', 'publicBusinessDescription']))
         && validOpportunity(request.resource.data);
       allow update: if signedIn() && active(request.auth.uid)
         && resource.data.ownerId == request.auth.uid
@@ -177,6 +185,28 @@ service cloud.firestore {
           return get(opportunityPath(opportunityId));
         }
 
+        match /privateFiles/{fileId} {
+          function applicationPath() {
+            return /databases/$(database)/documents/opportunities/$(opportunityId)/applications/$(applicantId);
+          }
+          allow get: if fileId == 'cv' && signedIn() && active(request.auth.uid)
+            && (request.auth.uid == applicantId || (opportunity().data.ownerId == request.auth.uid
+              && exists(applicationPath())
+              && get(applicationPath()).data.status in ['pending', 'reviewing', 'selected', 'rejected', 'completed']));
+          allow list: if false;
+          allow create, update: if fileId == 'cv' && signedIn() && active(request.auth.uid)
+            && request.auth.uid == applicantId
+            && getAfter(applicationPath()).data.status == 'pending'
+            && request.resource.data.keys().hasOnly(['data', 'contentType', 'updatedAt'])
+            && request.resource.data.keys().hasAll(['data', 'contentType', 'updatedAt'])
+            && request.resource.data.data is bytes && request.resource.data.data.size() >= 5
+            && request.resource.data.data.size() <= 700000
+            && request.resource.data.contentType == 'application/pdf'
+            && request.resource.data.updatedAt == request.time;
+          allow delete: if fileId == 'cv' && signedIn() && active(request.auth.uid)
+            && request.auth.uid == applicantId;
+        }
+
         allow read: if signedIn()
           && (request.auth.uid == applicantId
             || (exists(opportunityPath(opportunityId))
@@ -184,6 +214,7 @@ service cloud.firestore {
         allow create: if signedIn() && active(request.auth.uid)
           && request.auth.uid == applicantId
           && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+          && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('accountType', '') == 'person'
           && validIdentity(get(/databases/$(database)/documents/users/$(request.auth.uid)).data)
           && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('phone', '').matches('9[0-9]{8}')
           && textWithin(get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('skills', ''), 2, 500)
@@ -245,6 +276,7 @@ service cloud.firestore {
             && getAfter(opportunityPath(opportunityId)).data.lastWithdrawnApplicantId == applicantId));
         allow update: if signedIn() && active(request.auth.uid) && request.auth.uid == applicantId
           && resource.data.status in ['withdrawn', 'cancelled'] && opportunity().data.status == 'published'
+          && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('accountType', '') == 'person'
           && active(opportunity().data.ownerId) && opportunity().data.selectedCount < opportunity().data.vacancies
           && validIdentity(get(/databases/$(database)/documents/users/$(request.auth.uid)).data)
           && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('phone', '').matches('9[0-9]{8}')

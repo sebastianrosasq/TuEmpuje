@@ -39,6 +39,7 @@ data class AccountUiState(
     val district: String = "",
     val organization: String = "",
     val businessType: String = "",
+    val accountType: String = "",
     val businessSector: String = "",
     val businessDescription: String = "",
     val education: String = "",
@@ -175,7 +176,12 @@ class AccountViewModel(
         val emailValue = email.trim()
         val cleanDni = dni.trim()
         val cleanPhone = phone.trim()
-        val purposeError = if (role == "employer" && district.trim().length !in 2..100) "Ingresa tu distrito para crear la cuenta" else null
+        val purposeError = when {
+            role !in setOf("worker", "employer") -> "Selecciona el tipo de cuenta"
+            role == "employer" && organization.trim().length !in 2..100 -> "Ingresa el nombre de la empresa"
+            role == "employer" && district.trim().length !in 2..100 -> "Ingresa tu distrito para crear la cuenta"
+            else -> null
+        }
         val validation = validateName(cleanName) ?: validateCredentials(emailValue, password) ?: identityError(cleanDni, cleanPhone, documentType) ?: (if (nationality.trim().length !in 2..80) "Ingresa tu nacionalidad" else null) ?: purposeError
         if (validation != null) {
             mutableState.value = mutableState.value.copy(error = validation)
@@ -187,8 +193,8 @@ class AccountViewModel(
             val user = withTimeout(12_000) { auth.createUserWithEmailAndPassword(emailValue, password).await() }.user
                 ?: error("No se creó la cuenta")
             try {
-                writeProfile(user, cleanName, cleanDni, cleanPhone, nationality, role, interests, district, organization, documentType)
-                mutableState.value = signedIn(user, cleanName).copy(dni = cleanDni, documentType = documentType, phone = cleanPhone, nationality = nationality.trim(), district = district.trim(), organization = organization.trim())
+                writeProfile(user, cleanName, cleanDni, cleanPhone, nationality, role, interests, district, organization, documentType, creating = true)
+                mutableState.value = signedIn(user, cleanName).copy(dni = cleanDni, documentType = documentType, phone = cleanPhone, nationality = nationality.trim(), district = district.trim(), organization = organization.trim(), accountType = if (role == "employer") "company" else "person")
             } catch (exception: TimeoutCancellationException) {
                 mutableState.value = signedIn(user).copy(
                     displayName = cleanName,
@@ -255,6 +261,8 @@ class AccountViewModel(
         val cleanDescription = description.trim()
         val validation = when {
             type !in listOf("PERSONA", "PROFESIONAL", "NEGOCIO") -> "Selecciona cómo ofreces oportunidades"
+            mutableState.value.accountType == "company" && type != "NEGOCIO" -> "La cuenta de empresa conserva su perfil empresarial"
+            mutableState.value.accountType == "person" && type == "NEGOCIO" -> "Una cuenta personal publica como particular"
             type == "NEGOCIO" && cleanOrganization.length !in 2..100 -> "Ingresa el nombre del negocio"
             cleanOrganization.length > 100 -> "El nombre del negocio es demasiado largo"
             cleanDistrict.length !in 2..100 -> "Ingresa tu distrito"
@@ -287,7 +295,7 @@ class AccountViewModel(
         val cleanName = name.trim()
         val cleanDni = dni.trim()
         val cleanPhone = phone.trim()
-        val validation = validateName(cleanName) ?: identityError(cleanDni, cleanPhone, documentType) ?: (if (nationality.trim().length !in 2..80) "Ingresa tu nacionalidad" else null) ?: (if (role == "employer" && district.trim().length !in 2..100) "Ingresa tu distrito" else null) ?: if (mutableState.value.businessType == "NEGOCIO" && organization.trim().length !in 2..100) "Ingresa el nombre del negocio" else null
+        val validation = validateName(cleanName) ?: identityError(cleanDni, cleanPhone, documentType) ?: (if (nationality.trim().length !in 2..80) "Ingresa tu nacionalidad" else null) ?: (if (role == "employer" && district.trim().length !in 2..100) "Ingresa tu distrito" else null) ?: if ((role == "employer" || mutableState.value.businessType == "NEGOCIO") && organization.trim().length !in 2..100) "Ingresa el nombre de la empresa" else null
         if (validation != null) {
             mutableState.value = mutableState.value.copy(error = validation)
             return
@@ -299,7 +307,7 @@ class AccountViewModel(
         val previous = mutableState.value
         runOperation {
             try {
-                writeProfile(user, cleanName, cleanDni, cleanPhone, nationality, role, interests, district, organization, documentType)
+                writeProfile(user, cleanName, cleanDni, cleanPhone, nationality, role, interests, district, organization, documentType, creating = previous.needsProfile)
                 mutableState.value = previous.copy(loading = false, displayName = cleanName, dni = cleanDni, documentType = documentType, phone = cleanPhone, nationality = nationality.trim(), district = district.trim(), organization = organization.trim(), needsProfile = false, error = null)
             } catch (exception: TimeoutCancellationException) {
                 mutableState.value = previous.copy(loading = false, error = unconfirmedProfileMessage)
@@ -398,11 +406,11 @@ class AccountViewModel(
         }
     }
 
-    private suspend fun writeProfile(user: FirebaseUser, name: String, dni: String, phone: String, nationality: String, role: String? = null, interests: Set<String> = emptySet(), district: String = "", organization: String = "", documentType: String = "DNI") {
+    private suspend fun writeProfile(user: FirebaseUser, name: String, dni: String, phone: String, nationality: String, role: String? = null, interests: Set<String> = emptySet(), district: String = "", organization: String = "", documentType: String = "DNI", creating: Boolean = false) {
         val email = user.email ?: error("La cuenta no tiene correo")
         withTimeout(12_000) {
             firestore.collection("users").document(user.uid).set(
-                (mapOf("uid" to user.uid, "displayName" to name, "email" to email, "dni" to dni, "documentType" to documentType, "phone" to phone, "nationality" to nationality.trim()) + if (role in setOf("worker", "employer")) mapOf("role" to role, "interests" to interests.sorted(), "district" to district.trim(), "organization" to organization.trim()) else emptyMap()), SetOptions.merge(),
+                (mapOf("uid" to user.uid, "displayName" to name, "email" to email, "dni" to dni, "documentType" to documentType, "phone" to phone, "nationality" to nationality.trim()) + (if (role in setOf("worker", "employer")) mapOf("role" to role, "interests" to interests.sorted(), "district" to district.trim(), "organization" to organization.trim()) else emptyMap()) + (if (creating && role in setOf("worker", "employer")) mapOf("accountType" to if (role == "employer") "company" else "person") else emptyMap())), SetOptions.merge(),
             ).await()
         }
     }
@@ -459,6 +467,7 @@ class AccountViewModel(
         district = profile.getString("district").orEmpty(),
         organization = profile.getString("organization").orEmpty(),
         businessType = profile.getString("businessType").orEmpty(),
+        accountType = profile.getString("accountType").orEmpty(),
         businessSector = profile.getString("businessSector").orEmpty(),
         businessDescription = profile.getString("businessDescription").orEmpty(),
         education = profile.getString("education").orEmpty(),

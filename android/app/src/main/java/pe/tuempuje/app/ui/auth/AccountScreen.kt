@@ -256,6 +256,7 @@ fun AccountScreen(auth: FirebaseAuth, firestore: FirebaseFirestore, onSettings: 
             state.profileLoadFailed -> ProfileUnavailable(account, state.loading) { confirmSignOut = true }
             else -> ProfileForm(state, account, isEmployer, onShowExperience = { showExperience = true }, onSignOut = { confirmSignOut = true })
         }
+        if (authGate && state.uid == null && auth.currentUser == null) TextButton(enabled = !state.loading, onClick = onChoosePurpose) { Text("Cambiar tipo de cuenta") }
         if (state.uid != null && !authGate) {
             TextButton(enabled = !state.loading, onClick = { confirmDelete = true }) { Text("Eliminar cuenta", color = MaterialTheme.colorScheme.error) }
             if (!isEmployer && !state.profileLoadFailed) {
@@ -271,7 +272,7 @@ fun AccountScreen(auth: FirebaseAuth, firestore: FirebaseFirestore, onSettings: 
             }
         }
         if (!authGate) {
-            OutlinedButton(onClick = onChoosePurpose, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) { Text("Cambiar qué quiero hacer") }
+            Text(if (isEmployer) "Cuenta de empresa" else "Cuenta personal · puedes buscar trabajo y pedir ayuda", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Text("Tu espacio", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
             if (!isEmployer) OutlinedButton(onClick = onSaved, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) { Text("Oportunidades guardadas") }
             OutlinedButton(onClick = onHelp, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) { Text("Ayuda y seguridad") }
@@ -339,7 +340,7 @@ private fun AuthForm(account: AccountViewModel, loading: Boolean, hasError: Bool
                         isError = attempted && district.trim().length !in 2..100,
                         supportingText = if (attempted && district.trim().length !in 2..100) { { Text("Ingresa tu distrito") } } else null,
                         modifier = Modifier.fillMaxWidth())
-                    OutlinedTextField(value = organization, onValueChange = { organization = it.take(100) }, label = { Text("Negocio u organización, opcional") }, enabled = !loading, singleLine = true, modifier = Modifier.fillMaxWidth())
+                    OutlinedTextField(value = organization, onValueChange = { organization = it.take(100) }, label = { Text("Nombre de la empresa") }, enabled = !loading, singleLine = true, isError = attempted && organization.trim().length !in 2..100, supportingText = if (attempted && organization.trim().length !in 2..100) { { Text("Ingresa el nombre de la empresa") } } else null, modifier = Modifier.fillMaxWidth())
                 }
                 Text("Tu documento y celular se guardan en tu perfil privado, su formato no verifica tu identidad", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
@@ -550,7 +551,7 @@ private fun ProfileForm(state: AccountUiState, account: AccountViewModel, isEmpl
                 OutlinedTextField(value = nationality, onValueChange = { nationality = it.take(80) }, label = { Text("Nacionalidad") }, enabled = !state.loading, singleLine = true, modifier = Modifier.fillMaxWidth())
                 if (isEmployer) {
                     OutlinedTextField(value = district, onValueChange = { district = it.take(100) }, label = { Text("Distrito donde necesitas apoyo") }, enabled = !state.loading, modifier = Modifier.fillMaxWidth())
-                    OutlinedTextField(value = organization, onValueChange = { organization = it.take(100) }, label = { Text("Negocio u organización, opcional") }, enabled = !state.loading, modifier = Modifier.fillMaxWidth())
+                    OutlinedTextField(value = organization, onValueChange = { organization = it.take(100) }, label = { Text("Nombre de la empresa") }, enabled = !state.loading, modifier = Modifier.fillMaxWidth())
                 }
                 Text("Tu documento y celular se guardan en tu perfil privado, su formato no verifica tu identidad", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Button(
@@ -618,7 +619,7 @@ private fun ExperienceEditor(state: AccountUiState, account: AccountViewModel, o
     Column(Modifier.verticalScroll(rememberScrollState()).padding(22.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
         TextButton(onClick = leave, enabled = !state.loading) { Text("Volver al perfil") }
         Text("Mi perfil laboral", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
-        AppNotice("Al postular se comparten tus habilidades, experiencia, disponibilidad, distrito, estudios y portafolio, tu documento, celular y correo permanecen privados")
+        AppNotice("Al postular se comparten tus datos laborales. Si adjuntas un CV, revisa también los datos de contacto que incluiste en el documento")
         state.error?.let { AccountError(it) }
         Surface(shape = MaterialTheme.shapes.large, color = MaterialTheme.colorScheme.surface) {
             Column(Modifier.fillMaxWidth().padding(20.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
@@ -663,7 +664,7 @@ private fun ExperienceEditor(state: AccountUiState, account: AccountViewModel, o
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun BusinessEditor(state: AccountUiState, account: AccountViewModel, onBack: () -> Unit) {
-    var type by rememberSaveable(state.uid) { mutableStateOf(state.businessType) }
+    val type = "NEGOCIO"
     var organization by rememberSaveable(state.uid) { mutableStateOf(state.organization) }
     var district by rememberSaveable(state.uid) { mutableStateOf(state.district) }
     var sector by rememberSaveable(state.uid) { mutableStateOf(state.businessSector) }
@@ -672,7 +673,7 @@ private fun BusinessEditor(state: AccountUiState, account: AccountViewModel, onB
     var saving by remember { mutableStateOf(false) }
     var attempted by rememberSaveable { mutableStateOf(false) }
     val scrollState = rememberScrollState()
-    val changed = type != state.businessType || organization != state.organization || district != state.district || sector != state.businessSector || description != state.businessDescription
+    val changed = organization != state.organization || district != state.district || sector != state.businessSector || description != state.businessDescription
     val leave = { if (!state.loading) { if (changed) discard = true else onBack() } }
     BackHandler { leave() }
     LaunchedEffect(state.loading, state.error, saving) {
@@ -690,13 +691,7 @@ private fun BusinessEditor(state: AccountUiState, account: AccountViewModel, onB
         state.error?.let { AccountError(it) }
         Surface(shape = MaterialTheme.shapes.large, color = MaterialTheme.colorScheme.surface) {
             Column(Modifier.fillMaxWidth().padding(20.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                Text("¿Cómo publicas?", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    listOf("PERSONA" to "Persona", "PROFESIONAL" to "Profesional", "NEGOCIO" to "Negocio").forEach { (value, label) ->
-                        FilterChip(selected = type == value, onClick = { type = value }, enabled = !state.loading, label = { Text(label) })
-                    }
-                }
-                if (attempted && type.isBlank()) Text("Selecciona una opción", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+                Text("Perfil de empresa", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
                 OutlinedTextField(value = organization, onValueChange = { organization = it.take(100) }, enabled = !state.loading,
                     label = { Text(if (type == "NEGOCIO") "Nombre del negocio" else "Negocio u organización, opcional") }, singleLine = true,
                     isError = attempted && type == "NEGOCIO" && organization.trim().length !in 2..100,

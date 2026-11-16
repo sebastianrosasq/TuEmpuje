@@ -89,11 +89,13 @@ El empleador marca un trabajo como finalizado y la persona seleccionada confirma
 
 Las confirmaciones y referencias registran lo declarado por las partes, no verifican identidad ni acreditan pagos, las publicaciones anteriores que no indican experiencia requerida permanecen sin clasificar
 
-El perfil permite guardar un CV en PDF con los datos registrados, el archivo se guarda en el dispositivo y no se adjunta automáticamente a las postulaciones
+El perfil permite guardar un CV en PDF con los datos registrados, al postular se puede elegir si se adjunta un PDF de hasta 700 kB para que lo consulte quien publicó la oportunidad
 
 El asistente de Empu utiliza Gemini en el entorno de desarrollo para proponer oportunidades y sugerencias de CV, al publicar permite elegir las condiciones, reutilizar los datos del negocio y revisar una vista previa editable antes de confirmar, la persona autoriza el envío de su descripción y el formulario manual sigue disponible
 
-El creador de CV ofrece seis diseños, muestra la primera página antes de exportar y permite añadir una foto opcional, guardar un borrador general o por oportunidad y generar un PDF, todavía no importa archivos existentes ni entrega el PDF al empleador
+El creador de CV ofrece seis diseños, muestra la primera página antes de exportar y permite añadir una foto opcional, guardar un borrador general o por oportunidad y generar un PDF, todavía no interpreta el contenido de archivos existentes
+
+Una cuenta personal puede postular y publicar solicitudes de apoyo, una cuenta de empresa puede publicar y consultar oportunidades, el tipo se elige al registrarse y los perfiles anteriores deben seleccionarlo al ingresar
 
 TuEmpuje está dirigido a personas de 18 años o más, antes de abrir la aplicación al público se debe completar y verificar el control de edad de acceso conforme a las condiciones del proveedor de IA
 

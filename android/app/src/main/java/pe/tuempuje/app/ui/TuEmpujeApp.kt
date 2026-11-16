@@ -5,6 +5,8 @@ import android.content.Intent
 import android.content.res.Configuration
 import android.net.Uri
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.EnterTransition
@@ -86,6 +88,9 @@ import pe.tuempuje.app.data.OpportunityFilters
 import pe.tuempuje.app.data.searchOpportunities
 import pe.tuempuje.app.data.OpportunityViewModelFactory
 import pe.tuempuje.app.data.FirebaseServices
+import pe.tuempuje.app.profile.ResumeDraftStore
+import pe.tuempuje.app.profile.readCvPdf
+import androidx.core.content.FileProvider
 import pe.tuempuje.app.notifications.NotificationScheduler
 import pe.tuempuje.app.ui.auth.AccountScreen
 import pe.tuempuje.app.ui.components.AppEmptyState
@@ -105,6 +110,10 @@ import pe.tuempuje.app.ui.components.WelcomeIntro
 import pe.tuempuje.app.ui.theme.EmpuLight
 import pe.tuempuje.app.ui.theme.AppSpacing
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.CancellationException
+import java.io.File
 import java.time.LocalDate
 import java.time.Instant
 import java.time.ZoneId
@@ -140,23 +149,26 @@ fun TuEmpujeApp(services: FirebaseServices?, resetCode: String? = null, onResetC
     var choosePurpose by rememberSaveable { mutableStateOf(preferences?.purpose == null) }
     var purposeSaving by remember { mutableStateOf(false) }
     var purposeError by remember { mutableStateOf<String?>(null) }
-    LaunchedEffect(model.userId, model.profileLoaded, model.profileRole, model.profileInterests) {
+    LaunchedEffect(model.userId, model.profileLoaded, model.profileAccountType, model.profileInterests) {
         if (model.profileLoaded && preferences != null) {
-            if (model.profileRole != null) preferences.updatePurpose(model.profileRole!!, model.profileInterests)
-            else preferences.purpose?.let { model.savePurpose(it, preferences.interests) }
+            if (model.profileAccountType == null) choosePurpose = true
+            else {
+                preferences.updatePurpose(if (model.profileAccountType == "company") "employer" else "worker", model.profileInterests)
+                choosePurpose = false
+            }
         }
     }
     EmpuProvider {
         Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background, contentColor = MaterialTheme.colorScheme.onBackground) {
             Box(Modifier.fillMaxSize()) {
-                if (choosePurpose && resetCode == null) PurposeScreen(preferences?.purpose, preferences?.interests.orEmpty(), purposeSaving, purposeError) { role, interests ->
+                if (choosePurpose && resetCode == null) PurposeScreen(if (model.profileLoaded && model.profileAccountType == null) null else preferences?.purpose, preferences?.interests.orEmpty(), purposeSaving, purposeError, requireCompanyName = model.userId != null && model.profileLoaded, initialCompanyName = model.profileOrganization) { role, interests, companyName ->
                     purposeError = null
                     if (model.userId == null) {
                         preferences?.updatePurpose(role, interests)
                         choosePurpose = false
                     } else {
                         purposeSaving = true
-                        model.savePurpose(role, interests) { saved ->
+                        model.savePurpose(role, interests, companyName) { saved ->
                             purposeSaving = false
                             if (saved) { preferences?.updatePurpose(role, interests); choosePurpose = false }
                             else purposeError = "No se pudieron guardar tus preferencias, revisa tu conexión e inténtalo nuevamente"
@@ -192,7 +204,7 @@ private fun TuEmpujeContent(services: FirebaseServices?, model: OpportunityViewM
     var cvOpportunityRequirements by rememberSaveable { mutableStateOf("") }
     val snackbar = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
-    val availableDestinations = if (preferences?.purpose == "employer") destinations else destinations.filterNot { it.route == "publicar" }
+    val availableDestinations = destinations
     val navigationGroups = if (LocalConfiguration.current.fontScale >= 1.8f) availableDestinations.chunked(if (availableDestinations.size > 4) 3 else 2) else listOf(availableDestinations)
     val openDestination: (String) -> Unit = { route ->
         val current = nav.currentDestination?.route
@@ -269,7 +281,7 @@ private fun TuEmpujeContent(services: FirebaseServices?, model: OpportunityViewM
                     DestinationSurface { ExploreScreen(model, onSaved = { nav.navigate("guardados") }, onSettings = { nav.navigate("ajustes") }, onAccount = { openDestination("perfil") }, onPublish = { openDestination("publicar") }) { nav.navigate("detalle/$it") { launchSingleTop = true } } }
                 }
                 composable("publicar") {
-                    if (preferences?.purpose == "employer") DestinationSurface { PublishScreen(services, model, onBack = { nav.popBackStack() }, onAccount = { openDestination("perfil") }) {
+                    DestinationSurface { PublishScreen(services, model, onBack = { nav.popBackStack() }, onAccount = { openDestination("perfil") }) {
                         activityRevision++
                         openDestination("actividad")
                         scope.launch { snackbar.showSnackbar("Oportunidad publicada") }
@@ -284,7 +296,11 @@ private fun TuEmpujeContent(services: FirebaseServices?, model: OpportunityViewM
                 composable("perfil") {
                     DestinationSurface {
                     if (services != null) {
-                        AccountScreen(services.auth, services.firestore, onSettings = { nav.navigate("ajustes") }, onSaved = { nav.navigate("guardados") }, onChoosePurpose = onChoosePurpose, resetCode = resetCode, onResetConsumed = onResetConsumed, onHelp = { nav.navigate("ayuda") }, openWorkProfile = openWorkProfile, onWorkProfileOpened = { openWorkProfile = false }, cvOpportunity = cvOpportunityId?.let { CvOpportunityContext(it, cvOpportunityTitle, cvOpportunityRequirements) }, onCvClosed = { cvOpportunityId = null; cvOpportunityTitle = ""; cvOpportunityRequirements = "" })
+                        AccountScreen(services.auth, services.firestore, onSettings = { nav.navigate("ajustes") }, onSaved = { nav.navigate("guardados") }, onChoosePurpose = onChoosePurpose, resetCode = resetCode, onResetConsumed = onResetConsumed, onHelp = { nav.navigate("ayuda") }, openWorkProfile = openWorkProfile, onWorkProfileOpened = { openWorkProfile = false }, cvOpportunity = cvOpportunityId?.let { CvOpportunityContext(it, cvOpportunityTitle, cvOpportunityRequirements) }, onCvClosed = {
+                            val returnToOpportunity = cvOpportunityId != null
+                            cvOpportunityId = null; cvOpportunityTitle = ""; cvOpportunityRequirements = ""
+                            if (returnToOpportunity) nav.popBackStack()
+                        })
                     } else {
                         ProfileScreen(onSettings = { nav.navigate("ajustes") }, onSaved = { nav.navigate("guardados") })
                     }
@@ -423,7 +439,7 @@ private fun ExploreScreen(model: OpportunityViewModel, onSaved: () -> Unit, onSe
         items(opportunities, key = { it.id }) { opportunity ->
             OpportunityCard(opportunity, modifier = if (reduceMotion) Modifier else Modifier.animateItem(), availabilityConfirmed = !model.feedFromCache) { open(opportunity.id) }
         }
-        item { QuickActions(onSaved, onPublish, LocalAppPreferences.current?.purpose == "employer") }
+        item { QuickActions(onSaved, onPublish, true) }
     }
 }
 
@@ -651,6 +667,23 @@ private fun DetailScreen(opportunity: Opportunity?, model: OpportunityViewModel,
         )
     }
     val context = LocalContext.current
+    val cvStore = remember(context) { ResumeDraftStore(context) }
+    val applicationScope = rememberCoroutineScope()
+    var selectedCv by rememberSaveable(opportunity?.id) { mutableStateOf<String?>(null) }
+    var cvError by rememberSaveable(opportunity?.id) { mutableStateOf<String?>(null) }
+    var cvBusy by remember { mutableStateOf(false) }
+    val selectCv = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri != null) applicationScope.launch {
+            cvBusy = true; cvError = null
+            try {
+                withContext(Dispatchers.IO) { readCvPdf(context.contentResolver, uri) }
+                runCatching { context.contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION) }
+                selectedCv = uri.toString()
+            } catch (e: CancellationException) { throw e }
+            catch (e: Exception) { cvError = (e as? IllegalArgumentException)?.message ?: "No se pudo abrir el PDF. Elige otro archivo" }
+            finally { cvBusy = false }
+        }
+    }
     if (confirmApplication && opportunity != null && !opportunity.own) {
         AlertDialog(
             onDismissRequest = { confirmApplication = false },
@@ -667,10 +700,28 @@ private fun DetailScreen(opportunity: Opportunity?, model: OpportunityViewModel,
                     DetailRow("Distrito", profile.district.ifBlank { "Sin registrar" })
                     DetailRow("Estudios", profile.education.ifBlank { "Sin registrar" })
                     DetailRow("Portafolio", profile.portfolio.ifBlank { "Sin registrar" })
-                    Text("Tu documento, celular y correo no se comparten en esta postulación", style = MaterialTheme.typography.bodySmall)
+                    Text("CV opcional", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                    Text(if (selectedCv == null) "No has adjuntado un CV" else "PDF seleccionado para esta oportunidad", style = MaterialTheme.typography.bodyMedium)
+                    OutlinedButton(enabled = !cvBusy && !model.busy, onClick = { selectCv.launch(arrayOf("application/pdf")) }, modifier = Modifier.fillMaxWidth()) { Text(if (selectedCv == null) "Elegir CV en PDF" else "Cambiar CV") }
+                    if (selectedCv != null) TextButton(enabled = !cvBusy && !model.busy, onClick = { selectedCv = null }) { Text("Quitar CV") }
+                    Text("Máximo 700 kB. El PDF se compartirá con quien publicó la oferta y puede contener los datos de contacto que hayas incluido", style = MaterialTheme.typography.bodySmall)
+                    Text("Los datos privados de tu cuenta no se comparten por separado", style = MaterialTheme.typography.bodySmall)
+                    cvError?.let { AppNotice(it, isError = true) }
+                    model.error?.let { AppNotice(it, isError = true) }
+                    if (cvBusy || model.busy) AppLoadingState("Preparando postulación")
                 }
             },
-            confirmButton = { TextButton(onClick = { model.apply(opportunity.id, onApplied); confirmApplication = false }, enabled = !model.busy) { Text("Enviar postulación") } },
+            confirmButton = { TextButton(onClick = {
+                cvBusy = true; cvError = null
+                applicationScope.launch {
+                    try {
+                        val bytes = selectedCv?.let { withContext(Dispatchers.IO) { readCvPdf(context.contentResolver, Uri.parse(it)) } }
+                        model.apply(opportunity.id, bytes) { confirmApplication = false; onApplied() }
+                    } catch (e: CancellationException) { throw e }
+                    catch (e: Exception) { cvError = (e as? IllegalArgumentException)?.message ?: "No se pudo abrir el CV. Vuelve a elegirlo" }
+                    finally { cvBusy = false }
+                }
+            }, enabled = !model.busy && !cvBusy) { Text("Enviar postulación") } },
             dismissButton = { TextButton(onClick = { confirmApplication = false }) { Text("Cancelar") } },
         )
     }
@@ -730,14 +781,18 @@ private fun DetailScreen(opportunity: Opportunity?, model: OpportunityViewModel,
                 val applied = status != null && !canReapply
                 val full = opportunity.selectedCount >= opportunity.vacancies
                 if (status == "cancelled") AppNotice("La selección fue cancelada por quien publicó la oportunidad")
-                if (opportunity.status == "published" && !applied) {
-                    Text("Por ahora la postulación comparte tu perfil laboral; el envío del CV todavía no está disponible", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                if (opportunity.status == "published" && !applied && model.profileAccountType == "person") {
+                    Text("Podrás revisar tu perfil y adjuntar un CV antes de enviar", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     if (!model.profileReady) {
                         AppNotice("Completa tus habilidades y disponibilidad antes de postular")
                         OutlinedButton(onClick = onProfile, modifier = Modifier.fillMaxWidth()) { Text("Completar mi perfil") }
-                    } else AppPrimaryButton(if (full) "Vacantes cubiertas" else if (canReapply) "Volver a postular" else "Postular", onClick = { confirmApplication = true }, enabled = !full && !model.busy)
+                    } else AppPrimaryButton(if (full) "Vacantes cubiertas" else if (canReapply) "Volver a postular" else "Postular", onClick = {
+                        selectedCv = model.userId?.let { cvStore.loadPdfUri(it, opportunity.id) ?: cvStore.loadPdfUri(it, null) }
+                        cvError = null; confirmApplication = true
+                    }, enabled = !full && !model.busy)
                     OutlinedButton(onClick = { onPrepareCv(opportunity.id) }, modifier = Modifier.fillMaxWidth()) { Text("Preparar mi CV para esta oportunidad") }
                 }
+                if (opportunity.status == "published" && !applied && model.profileAccountType == "company") AppNotice("Las cuentas de empresa pueden consultar oportunidades y publicar, las postulaciones son para cuentas personales")
                 if (applied) {
                     AppNotice(when (status) { "reviewing" -> "Tu postulación está en revisión"; "selected" -> "Fuiste seleccionado"; "rejected" -> "No fuiste seleccionado para esta oportunidad"; "completed" -> "Trabajo finalizado"; else -> "Postulación enviada" })
                     if (status == "completed") {
@@ -783,6 +838,10 @@ private fun DetailScreen(opportunity: Opportunity?, model: OpportunityViewModel,
 
 @Composable
 private fun CandidatesScreen(opportunity: Opportunity?, model: OpportunityViewModel, onBack: () -> Unit, onChat: (String, String) -> Unit) {
+    val context = LocalContext.current
+    val cvScope = rememberCoroutineScope()
+    var cvMessage by remember { mutableStateOf<String?>(null) }
+    var openingCv by remember { mutableStateOf(false) }
     var selected by remember { mutableStateOf<pe.tuempuje.app.data.Candidate?>(null) }
     var completing by remember { mutableStateOf<pe.tuempuje.app.data.Candidate?>(null) }
     var rejecting by remember { mutableStateOf<pe.tuempuje.app.data.Candidate?>(null) }
@@ -838,20 +897,42 @@ private fun CandidatesScreen(opportunity: Opportunity?, model: OpportunityViewMo
             if (model.candidatesLoading) AppLoadingState("Cargando postulaciones")
             model.candidateError?.let { AppNotice(it, isError = true); TextButton(onClick = { model.observeCandidates(opportunity.id) }) { Text("Reintentar") } }
             model.error?.let { AppNotice(it, isError = true) }
+            cvMessage?.let { AppNotice(it, isError = true) }
             if (!model.candidatesLoading && model.candidateError == null && model.candidates.isEmpty()) {
                 AppEmptyState("Aún no hay postulaciones", "Cuando alguien postule aparecerá en esta sección")
             }
             model.candidates.forEach { candidate ->
                 CandidateCard(candidate, canManage = opportunity.status in setOf("published", "closed") && !model.busy, canSelect = candidate.status in setOf("pending", "reviewing") && opportunity.status in setOf("published", "closed") && opportunity.selectedCount < opportunity.vacancies && !model.busy,
                     onSelect = { selected = candidate }, onReview = { model.updateCandidateStatus(opportunity.id, candidate.id, "reviewing") }, onReject = { rejecting = candidate }, onCancelSelection = { cancelling = candidate },
-                    onComplete = { completing = candidate }, onChat = { onChat(opportunity.id, candidate.id) }, onReference = { referenceCandidate = candidate }, onPublicReferences = { publicCandidate = candidate })
+                    onComplete = { completing = candidate }, onChat = { onChat(opportunity.id, candidate.id) }, onReference = { referenceCandidate = candidate }, onPublicReferences = { publicCandidate = candidate },
+                    onCv = {
+                        if (!openingCv) cvScope.launch {
+                            openingCv = true; cvMessage = null
+                            try {
+                                val data = model.candidateCv(opportunity.id, candidate.id)
+                                if (data == null) cvMessage = "Esta persona no adjuntó un CV"
+                                else {
+                                    val uri = withContext(Dispatchers.IO) {
+                                        val folder = File(context.cacheDir, "cv-preview").apply { mkdirs() }
+                                        val name = java.security.MessageDigest.getInstance("SHA-256").digest("${opportunity.id}/${candidate.id}".toByteArray()).joinToString("") { "%02x".format(it) }
+                                        val file = File(folder, "$name.pdf"); file.writeBytes(data)
+                                        FileProvider.getUriForFile(context, "${context.packageName}.files", file)
+                                    }
+                                    context.startActivity(Intent(Intent.ACTION_VIEW).setDataAndType(uri, "application/pdf").addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION))
+                                }
+                            } catch (e: CancellationException) { throw e }
+                            catch (_: ActivityNotFoundException) { cvMessage = "No hay una aplicación para abrir PDF" }
+                            catch (_: Exception) { cvMessage = "No se pudo cargar el CV. Revisa la conexión e inténtalo de nuevo" }
+                            finally { openingCv = false }
+                        }
+                    })
             }
         }
     }
 }
 
 @Composable
-private fun CandidateCard(candidate: pe.tuempuje.app.data.Candidate, canManage: Boolean, canSelect: Boolean, onSelect: () -> Unit, onReview: () -> Unit, onReject: () -> Unit, onCancelSelection: () -> Unit, onComplete: () -> Unit, onChat: () -> Unit, onReference: () -> Unit, onPublicReferences: () -> Unit) {
+private fun CandidateCard(candidate: pe.tuempuje.app.data.Candidate, canManage: Boolean, canSelect: Boolean, onSelect: () -> Unit, onReview: () -> Unit, onReject: () -> Unit, onCancelSelection: () -> Unit, onComplete: () -> Unit, onChat: () -> Unit, onReference: () -> Unit, onPublicReferences: () -> Unit, onCv: () -> Unit) {
     Surface(shape = MaterialTheme.shapes.large, color = MaterialTheme.colorScheme.surface, border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant), modifier = Modifier.fillMaxWidth()) {
         Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -869,6 +950,7 @@ private fun CandidateCard(candidate: pe.tuempuje.app.data.Candidate, canManage: 
             if (candidate.district.isNotBlank()) DetailRow("Distrito", candidate.district)
             if (candidate.education.isNotBlank()) DetailRow("Estudios o formación", candidate.education)
             if (candidate.portfolio.isNotBlank()) DetailRow("Portafolio o proyectos", candidate.portfolio)
+            if (candidate.status !in setOf("withdrawn", "cancelled")) OutlinedButton(onClick = onCv, modifier = Modifier.fillMaxWidth()) { Text("Abrir CV adjunto") }
             TextButton(onClick = onPublicReferences) { Text("Ver referencias compartidas") }
             OutlinedButton(onClick = onChat, modifier = Modifier.fillMaxWidth()) { Text(if (candidate.status in setOf("withdrawn", "rejected", "cancelled")) "Ver conversación anterior" else "Conversar") }
             if (canManage && candidate.status == "pending") TextButton(onClick = onReview) { Text("Marcar en revisión") }
@@ -981,7 +1063,7 @@ private fun PublishScreen(services: FirebaseServices?, model: OpportunityViewMod
     var category by rememberSaveable { mutableStateOf("Ayudantía") }
     var noExperience by rememberSaveable { mutableStateOf<Boolean?>(null) }
     var workMode by rememberSaveable { mutableStateOf<String?>(null) }
-    var includeBusiness by rememberSaveable { mutableStateOf(false) }
+    val includeBusiness = model.profileAccountType == "company"
     var pendingTemplate by remember { mutableStateOf<WorkTemplate?>(null) }
     var showError by rememberSaveable { mutableStateOf(false) }
     var step by rememberSaveable { mutableIntStateOf(0) }
@@ -1013,7 +1095,7 @@ private fun PublishScreen(services: FirebaseServices?, model: OpportunityViewMod
         workMode == null,
     ).count { it }
     val invalidCount = if (step == 0) workErrors else conditionErrors
-    val hasDraft = listOf(title, description, location, payAmount, duration, requirements).any { it.isNotBlank() } || selectedDate != null || flexibleDate || vacancies != "1" || category != "Ayudantía" || payUnit != "Por tarea" || noExperience != null || workMode != null || includeBusiness
+    val hasDraft = listOf(title, description, location, payAmount, duration, requirements).any { it.isNotBlank() } || selectedDate != null || flexibleDate || vacancies != "1" || category != "Ayudantía" || payUnit != "Por tarea" || noExperience != null || workMode != null
 
     fun applyTemplate(template: WorkTemplate) {
         title = template.title
@@ -1050,13 +1132,13 @@ private fun PublishScreen(services: FirebaseServices?, model: OpportunityViewMod
         title = result.draft.title; description = result.draft.tasks; requirements = result.draft.requirements
         category = result.category; noExperience = result.noExperience; workMode = result.mode
         location = result.location; payAmount = result.amount; payUnit = result.payUnit
-        includeBusiness = result.includeBusiness; vacancies = "1"; duration = ""
+        vacancies = "1"; duration = ""
         flexibleDate = result.dateChoice == "Por coordinar"
         selectedDate = when (result.dateChoice) { "Hoy" -> todayMillis; "Mañana" -> dateAsUtcMillis(today.plusDays(1)); else -> null }
         showError = false; step = 2
         scope.launch { scrollState.animateScrollTo(0) }
     }
-    if (showAiInfo) OpportunityAssistantDialog(services, model.profileOrganization, model.applicationProfile.district, onDismiss = { showAiInfo = false }, onUse = { result ->
+    if (showAiInfo) OpportunityAssistantDialog(services, if (model.profileAccountType == "company") model.profileOrganization else "", model.applicationProfile.district, onDismiss = { showAiInfo = false }, onUse = { result ->
         showAiInfo = false
         if (hasDraft) pendingAiDraft = result else applyAssistant(result)
     })
@@ -1079,7 +1161,7 @@ private fun PublishScreen(services: FirebaseServices?, model: OpportunityViewMod
                 TextButton(enabled = !model.busy, onClick = {
                     model.publish(title, description, location, payment.orEmpty(), schedule, requirements, vacancies.toIntOrNull() ?: 0, category, noExperience == true, workMode.orEmpty(), includeBusiness) {
                         title = ""; description = ""; location = ""; payAmount = ""; payUnit = "Por tarea"; duration = ""; selectedDate = null; flexibleDate = false; requirements = ""; vacancies = "1"; category = "Ayudantía"
-                        noExperience = null; workMode = null; includeBusiness = false; showError = false; confirmPublish = false; step = 0
+                        noExperience = null; workMode = null; showError = false; confirmPublish = false; step = 0
                         onPublished()
                     }
                     confirmPublish = false
@@ -1171,18 +1253,14 @@ private fun PublishScreen(services: FirebaseServices?, model: OpportunityViewMod
             }
             if (showError && noExperience == null) Text("Selecciona una opción", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
             Text("¿Quién ofrece esta oportunidad?", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-            if (model.profileOrganization.trim().length >= 2 || includeBusiness) {
-                Row(Modifier.fillMaxWidth().toggleable(value = includeBusiness, role = Role.Checkbox, onValueChange = { includeBusiness = it }), verticalAlignment = Alignment.CenterVertically) {
-                    Checkbox(checked = includeBusiness, onCheckedChange = null)
-                    Column(Modifier.weight(1f)) {
-                        Text(if (model.profileOrganization.isBlank()) "Mostrar datos del negocio" else "Mostrar ${model.profileOrganization}", style = MaterialTheme.typography.bodyLarge)
-                        Text("También se mostrará el rubro y la descripción guardados en tu perfil", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
+            if (model.profileAccountType == "company") {
+                Column(Modifier.fillMaxWidth()) {
+                    Text(if (model.profileOrganization.isBlank()) "Datos de la empresa" else model.profileOrganization, style = MaterialTheme.typography.bodyLarge)
+                    Text("Se mostrarán los datos guardados en tu perfil empresarial", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 if (includeBusiness && model.profileOrganization.trim().length < 2) Text("Completa el nombre del negocio o desactiva esta opción", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
             } else {
-                Text("Puedes publicar como persona o agregar datos de un negocio desde tu perfil", style = MaterialTheme.typography.bodySmall)
-                TextButton(onClick = onAccount) { Text("Ir a datos de mi perfil") }
+                Text("Publicarás como persona, con el nombre de tu cuenta", style = MaterialTheme.typography.bodySmall)
             }
         } else if (step == 1) {
             FormSectionHeading("02", "Condiciones", "Aclara el tiempo, el lugar y el pago")
@@ -1360,9 +1438,9 @@ private fun ActivityScreen(model: OpportunityViewModel, activityRevision: Int, o
         (model.error ?: model.feedError ?: model.applicationsError ?: model.ownError)?.let { message -> item { AppNotice(message, isError = true); TextButton(onClick = model::retry) { Text("Reintentar") } } }
         item {
             LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                if (purpose == "employer" || myPosts.isNotEmpty()) item { FilterChip(selected = section == "Publicaciones", onClick = { section = "Publicaciones" }, label = { Text("Publicaciones (${myPosts.size})") }) }
-                item { FilterChip(selected = section == "Postulaciones", onClick = { section = "Postulaciones" }, label = { Text("Postulaciones (${myApplications.size})") }) }
-                item { FilterChip(selected = section == "Experiencias", onClick = { section = "Experiencias" }, label = { Text("Experiencias (${myExperiences.size})") }) }
+                item { FilterChip(selected = section == "Publicaciones", onClick = { section = "Publicaciones" }, label = { Text("Publicaciones (${myPosts.size})") }) }
+                if (model.profileAccountType == "person" || myApplications.isNotEmpty()) item { FilterChip(selected = section == "Postulaciones", onClick = { section = "Postulaciones" }, label = { Text("Postulaciones (${myApplications.size})") }) }
+                if (model.profileAccountType == "person" || myExperiences.isNotEmpty()) item { FilterChip(selected = section == "Experiencias", onClick = { section = "Experiencias" }, label = { Text("Experiencias (${myExperiences.size})") }) }
             }
         }
         if (model.userId != null) item {

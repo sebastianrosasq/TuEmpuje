@@ -81,6 +81,11 @@ Los avisos restantes no tienen una corrección automática compatible en el árb
 | `users/{uid}` | Nombre, correo, DNI, celular y datos privados de habilidades, experiencia y disponibilidad | Solo el titular puede leer y actualizar su perfil, el correo y el identificador son inmutables |
 | `opportunities/{id}` | Responsable, nombre, categoría, tareas, requisitos, condiciones, vacantes y estado | Una cuenta con perfil crea su propia oportunidad publicada, las cuentas autenticadas consultan publicaciones |
 | `opportunities/{id}/applications/{uid}` | Identificador, nombre, habilidades, experiencia, disponibilidad, distrito, estudios, portafolio, estado y fecha | El postulante crea una solicitud propia y puede leerla, el dueño de la oportunidad puede revisar y seleccionar sus postulaciones |
+| `opportunities/{id}/applications/{uid}/privateFiles/cv` | PDF opcional de hasta 700 kB | El postulante y el dueño de la oportunidad pueden consultarlo, al retirar la postulación se elimina el archivo |
+
+Cada perfil declara una cuenta personal o de empresa. La cuenta personal puede publicar y postular, la cuenta de empresa puede publicar y consultar avisos. El tipo se fija tras elegirlo, los perfiles anteriores deben seleccionarlo antes de crear nuevas publicaciones o postulaciones.
+
+Los PDF adjuntos utilizan Firestore dentro de las cuotas del proyecto Spark. Es una solución para pruebas y volúmenes pequeños, no sustituye a un almacenamiento de archivos preparado para escalar. El documento puede contener datos personales que su titular decida compartir.
 | `opportunities/{id}/applications/{uid}/messages/{messageId}` | Mensajes asociados a una postulación | Solo quien postula y quien publicó pueden leer, el envío se bloquea si la postulación o la oferta se retiran |
 
 La consulta de oportunidades compartidas debe incluir `where('status', '==', 'published')`, porque las reglas de Firestore no filtran resultados por cuenta propia
