@@ -372,18 +372,23 @@ service cloud.firestore {
 
     match /reports/{reportId} {
       allow create: if signedIn() && active(request.auth.uid)
-        && request.resource.data.keys().hasOnly(['reporterId', 'opportunityId', 'reason', 'details', 'status', 'createdAt'])
+        && request.resource.data.keys().hasOnly(['reporterId', 'opportunityId', 'opportunityTitle', 'reason', 'details', 'status', 'createdAt'])
         && request.resource.data.keys().hasAll(['reporterId', 'opportunityId', 'reason', 'details', 'status', 'createdAt'])
         && request.resource.data.reporterId == request.auth.uid
         && request.resource.data.opportunityId is string
         && reportId == request.auth.uid + '_' + request.resource.data.opportunityId
         && exists(opportunityPath(request.resource.data.opportunityId))
         && active(get(opportunityPath(request.resource.data.opportunityId)).data.ownerId)
+        && get(opportunityPath(request.resource.data.opportunityId)).data.ownerId != request.auth.uid
+        && (!('opportunityTitle' in request.resource.data) || request.resource.data.opportunityTitle == get(opportunityPath(request.resource.data.opportunityId)).data.title)
         && request.resource.data.reason in ['Información engañosa', 'Pago o condiciones', 'Seguridad', 'Otro']
         && textWithin(request.resource.data.details, 10, 500)
+        && request.resource.data.details.matches('(?s).*\\S.*')
         && request.resource.data.status == 'open'
         && request.resource.data.createdAt == request.time;
-      allow read, update, delete: if false;
+      allow get: if signedIn() && active(request.auth.uid) && resource.data.reporterId == request.auth.uid;
+      allow list: if signedIn() && active(request.auth.uid) && request.query.limit <= 50 && resource.data.reporterId == request.auth.uid;
+      allow update, delete: if false;
     }
   }
 }

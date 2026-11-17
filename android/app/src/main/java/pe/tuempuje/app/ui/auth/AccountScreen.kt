@@ -45,6 +45,12 @@ import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.WorkOutline
 import androidx.compose.material.icons.rounded.BusinessCenter
+import androidx.compose.material.icons.rounded.Description
+import androidx.compose.material.icons.rounded.AutoAwesome
+import androidx.compose.material.icons.rounded.BookmarkBorder
+import androidx.compose.material.icons.rounded.HelpOutline
+import androidx.compose.material.icons.rounded.Flag
+import androidx.compose.material.icons.rounded.SwapHoriz
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -107,6 +113,7 @@ fun AccountScreen(auth: FirebaseAuth, firestore: FirebaseFirestore, onSettings: 
     val account: AccountViewModel = viewModel(factory = factory)
     val state by account.state.collectAsState()
     var showExperience by rememberSaveable(state.uid) { mutableStateOf(false) }
+    var showReports by rememberSaveable(state.uid) { mutableStateOf(false) }
     var showRecovery by rememberSaveable { mutableStateOf(false) }
     var showTerms by rememberSaveable { mutableStateOf(false) }
     val isEmployer = LocalAppPreferences.current?.purpose == "employer"
@@ -150,6 +157,8 @@ fun AccountScreen(auth: FirebaseAuth, firestore: FirebaseFirestore, onSettings: 
         scope.launch {
             SavedDatabase.get(context).saved().clearAccount(uid)
             ResumeDraftStore(context).clearAccount(uid)
+            context.getSharedPreferences("perfil_visual", android.content.Context.MODE_PRIVATE).edit().remove("photo/$uid").remove("color/$uid").apply()
+            withContext(Dispatchers.IO) { java.io.File(context.cacheDir, "cv-preview").deleteRecursively() }
             runCatching { credentialManager.clearCredentialState(ClearCredentialStateRequest()) }
         }
     }
@@ -157,7 +166,7 @@ fun AccountScreen(auth: FirebaseAuth, firestore: FirebaseFirestore, onSettings: 
     var observedProfileRevision by rememberSaveable { mutableStateOf(profileHomeRevision) }
     LaunchedEffect(profileHomeRevision) {
         if (profileHomeRevision != observedProfileRevision) {
-            showCvAssistant = false; showExperience = false; showRecovery = false
+            showCvAssistant = false; showExperience = false; showRecovery = false; showReports = false
             observedProfileRevision = profileHomeRevision
         }
     }
@@ -166,7 +175,10 @@ fun AccountScreen(auth: FirebaseAuth, firestore: FirebaseFirestore, onSettings: 
     }
     val signOut = {
         account.signOut()
-        scope.launch { runCatching { credentialManager.clearCredentialState(ClearCredentialStateRequest()) } }
+        scope.launch {
+            withContext(Dispatchers.IO) { java.io.File(context.cacheDir, "cv-preview").deleteRecursively() }
+            runCatching { credentialManager.clearCredentialState(ClearCredentialStateRequest()) }
+        }
         Unit
     }
 
@@ -247,6 +259,10 @@ fun AccountScreen(auth: FirebaseAuth, firestore: FirebaseFirestore, onSettings: 
         ResumeAssistantScreen(state, FirebaseServices(auth, firestore, BuildConfig.FIREBASE_LOCAL), cvOpportunity) { showCvAssistant = false; onCvClosed() }
         return
     }
+    if (showReports && state.uid != null) {
+        MyReportsScreen(state.uid!!, firestore) { showReports = false }
+        return
+    }
     if (showExperience && state.uid != null) {
         if (isEmployer) BusinessEditor(state, account, onBack = { showExperience = false })
         else ExperienceEditor(state, account, onBack = { showExperience = false })
@@ -281,25 +297,29 @@ fun AccountScreen(auth: FirebaseAuth, firestore: FirebaseFirestore, onSettings: 
         if (authGate && state.uid == null && auth.currentUser == null) TextButton(enabled = !state.loading, onClick = onChoosePurpose) { Text("Cambiar tipo de cuenta") }
         if (authGate && state.uid == null) TextButton(onClick = { showTerms = true }) { Text("Términos y servicios") }
         if (state.uid != null && !authGate) {
-            TextButton(enabled = !state.loading, onClick = { confirmDelete = true }) { Text("Eliminar cuenta", color = MaterialTheme.colorScheme.error) }
             if (!isEmployer && !state.profileLoadFailed) {
-                Text("Tu desarrollo", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                OutlinedButton(enabled = !state.loading && !pdfBusy, onClick = {
+                Text("Tu desarrollo", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                Text("Prepara tu presentación para nuevas oportunidades", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                ProfileActionTile(title = "Crear CV con Empu", description = "Elige un diseño y prepara tu currículum paso a paso", icon = Icons.Rounded.AutoAwesome, onClick = { showCvAssistant = true })
+                ProfileActionTile(title = if (pdfBusy) "Guardando CV…" else "Guardar CV de mi perfil", description = "Crea un PDF con tus datos y guárdalo en tu dispositivo", icon = Icons.Rounded.Description, enabled = !state.loading && !pdfBusy, onClick = {
                     pdfMessage = null
                     pdfProfile = state
                     createPdf.launch("TuEmpuje-CV.pdf")
-                }, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) { Text(if (pdfBusy) "Guardando CV…" else "Guardar mi CV en PDF") }
-                Text("El archivo se crea con los datos de tu perfil y se guarda en tu dispositivo, no se envía automáticamente", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                })
                 pdfMessage?.let { AppNotice(it) }
-                OutlinedButton(onClick = { showCvAssistant = true }, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) { Text("Crear CV con Empu") }
             }
         }
         if (!authGate) {
-            Text(if (isEmployer) "Cuenta de empresa" else "Cuenta personal · puedes buscar trabajo y pedir ayuda", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            OutlinedButton(enabled = !state.loading, onClick = onChoosePurpose, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) { Text("Cambiar tipo de cuenta") }
-            Text("Tu espacio", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-            if (!isEmployer) OutlinedButton(onClick = onSaved, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) { Text("Oportunidades guardadas") }
-            OutlinedButton(onClick = onHelp, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) { Text("Ayuda y seguridad") }
+            Text("Tu espacio", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+            Surface(shape = MaterialTheme.shapes.large, color = MaterialTheme.colorScheme.surface, modifier = Modifier.fillMaxWidth()) {
+                Column {
+                    if (state.uid != null) ProfileMenuRow("Mis reportes", "Consulta el estado de los avisos que enviaste", Icons.Rounded.Flag) { showReports = true }
+                    if (!isEmployer) ProfileMenuRow("Oportunidades guardadas", "Vuelve a las ofertas que te interesan", Icons.Rounded.BookmarkBorder, onClick = onSaved)
+                    ProfileMenuRow("Ayuda y seguridad", "Resuelve dudas y revisa recomendaciones", Icons.Rounded.HelpOutline, onClick = onHelp)
+                    ProfileMenuRow("Cambiar tipo de cuenta", if (isEmployer) "Actualmente usas una cuenta de empresa" else "Actualmente usas una cuenta personal", Icons.Rounded.SwapHoriz, enabled = !state.loading, onClick = onChoosePurpose)
+                }
+            }
+            if (state.uid != null) TextButton(enabled = !state.loading, onClick = { confirmDelete = true }) { Text("Eliminar cuenta", color = MaterialTheme.colorScheme.error) }
         }
     }
 }
@@ -587,18 +607,7 @@ private fun ProfileForm(state: AccountUiState, account: AccountViewModel, isEmpl
                     TextButton(enabled = !state.loading, onClick = { name = state.displayName; dni = state.dni; documentType = state.documentType; phone = state.phone; nationality = state.nationality; district = state.district; organization = state.organization; editing = false }) { Text("Cancelar") }
                 }
             } else {
-                Surface(shape = MaterialTheme.shapes.large, color = MaterialTheme.colorScheme.primaryContainer, modifier = Modifier.fillMaxWidth()) {
-                    Row(Modifier.background(Brush.linearGradient(listOf(MaterialTheme.colorScheme.primaryContainer, MaterialTheme.colorScheme.secondaryContainer))).padding(16.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        Box(modifier = Modifier.size(56.dp).background(MaterialTheme.colorScheme.surface.copy(alpha = .75f), CircleShape), contentAlignment = Alignment.Center) {
-                            Text(state.displayName.trim().firstOrNull()?.uppercase() ?: "", style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
-                        }
-                        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                            Text(state.displayName, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onPrimaryContainer)
-                            Text(state.email, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onPrimaryContainer)
-                            Text(if (isEmployer) "Cuenta de empresa" else "Cuenta personal", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onPrimaryContainer)
-                        }
-                    }
-                }
+                AccountIdentityCard(state, isEmployer)
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Text("DATOS DE CONTACTO", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
                     if (state.nationality.isNotBlank()) Text(state.nationality, style = MaterialTheme.typography.bodyMedium)

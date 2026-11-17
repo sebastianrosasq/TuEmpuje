@@ -126,6 +126,16 @@ node functions/moderation.cjs resolve ID_DEL_REPORTE keep --project ID_DEL_PROYE
 
 La resolución y el registro en `moderationActions` se guardan en una transacción, el nombre del responsable es una etiqueta ingresada por quien ejecuta la herramienta y no una verificación independiente de identidad, el acceso se controla mediante las credenciales administrativas y sus permisos
 
+Para revisar reportes desde una interfaz local, ejecutar desde `infra/`:
+
+```powershell
+node moderation-server.cjs --project ID_DEL_PROYECTO
+```
+
+El programa muestra un enlace de sesión válido solo mientras el proceso esté activo, el panel escucha exclusivamente en `127.0.0.1` y utiliza las credenciales administrativas locales en el servidor, no en el navegador. El enlace concede acceso a esa sesión y no debe compartirse. El nombre del operador continúa siendo una etiqueta manual, no una identidad auditada
+
+La persona que envió un reporte puede consultar sus propios reportes desde Perfil, sin acceso a los de otros usuarios. La revisión solo modifica los casos mediante el panel administrativo o la herramienta de consola, el panel local no es un servicio público ni sustituye el control de acceso de un equipo de moderación en producción
+
 Los reportes de referencias se consultan con `node functions/moderation.cjs list-disputes --project ID_DEL_PROYECTO` y se resuelven con `resolve-dispute ID_DE_REFERENCIA keep|hide --project ID_DEL_PROYECTO --operator "Nombre" --confirm`, la acción `hide` impide volver a compartir la referencia mientras se mantenga esa resolución
 
 La referencia solo puede crearla quien publicó la oportunidad después de que el trabajo figure como finalizado y el postulante lo confirme, inicialmente es privada entre las partes y el postulante puede compartirla, ocultarla o solicitar revisión, los perfiles autenticados pueden consultar únicamente las referencias compartidas
@@ -160,7 +170,9 @@ TuEmpuje se dirige a personas de 18 años o más, antes de un despliegue públic
 
 App Check está activado para Firebase AI Logic, cada instalación de depuración necesita registrar su propio token en Firebase, el token es secreto y no debe añadirse al repositorio ni distribuirse con el APK, las compilaciones de lanzamiento usan el proveedor de Play Integrity y necesitan su configuración correspondiente
 
-La carga de CV como archivo sigue pendiente, Firebase Storage necesita el plan Blaze y se evaluará otra opción antes de elegir dónde guardar documentos
+El PDF que se adjunta a una postulación se guarda como un archivo limitado a 700 kB en un documento privado de Firestore, accesible para el postulante y el dueño de la oportunidad según el estado de la postulación. La solución es para pruebas y volúmenes pequeños, no reemplaza un almacenamiento diseñado para escalar
+
+El creador también permite elegir un PDF de hasta 4 MB para analizarlo con Empu. El documento completo se envía al proveedor únicamente después de una confirmación explícita y la persona revisa la propuesta antes de usarla. Este análisis no adjunta el PDF a una postulación ni aumenta el límite del archivo que se puede enviar al empleador
 ## Eliminación de cuentas
 
 `functions/deleteAccount` exige una sesión reciente y elimina el perfil, las oportunidades propias con sus postulaciones, las postulaciones a otras oportunidades y los reportes relacionados, también ajusta las vacantes cuando corresponde

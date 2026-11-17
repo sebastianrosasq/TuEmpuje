@@ -10,6 +10,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -37,6 +39,7 @@ import pe.tuempuje.app.profile.ResumePdf
 import pe.tuempuje.app.profile.ResumeStyle
 import pe.tuempuje.app.profile.ResumeDraft
 import pe.tuempuje.app.profile.ResumeDraftStore
+import pe.tuempuje.app.profile.readCvForAnalysis
 import pe.tuempuje.app.profile.ReferenceResumeTemplates
 import pe.tuempuje.app.ui.components.*
 
@@ -66,6 +69,8 @@ fun ResumeAssistantScreen(profile: AccountUiState, services: FirebaseServices, o
     var questions by rememberSaveable(profile.uid) { mutableStateOf("") }
     var consent by rememberSaveable(profile.uid) { mutableStateOf(false) }
     var adult by rememberSaveable(profile.uid) { mutableStateOf(false) }
+    var pdfConsent by remember(profile.uid) { mutableStateOf(false) }
+    var selectedImport by remember(profile.uid, opportunity?.id) { mutableStateOf<Uri?>(null) }
     var busy by remember { mutableStateOf(false) }
     var suggestion by remember { mutableStateOf<ResumeSuggestion?>(null) }
     var error by remember { mutableStateOf<String?>(null) }
@@ -74,6 +79,11 @@ fun ResumeAssistantScreen(profile: AccountUiState, services: FirebaseServices, o
     var confirmExit by remember { mutableStateOf(false) }
     var confirmEmpty by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
+    val selectImport = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        selectedImport = uri
+        pdfConsent = false
+        error = null
+    }
     LaunchedEffect(uid, opportunity?.id, style, goal, summary, skills, experience, education, instruction, languages, references, photoUri, answers) {
         if (uid.isNotBlank()) {
             delay(350)
@@ -163,16 +173,54 @@ fun ResumeAssistantScreen(profile: AccountUiState, services: FirebaseServices, o
         }) { Text("Guardar borrador") }
         if (step == 0) {
             Text("Elige un diseño", style = MaterialTheme.typography.titleLarge)
-            Text("Puedes cambiarlo antes de guardar el documento")
+            Text("Desliza para comparar los diseños. Puedes cambiarlo antes de guardar el documento")
             val example = profile.copy(skills = "Tus habilidades", experience = "Tu experiencia o proyectos", education = "Tus estudios o cursos")
-            ReferenceResumeTemplates.styles.forEach { option ->
-                ResumeTemplateOption(option, example, selected = style == option.name) { style = option.name }
+            LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp), contentPadding = PaddingValues(vertical = 4.dp)) {
+                items(ReferenceResumeTemplates.styles, key = { it.name }) { option ->
+                    ResumeTemplateOption(option, example, selected = style == option.name, modifier = Modifier.width(190.dp)) { style = option.name }
+                }
             }
             AppNotice("Los ejemplos muestran la distribución del documento. Puedes cambiar el diseño y añadir una foto antes de guardar")
             Button(onClick = { step = 1 }, modifier = Modifier.fillMaxWidth()) { Text("Continuar") }
         } else if (step == 1) {
             Text("Cuéntame sobre ti", style = MaterialTheme.typography.titleLarge)
             Text("Puedes utilizar lo que ya guardaste en tu perfil y modificarlo para este CV")
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Checkbox(checked = adult, onCheckedChange = { adult = it }, enabled = !busy)
+                Text("Confirmo que tengo 18 años o más", style = MaterialTheme.typography.bodySmall)
+            }
+            Surface(shape = MaterialTheme.shapes.large, color = MaterialTheme.colorScheme.secondaryContainer, modifier = Modifier.fillMaxWidth()) {
+                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("¿Ya tienes un CV?", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                    Text("Puedes seleccionar un PDF de hasta 4 MB para que Empu sugiera información. El archivo no se añade a una postulación automáticamente", style = MaterialTheme.typography.bodyMedium)
+                    OutlinedButton(enabled = !busy, onClick = { selectImport.launch(arrayOf("application/pdf")) }) {
+                        Text(if (selectedImport == null) "Elegir PDF" else "Cambiar PDF")
+                    }
+                    if (selectedImport != null) {
+                        Text("El PDF completo, incluidos los datos personales que contenga, se enviará a Google para analizarlo. Revisa el archivo antes de continuar", style = MaterialTheme.typography.bodySmall)
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Checkbox(checked = pdfConsent, onCheckedChange = { pdfConsent = it }, enabled = !busy)
+                            Text("Acepto enviar este PDF para su análisis", style = MaterialTheme.typography.bodySmall)
+                        }
+                        OutlinedButton(enabled = !busy && pdfConsent && adult && !services.isLocal, onClick = {
+                            val uri = selectedImport ?: return@OutlinedButton
+                            busy = true; error = null
+                            scope.launch {
+                                try {
+                                    val pdf = withContext(Dispatchers.IO) { readCvForAnalysis(context.contentResolver, uri) }
+                                    suggestion = EmpuAssistant(services).reviewResumePdf(pdf, opportunity?.requirements.orEmpty())
+                                } catch (_: TimeoutCancellationException) { error = "La respuesta tardó demasiado. Puedes continuar manualmente" }
+                                catch (e: CancellationException) { throw e }
+                                catch (e: IllegalArgumentException) { error = e.message ?: "Selecciona un PDF válido" }
+                                catch (e: Exception) { error = assistantErrorMessage(e) }
+                                finally { busy = false }
+                            }
+                        }, modifier = Modifier.fillMaxWidth()) { Text("Analizar PDF con Empu") }
+                        if (services.isLocal) Text("El análisis necesita conexión al servicio de IA. Puedes continuar manualmente", style = MaterialTheme.typography.bodySmall)
+                        TextButton(enabled = !busy, onClick = { selectedImport = null; pdfConsent = false }) { Text("Quitar PDF") }
+                    }
+                }
+            }
             TextButton(onClick = { confirmEmpty = true }, enabled = !busy) { Text("Empezar desde cero") }
             if (opportunity != null) AppNotice("Preparando una versión para: ${opportunity.title}. Revisa el resultado antes de usarlo")
             if (questions.isNotBlank()) AppNotice(questions)
@@ -191,10 +239,6 @@ fun ResumeAssistantScreen(profile: AccountUiState, services: FirebaseServices, o
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Checkbox(checked = consent, onCheckedChange = { consent = it }, enabled = !busy)
                 Text("Acepto enviar estos datos", style = MaterialTheme.typography.bodySmall)
-            }
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Checkbox(checked = adult, onCheckedChange = { adult = it }, enabled = !busy)
-                Text("Confirmo que tengo 18 años o más", style = MaterialTheme.typography.bodySmall)
             }
             if (services.isLocal) AppNotice("Empu necesita conexión al servicio de IA. Puedes continuar manualmente")
             if (!consent || !adult || listOf(skills, experience, education).none { it.isNotBlank() }) Text("Para pedir sugerencias, completa al menos un campo y marca las dos casillas", style = MaterialTheme.typography.bodySmall)
@@ -259,9 +303,9 @@ private fun ResumeDocumentPreview(profile: AccountUiState, style: ResumeStyle, g
 }
 
 @Composable
-private fun ResumeTemplateOption(style: ResumeStyle, profile: AccountUiState, selected: Boolean, onSelect: () -> Unit) {
+private fun ResumeTemplateOption(style: ResumeStyle, profile: AccountUiState, selected: Boolean, modifier: Modifier = Modifier, onSelect: () -> Unit) {
     val colors = MaterialTheme.colorScheme
-    Surface(onClick = onSelect, shape = MaterialTheme.shapes.large, modifier = Modifier.fillMaxWidth(),
+    Surface(onClick = onSelect, shape = MaterialTheme.shapes.large, modifier = modifier,
         color = if (selected) colors.primaryContainer else colors.surface,
         border = BorderStroke(if (selected) 2.dp else 1.dp, if (selected) colors.primary else colors.outlineVariant)) {
         Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {

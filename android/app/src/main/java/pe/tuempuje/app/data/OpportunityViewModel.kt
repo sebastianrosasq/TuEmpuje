@@ -614,6 +614,7 @@ class OpportunityViewModel(private val services: FirebaseServices?) : ViewModel(
         val db = services?.firestore ?: return
         val uid = userId ?: return
         val cleanDetails = details.trim()
+        val title = find(opportunityId)?.title
         if (reason !in listOf("Información engañosa", "Pago o condiciones", "Seguridad", "Otro") || cleanDetails.length !in 10..500) {
             error = "Describe el motivo con entre 10 y 500 caracteres"
             return
@@ -622,7 +623,7 @@ class OpportunityViewModel(private val services: FirebaseServices?) : ViewModel(
             db.collection("reports").document("${uid}_${opportunityId}").set(mapOf(
                 "reporterId" to uid, "opportunityId" to opportunityId, "reason" to reason,
                 "details" to cleanDetails, "status" to "open", "createdAt" to FieldValue.serverTimestamp(),
-            )).await()
+            ) + (title?.let { mapOf("opportunityTitle" to it) } ?: emptyMap())).await()
             onSuccess()
         }
     }

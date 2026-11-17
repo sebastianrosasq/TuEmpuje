@@ -97,7 +97,13 @@ El perfil permite guardar un CV en PDF con los datos registrados, al postular se
 
 El asistente de Empu utiliza Gemini en el entorno de desarrollo para proponer oportunidades y sugerencias de CV, al publicar permite elegir las condiciones, reutilizar los datos del negocio y revisar una vista previa editable antes de confirmar, la persona autoriza el envío de su descripción y el formulario manual sigue disponible
 
-El creador de CV ofrece seis diseños, muestra la primera página antes de exportar y permite añadir una foto opcional, guardar un borrador general o por oportunidad y generar un PDF, todavía no interpreta el contenido de archivos existentes
+El creador de CV ofrece seis diseños, muestra la primera página antes de exportar y permite añadir una foto opcional, guardar un borrador general o por oportunidad y generar un PDF
+
+El creador permite elegir un PDF existente de hasta 4 MB y solicitar su análisis a Empu después de confirmar el envío completo del archivo al proveedor, la propuesta requiere revisión antes de incorporarse al borrador. Esta integración necesita verificarse en un dispositivo con acceso a IA y no amplía el límite de 700 kB del CV que puede adjuntarse a una postulación
+
+La persona puede elegir una foto y un color de avatar para su cuenta en el dispositivo, estos ajustes no se comparten con otras cuentas ni se incluyen automáticamente en las postulaciones
+
+Perfil incluye el seguimiento de reportes propios y el equipo dispone de un panel de moderación local con credenciales administrativas mantenidas en el servidor local. Las decisiones requieren revisión humana y el nombre del operador es una etiqueta manual
 
 Una cuenta personal puede postular y publicar solicitudes de apoyo, una cuenta de empresa puede publicar y consultar oportunidades, los perfiles anteriores deben seleccionar su tipo al ingresar
 

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { assertFails, assertSucceeds, initializeTestEnvironment } from '@firebase/rules-unit-testing';
 import {
-  Bytes, collection, collectionGroup, deleteDoc, deleteField, doc, getDoc, getDocs, query, runTransaction, serverTimestamp, setDoc, updateDoc, where, writeBatch,
+  Bytes, collection, collectionGroup, deleteDoc, deleteField, doc, getDoc, getDocs, limit, query, runTransaction, serverTimestamp, setDoc, updateDoc, where, writeBatch,
 } from 'firebase/firestore';
 
 const projectId = 'demo-tuempuje';
@@ -432,9 +432,15 @@ test('los reportes son privados, válidos y no se duplican', async () => {
   await assertFails(setDoc(doc(db, 'reports', 'candidato_otra'), { ...report, opportunityId: 'otra' }));
   await assertFails(setDoc(doc(db, 'reports', 'otro_oferta'), report));
   await assertFails(setDoc(ref, { ...report, details: 'corto' }));
-  await assertSucceeds(setDoc(ref, report));
+  await assertFails(setDoc(ref, { ...report, details: '          ' }));
+  await assertFails(setDoc(ref, { ...report, opportunityTitle: 'Título inventado' }));
+  await assertFails(setDoc(doc(user('cliente'), 'reports', 'cliente_oferta'), { ...report, reporterId: 'cliente' }));
+  await assertSucceeds(setDoc(ref, { ...report, opportunityTitle: 'Ayudante de fotografía' }));
   await assertFails(setDoc(ref, report));
-  await assertFails(getDoc(ref));
+  await assertSucceeds(getDoc(ref));
+  await assertFails(getDoc(doc(user('otro'), 'reports', 'candidato_oferta')));
+  await assertSucceeds(getDocs(query(collection(db, 'reports'), where('reporterId', '==', 'candidato'), limit(50))));
+  await assertFails(getDocs(query(collection(db, 'reports'), where('reporterId', '==', 'otro'), limit(50))));
   await assertFails(getDocs(collection(user('otro'), 'reports')));
 });
 
